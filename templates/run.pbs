@@ -15,12 +15,15 @@
 #==============================================================
 #                  Script  for  NCI
 #==============================================================
-module load gromacs/4.0.7
+set -x
+GMX_DIR="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
 
-grompp_d -f run.mdp -c cbp<%=ENV['n']%>-init.pdb -p topo.top -o md.tpr
+#module load gromacs/4.0.7
 
-module load openmpi
+${GMX_DIR}grompp_d -f run.mdp -c cbp<%=ENV['n']%>-init.pdb -p topo.top -o md.tpr
 
-mpirun -np 8 --bind-to-none mdrun_mpi_d -np 8 -pd -s md.tpr -deffnm md -c cbp<%=ENV['n']%>-end.pdb
+module load openmpi-1.6.3-x86_64
+
+mpirun -np 8 --bind-to-none ${GMX_DIR}mdrun_mpi_d -np 8 -pd -s md.tpr -deffnm md -c cbp<%=ENV['n']%>-end.pdb
 
 
