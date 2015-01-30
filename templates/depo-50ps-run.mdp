@@ -1,0 +1,73 @@
+title                    = heating to 300K
+
+; run control
+integrator               = md                    ; md integrator
+tinit                    = 0                     ; [ps] starting time for run
+dt                       = 0.004                 ; [ps] time step for integration
+nsteps                   = 12500                ; maximum number of steps to integrate, dt*nsteps = x ps
+
+; center of mass motion removal
+comm_mode               = linear                 ; remove center of mass translation
+nstcomm                 = 10                     ; [steps] frequency of mass motion removal
+comm_grps               = system                 ; group(s) for center of mass motion removal
+
+
+; output control
+nstxout                  = 50                    ; [steps] freq to write coordinates to trajectory
+nstvout                  = 50                    ; [steps] freq to write velocities to trajectory
+nstfout                  = 50                    ; [steps] freq to write forces to trajectory
+nstlog                   = 50                    ; [steps] freq to write energies to log file
+nstenergy                = 25                    ; [steps] freq to write energies to energy file
+nstxtcout                = 25                    ; [steps] freq to write coordinates to xtc trajectory
+xtc_grps                 = system                ; group(s) to write to xtc trajectory
+energygrps               = system                ; group(s) to write to energy file
+
+; neighbor searching
+nstlist                  = 5                     ; [steps] freq to update neighbor list and long-range forces
+ns_type                  = simple                ; method to determine neighbor list
+pbc                      = xyz                   ; periodic boundary conditions in all directions
+rlist                    = 1.4                   ; [nm] short-range cutoff for making neighbor list
+periodic_molecules       = yes                   ; for systems with mols that couple to themselves through pbc
+
+; electrostatics
+coulombtype              = reaction-field        ; rxn field electrostatics
+rcoulomb                 = 1.4                   ; [nm] Coulomb cutoff
+epsilon-rf               = 10
+
+; vdW
+vdwtype                  = cut-off               ; twin-range cut-off with rlist where rvdw >= rlist
+rvdw                     = 1.4                   ; van der Waals cutoff [nm]
+;;DispCorr                 = EnerPres              ; apply long range dispersion corrections
+
+;; ewald
+;fourierspacing           = 0.12                  ; [nm] grid spacing for FFT grid when using PME
+;pme_order                = 4                     ; interpolation order for PME, 4 = cubic
+;ewald_rtol               = 1e-5                  ; relative strength of Ewald-shifted potential at rcoulomb
+
+; temperature coupling
+tcoupl                   = Berendsen             ; temperature coupling with Berendsen-thermostat
+tc-grps                  = CBP   GRP             ; groups to couple seperately to temperature bath
+tau_t                    = 0.1   0.1             ; [ps] time constant for coupling
+ref_t                    = 300   300             ; [K] reference temperature for coupling
+
+;; pressure coupling
+;Pcoupl                   = Berendsen
+;Pcoupltype               = isotropic
+;tau_p                    = 1.0
+;compressibility          = 4.5e-5
+;ref_p                    = 1.0
+
+; velocity generation
+gen_vel                  = yes                   ; generate velocities according to Maxwell distribution of temperature
+gen_temp                 = 300                   ; [K] temperature for Maxwell distribution
+gen_seed                 = 173529                ; [integer] used to initialize random generator for random velocities
+
+; bonds
+constraints              = all-bonds                      ; convert all bonds to constraints
+constraint-algorithm     = lincs
+lincs-order              = 4
+lincs-iter               = 1
+lincs-warnangle          = 30
+continuation             = no            ; no = apply constraints to the start configuration
+freezegrps               = GRP
+freezedim                = Y Y Y
