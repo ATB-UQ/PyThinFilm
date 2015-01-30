@@ -4,10 +4,10 @@ title                    = heating to 300K
 integrator               = md                    ; md integrator
 tinit                    = 0                     ; [ps] starting time for run
 dt                       = 0.004                 ; [ps] time step for integration
-nsteps                   = 12500                ; maximum number of steps to integrate, dt*nsteps = x ps
+nsteps                   = 125                ; maximum number of steps to integrate, dt*nsteps = x ps
 
 ; center of mass motion removal
-comm_mode               = linear                 ; remove center of mass translation
+comm_mode               = none                 ; remove center of mass translation
 nstcomm                 = 10                     ; [steps] frequency of mass motion removal
 comm_grps               = system                 ; group(s) for center of mass motion removal
 
