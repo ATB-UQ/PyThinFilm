@@ -16,11 +16,8 @@ SHELL=/bin/bash
 %/cbp-massmod.itp:
 	cp templates/cbp-massmod.itp $@
 
-%/cbp300-init.pdb:
-	cp templates/cbp300-init.pdb $@
-
 %:
 	[[ ! -d $@ ]] && mkdir $@
-	make $@/topo.top $@/run.pbs $@/run.mdp $@/cbp-massmod.itp $@/gph80OK.itp $@/cbp300-init.pdb
+	make $@/topo.top $@/run.pbs $@/run.mdp $@/cbp-massmod.itp $@/gph80OK.itp
 
 

@@ -25,5 +25,5 @@ System
 [ molecules ]
 ; Compound        #mols
 GRP               1
-CBP               <%= ENV['n'] %>
+<% if ENV['n'].to_i != 0 %>CBP               <%= ENV['n'] %><% end %>
 
