@@ -117,6 +117,9 @@ class CBPDeposition(object):
         return random.uniform(0.0, x[0]), random.uniform(0.0, y[1])
 
     def hasReachedLayer(self):
+        # pdbPath sould become self.pdbPath method
+        pdbPath = join(ROOT_DIR, str(self.cbpNumber), OUT_PDB_FILE.format(**{"cbpNumber":self.cbpNumber}))
+        self.model.updateGRO(pdbPath)
         lastResID = self.model.residues[-1].id
         lastRes = self.model.residue(lastResID)
         maxLayerHeight = max([a.x[2] for a in self.model.atoms if a not in lastRes.atoms])
