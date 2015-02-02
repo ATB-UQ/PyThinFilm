@@ -58,9 +58,10 @@ ref_t                    = 300   300             ; [K] reference temperature for
 ;ref_p                    = 1.0
 
 ; velocity generation
-gen_vel                  = yes                   ; generate velocities according to Maxwell distribution of temperature
-gen_temp                 = 300                   ; [K] temperature for Maxwell distribution
+gen_vel                  = <%= ENV['n'].to_i == 0 ? "yes" : "no" %>                   ; generate velocities according to Maxwell distribution of temperature
+<% if ENV['n'].to_i == 0 %>gen_temp                 = 300                   ; [K] temperature for Maxwell distribution
 gen_seed                 = 173529                ; [integer] used to initialize random generator for random velocities
+<% end %>
 
 ; bonds
 constraints              = all-bonds                      ; convert all bonds to constraints
