@@ -8,8 +8,8 @@ SHELL=/bin/bash
 	chmod +x $@
 
 %/run.mdp:
-	cp templates/depo-50ps-run.mdp $@
-
+	n=$(shell echo $@ | egrep -o '[0-9]+') erb templates/depo-50ps-run.mdp > $@
+	
 %/gph80OK.itp:
 	cp templates/gph80OK.itp $@
 

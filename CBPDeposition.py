@@ -5,6 +5,9 @@ from traceback import format_exc
 import pmx
 import random
 import logging
+import math
+
+RUN_WITH_MPI = False
 
 GMX_PATH = "/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
 OUT_PDB_FILE = "cbp{cbpNumber}-end.gro"
@@ -12,21 +15,34 @@ IN_PDB_FILE = "cbp{cbpNumber}-init.gro"
 
 CBP_PDB_000 = "templates/cbp.pdb"
 GRAPHENE_PDB = "templates/graphene.pdb"
+ITP = "templates/cbp-massmod.itp"
+
+INSERT_DISTANCE = 15.0 #angstrom 
+CONTACT_TOLERANCE = 4.0
+DRIFT_TIME = 4.0 #ps
+DRIFT_VEL = INSERT_DISTANCE*1e-1/DRIFT_TIME
+
 
 SETUP_TEMPLATE = "make {cbpNumber}"
 
 GPP_TEMPLATE = "{GMX_PATH}grompp_d -f run.mdp -c {pdbTemplate} -p topo.top -o md.tpr".format(**{"pdbTemplate":IN_PDB_FILE,
                                                                                                 "GMX_PATH":"{GMX_PATH}"})
 
-MPI_MDRUN_TEMPLATE = "mpirun -np 8 --bind-to-none {GMX_PATH}mdrun_mpi_d -np 8 -pd -s md.tpr -deffnm md -c {pdbTemplate}".format(**{"pdbTemplate":OUT_PDB_FILE,
-                                                                                                                               "GMX_PATH":"{GMX_PATH}"})
- 
-MDRUN_TEMPLATE = "{GMX_PATH}mdrun_d -pd -s md.tpr -deffnm md -c {pdbTemplate}".format(**{"pdbTemplate":OUT_PDB_FILE,
-                                                                                                                               "GMX_PATH":"{GMX_PATH}"}) 
+MPI_ADDITION = "mpirun -np 16 --bind-to-none "
 
+RERUN_FLAG = "-cpi md.cpt -append"
 
-INSERT_DISTANCE = 40.0 #angstrom 
-CONTACT_TOLERANCE = 4.0
+MDRUN_TEMPLATE = "{mpiRun}{GMX_PATH}mdrun_d -pd -s md.tpr -deffnm md -c {pdbTemplate} {reRunFlag}".format(**{"pdbTemplate":OUT_PDB_FILE,
+                                                                                                             "GMX_PATH":    "{GMX_PATH}",
+                                                                                                             "reRunFlag":   "{reRunFlag}",
+                                                                                                             "mpiRun":      "{mpiRun}"}) 
+
+RERUN_TEMPLATE = "{GMX_PATH}tbpconv_d -s md.tpr -extend {extendTime} -o md.tpr".format(**{"GMX_PATH":"{GMX_PATH}",
+                                                                                        "extendTime":DRIFT_TIME}) 
+
+TEMPERATURE = 300 #k
+
+K_B = 0.00831451 #kJ / (mol K)
 
 ROOT_DIR = os.path.abspath("./")
 
@@ -43,17 +59,31 @@ class CBPDeposition(object):
             pdbPath = join(ROOT_DIR, str(self.cbpNumber), OUT_PDB_FILE.format(**{"cbpNumber":self.cbpNumber}))
             
         self.model = pmx.Model(pdbPath)
+        self.model.nm2a()
         
         self.log = "out.log"
         self.err = "out.err"
         
         
-    def runSystem(self):
-        inserts = {"GMX_PATH": GMX_PATH,
-                        "cbpNumber": self.cbpNumber}
-        self.run(GPP_TEMPLATE, inserts, join(ROOT_DIR, str(self.cbpNumber)), self.log, self.err)
+    def runSystem(self, rerun):
+        
+        reRunFlag = RERUN_FLAG if rerun else ""
+        mpiRun = MPI_ADDITION if RUN_WITH_MPI else ""
+        
+        inserts = {"GMX_PATH":   GMX_PATH,
+                    "cbpNumber": self.cbpNumber,
+                    "reRunFlag": reRunFlag,
+                    "mpiRun": mpiRun}
+        if rerun:
+            self.run(RERUN_TEMPLATE, inserts, join(ROOT_DIR, str(self.cbpNumber)), self.log, self.err)
+        
         self.run(MDRUN_TEMPLATE, inserts, join(ROOT_DIR, str(self.cbpNumber)), self.log, self.err)
     
+    def runGPP(self):
+        inserts = {"GMX_PATH":  GMX_PATH,
+                   "cbpNumber": self.cbpNumber}
+        self.run(GPP_TEMPLATE, inserts, join(ROOT_DIR, str(self.cbpNumber)), self.log, self.err)
+        
     def runSetup(self):
         inserts = {"GMX_PATH": GMX_PATH,
                         "cbpNumber": self.cbpNumber}
@@ -90,45 +120,75 @@ class CBPDeposition(object):
         lastResID = self.model.residues[-1].id
         lastRes = self.model.residue(lastResID)
         maxLayerHeight = max([a.x[2] for a in self.model.atoms if a not in lastRes.atoms])
-        return any([a.x[2] < maxLayerHeight + CONTACT_TOLERANCE for a in lastRes])
+        logging.debug("Max layer height {0}".format(maxLayerHeight))
+        return any([a.x[2] < maxLayerHeight + CONTACT_TOLERANCE for a in lastRes.atoms])
+    
+    def genInitialVelocitiesLastResidue(self):
+        
+        for atom in self.model.residues[-1].atoms:
+            sigma = math.sqrt(K_B*TEMPERATURE/atom.m)
+            atom.v[0] = random.gauss(0.0, sigma)
+            atom.v[1] = random.gauss(0.0, sigma)
+            atom.v[2] = -abs(random.gauss(DRIFT_VEL, sigma))
+        
+def getMassDict(itpString):
+    itpString = itpString.split("[ atoms ]")[1].split("[ bonds ]")[0]
+    massDict = {}
+    for line in itpString.splitlines():
+        if not line or line.startswith(";"):
+            continue 
+        massDict[line.split()[4]] = float(line.split()[7])
+    return massDict
 
 def main(cbpCount, cbpMax):
     
-    logging.basicConfig(format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
+    cBPDeposition = CBPDeposition(cbpCount)
     
-    while cbpCount < cbpMax:
-        logging.info("Running with {0} CBP molecules".format(cbpCount))
+    logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(DRIFT_VEL))
+    while cBPDeposition.cbpNumber < cbpMax:
+        # increment cbp number
+        cBPDeposition.cbpNumber += 1
         
-        cBPDeposition = CBPDeposition(cbpCount)
-        
-        #if not cBPDeposition.hasReachedLayer():
-        
+        # create run directory and run setup make file
+        cBPDeposition.runSetup()
         insertHeight = cBPDeposition.getInsertHeight()
         xPos, yPos = cBPDeposition.getRandomPosXY()
         
         cBPModel_000 = pmx.Model(join(ROOT_DIR, CBP_PDB_000))
+        cBPModel_000.nm2a()
+        
+        with open(join(ROOT_DIR, ITP),"r") as fh:
+            cbpITPString = fh.read()
+        massDict = getMassDict(cbpITPString)
         
         # set masses to 1.0 to avoid warning
         for atom in cBPModel_000.atoms:
-            atom.m = 1.0
+            atom.m = massDict[atom.name]
             
         cBPModel_000.translate([xPos, yPos, insertHeight])
         cBPModel_000.random_rotation()
         
         
-        cBPDeposition.model.insert_residue(cBPDeposition.cbpNumber + 1, cBPModel_000.residues[0], " ")
-        cBPDeposition.cbpNumber += 1
-        cbpCount += 1
+        cBPDeposition.model.insert_residue(cBPDeposition.cbpNumber, cBPModel_000.residues[0], " ")
         
-        # create run directory
-        cBPDeposition.runSetup()
-        
+        cBPDeposition.genInitialVelocitiesLastResidue()
+     
         # write updated model to run directory
         updatedPDBPath = join(ROOT_DIR, str(cBPDeposition.cbpNumber), IN_PDB_FILE.format(**{"cbpNumber":cBPDeposition.cbpNumber}))
         cBPDeposition.model.write(updatedPDBPath, "{0} CBP molecules".format(cBPDeposition.cbpNumber), 0)
-
-        cBPDeposition.runSystem()
-    
-    
-
-main(0, 2)
+        
+        # run grompp
+        cBPDeposition.runGPP()
+        
+        firstRun = True
+        while not cBPDeposition.hasReachedLayer():
+            if firstRun:
+                logging.info("Running with {0} CBP molecules".format(cBPDeposition.cbpNumber))
+                firstRun = False
+            else:
+                logging.info("Rerunning with {0} CBP molecules due to molecule not reaching layer".format(cBPDeposition.cbpNumber))
+            cBPDeposition.runSystem(firstRun)
+        
+    logging.info("Finished deposition of {0} CBP molecules".format(cBPDeposition.cbpNumber))
+main(0, 4)
