@@ -37,7 +37,7 @@ MDRUN_TEMPLATE = "{mpiRun}{GMX_PATH}mdrun_d -pd -s md.tpr -deffnm md -c {pdbTemp
                                                                                                              "reRunFlag":   "{reRunFlag}",
                                                                                                              "mpiRun":      "{mpiRun}"}) 
 
-RERUN_TEMPLATE = "{GMX_PATH}tbpconv_d -s md.tpr -extend {extendTime} -o md.tpr".format(**{"GMX_PATH":"{GMX_PATH}",
+RERUN_TEMPLATE = "{GMX_PATH}tpbconv_d -s md.tpr -extend {extendTime} -o md.tpr".format(**{"GMX_PATH":"{GMX_PATH}",
                                                                                         "extendTime":DRIFT_TIME}) 
 
 TEMPERATURE = 300 #k
@@ -181,14 +181,12 @@ def main(cbpCount, cbpMax):
         # run grompp
         cBPDeposition.runGPP()
         
-        firstRun = True
+        # Do first Run
+        logging.info("Running with {0} CBP molecules".format(cBPDeposition.cbpNumber))
+        cBPDeposition.runSystem(False)
         while not cBPDeposition.hasReachedLayer():
-            if firstRun:
-                logging.info("Running with {0} CBP molecules".format(cBPDeposition.cbpNumber))
-                firstRun = False
-            else:
-                logging.info("Rerunning with {0} CBP molecules due to molecule not reaching layer".format(cBPDeposition.cbpNumber))
-            cBPDeposition.runSystem(firstRun)
+            logging.info("Rerunning with {0} CBP molecules due to molecule not reaching layer".format(cBPDeposition.cbpNumber))
+            cBPDeposition.runSystem(True)
         
     logging.info("Finished deposition of {0} CBP molecules".format(cBPDeposition.cbpNumber))
 main(0, 4)
