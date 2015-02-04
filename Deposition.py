@@ -71,11 +71,10 @@ class Deposition(object):
     
     def __init__(self, runConfigFile):
         
-        self.runConfigFileDir = dirname(abspath(runConfigFile))
         self.runConfig = yaml.load(open(runConfigFile))
        
         # convert paths in runConfig to be absolute
-        recursiveCorrectPaths(self.runConfig, self.runConfigFileDir)
+        recursiveCorrectPaths(self.runConfig, dirname(abspath(runConfigFile)))
  
         logging.basicConfig(level=VERBOCITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
         
@@ -87,7 +86,7 @@ class Deposition(object):
         
         if self.moleculeNumber == 0:
             self.genVel = True
-            configurationPath = join(self.runConfigFileDir, self.runConfig["substrate"]["pdb_file"])
+            configurationPath = self.runConfig["substrate"]["pdb_file"]
         else:
             self.genVel = False
             configurationPath = join(self.rundir, OUT_STRUCT_FILE)
@@ -231,13 +230,13 @@ class Deposition(object):
         
     def getNextMolecule(self):
         nextMol = self.sampleMixture()
-        nextMolecule = pmx.Model(join(self.runConfigFileDir, nextMol["pdb_file"]))
+        nextMolecule = pmx.Model(nextMol["pdb_file"])
         nextMolecule.nm2a()
         
         self.runConfig["mixture"][nextMol["res_name"]].setdefault("count", 0)
         self.runConfig["mixture"][nextMol["res_name"]]["count"] += 1
         
-        with open(join(self.runConfigFileDir, nextMol["itp_file"])) as fh:
+        with open(nextMol["itp_file"]) as fh:
             cbpITPString = fh.read()
         massDict = getMassDict(cbpITPString)
         
