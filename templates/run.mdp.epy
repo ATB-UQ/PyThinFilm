@@ -4,7 +4,7 @@ title                    = heating to 300K
 integrator               = md                    ; md integrator
 tinit                    = 0                     ; [ps] starting time for run
 dt                       = 0.004                 ; [ps] time step for integration
-nsteps                   = 2000                ; maximum number of steps to integrate, dt*nsteps = x ps
+nsteps                   = {{numberOfSteps}}                ; maximum number of steps to integrate, dt*nsteps = x ps
 
 ; center of mass motion removal
 comm_mode               = linear                 ; remove center of mass translation
@@ -46,9 +46,9 @@ rvdw                     = 1.4                   ; van der Waals cutoff [nm]
 
 ; temperature coupling
 tcoupl                   = Berendsen             ; temperature coupling with Berendsen-thermostat
-tc-grps                  = {{" ".join(resList)}}                ; groups to couple seperately to temperature bath
-tau_t                    = {{"0.1 "*resLength}}                ; [ps] time constant for coupling
-ref_t                    = {{"300 "*resLength}}                ; [K] reference temperature for coupling
+tc-grps                  = {{substrate["res_name"]}} {{" ".join(resList)}}                ; groups to couple seperately to temperature bath
+tau_t                    = 0.1 {{"0.1 "*resLength}}                ; [ps] time constant for coupling
+ref_t                    = {{temperature}} {{"{0} ".format(temperature)*resLength}}                ; [K] reference temperature for coupling
 
 ;; pressure coupling
 ;Pcoupl                   = Berendsen
@@ -59,11 +59,7 @@ ref_t                    = {{"300 "*resLength}}                ; [K] reference t
 
 
 ; velocity generation
-gen_vel                  = {{'yes' if genVel else 'no'}}; generate velocities according to Maxwell distribution of temperature
-{% if genVel -%}
-gen_temp                 = 300                   ; [K] temperature for Maxwell distribution
-gen_seed                 = 173529                ; [integer] used to initialize random generator for random velocities
-{% endif %}
+gen_vel                  = no                   ; generate velocities according to Maxwell distribution of temperature
 
 ; bonds
 constraints              = all-bonds                      ; convert all bonds to constraints
@@ -72,5 +68,5 @@ lincs-order              = 4
 lincs-iter               = 1
 lincs-warnangle          = 30
 continuation             = no            ; no = apply constraints to the start configuration
-freezegrps               = {{substrateRes}}
+freezegrps               = {{substrate["res_name"]}}
 freezedim                = Y Y Y

@@ -1,8 +1,8 @@
 starting_deposition_number: 0
 deposit_N_molecules: 10
-work_directory: deposite10
+work_directory: deposit10
 temperature: 300
-run_with_mpi: True
+run_with_mpi: False
 max_cores: 8
 insert_distance: 20.0 #angstrom 
 contact_tolerance: 4.0 #angstrom 
@@ -14,15 +14,15 @@ mixture:
       pdb_file: templates/CBP.pdb
       itp_file: templates/CBP.itp
       ratio: 42
-    IPY_R:
-      res_name: IPY
-      pdb_file: template/IPY_R.pdb      
-      itp_file: templates/IPY.itp
+    IPR:
+      res_name: IPR
+      pdb_file: templates/IPR.pdb      
+      itp_file: templates/IPR.itp
       ratio: 1
-    IPY_S:
-      res_name: IPY
-      pdb_file: template/IPY_S.pdb      
-      itp_file: templates/IPY.itp
+    IPS:
+      res_name: IPS
+      pdb_file: templates/IPS.pdb      
+      itp_file: templates/IPS.itp
       ratio: 1
 substrate: 
       res_name: GRP

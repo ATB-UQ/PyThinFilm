@@ -1,24 +1,11 @@
-'''
-Created on Feb 4, 2015
-
-@author: uqmstroe
-'''
+import Deposition
 import unittest
 
 
 class Test(unittest.TestCase):
 
-
-    def setUp(self):
-        pass
-
-
-    def tearDown(self):
-        pass
-
-
-    def testName(self):
-        pass
+    def testBasicRun(self):
+        Deposition.runDeposition("runConfig.yml")
 
 
 if __name__ == "__main__":

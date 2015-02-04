@@ -1,6 +1,6 @@
 import subprocess
 import os
-from os.path import join
+from os.path import join, basename, dirname, abspath
 from traceback import format_exc
 import pmx
 import random
@@ -8,6 +8,7 @@ import logging
 import math
 import yaml
 import sys
+import jinja2
 
 
 VERBOCITY = logging.INFO
@@ -41,7 +42,8 @@ GMX_PATH = "/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
 OUT_STRUCT_FILE = "end.gro"
 IN_STRUCT_FILE = "init.gro"
 
-SETUP_TEMPLATE = "make {moleculeNumber} template_dir={templatePath}"
+TOP_FILE = "templates/topo.top.epy"
+MDP_FILE = "templates/run.mdp.epy"
 
 GPP_TEMPLATE = "{GMX_PATH}grompp_d -f run.mdp -c {struct} -p topo.top -o md.tpr".format(**{"struct":IN_STRUCT_FILE,
                                                                                                 "GMX_PATH":"{GMX_PATH}"})
@@ -69,22 +71,31 @@ class Deposition(object):
     
     def __init__(self, runConfigFile):
         
+        self.runConfigFileDir = dirname(abspath(runConfigFile))
         self.runConfig = yaml.load(open(runConfigFile))
-        
+       
+        # convert paths in runConfig to be absolute
+        recursiveCorrectPaths(self.runConfig, self.runConfigFileDir)
+ 
         logging.basicConfig(level=VERBOCITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
         
         self.moleculeNumber = self.runConfig["starting_deposition_number"]
         self.rootdir = os.path.abspath(self.runConfig["work_directory"])
+        
         if not os.path.exists(self.rootdir):    
             os.makedirs(self.rootdir)
-                    
+        
         if self.moleculeNumber == 0:
-            configurationPath = join(PROJECT_DIR, self.runConfig["substrate"]["pdb_file"])
+            self.genVel = True
+            configurationPath = join(self.runConfigFileDir, self.runConfig["substrate"]["pdb_file"])
         else:
+            self.genVel = False
             configurationPath = join(self.rundir, OUT_STRUCT_FILE)
         
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
+        
+        self.counterResidues()
         
         self.log = "out.log"
         self.err = "out.err"
@@ -102,9 +113,9 @@ class Deposition(object):
         
         if self.runConfig["run_with_mpi"]:
             mpiRun = MPI_ADDITION.format(self.runConfig["max_cores"]) if self.moleculeNumber > self.runConfig["max_cores"] else MPI_ADDITION.format(self.moleculeNumber)
-            mdrun = MDRUN
-        else:
             mdrun = MDRUN_MPI
+        else:
+            mdrun = MDRUN
             mpiRun = ""
             
         inserts = {"GMX_PATH":   GMX_PATH,
@@ -123,7 +134,7 @@ class Deposition(object):
         # run the md
         self.run(MDRUN_TEMPLATE, inserts)
         
-        configurationPath = join(self.rootdir, str(self.moleculeNumber), OUT_STRUCT_FILE.format(**{"moleculeNumber":self.moleculeNumber})) 
+        configurationPath = join(self.rundir, OUT_STRUCT_FILE) 
         
         if not os.path.exists(configurationPath):
             logging.error("MD run did not produce expected output file")
@@ -147,30 +158,35 @@ class Deposition(object):
     def runSetup(self):
         
         self.rundir = join(self.rootdir, str(self.moleculeNumber))
-        if os.path.exists(self.rundir):
-            raise Exception("Directory {0} already exists. Delete and rerun to continue.".format(self.rundir))
+        if not os.path.exists(self.rundir):
+            os.mkdir(self.rundir)
         
-        os.mkdir(self.rundir)
+        with open(TOP_FILE) as fh:
+            topTemplate = jinja2.Template(fh.read())
+            
+        with open(MDP_FILE) as fh:
+            mdpTemplate = jinja2.Template(fh.read())
         
-        inserts = {"GMX_PATH": GMX_PATH,
-                    "moleculeNumber": self.moleculeNumber,
-                    "templatePath": TEMPLATE_DIR}
+        with open(join(self.rundir, basename(TOP_FILE)[:-4]),"w") as fh:
+            fh.write(topTemplate.render(resMixture=self.runConfig["mixture"], substrate=self.runConfig["substrate"]))
         
-        self.run(SETUP_TEMPLATE, inserts, workdir=self.rootdir)
+        with open(join(self.rundir, basename(MDP_FILE)[:-4]),"w") as fh:
+            resList = [res_name for res_name, res in self.runConfig["mixture"].items() if res["count"] > 0]
+            fh.write(mdpTemplate.render(resList=resList, substrate=self.runConfig["substrate"], resLength=len(resList), numberOfSteps=2000, temperature=self.runConfig["temperature"]))
+        
+        
     
-    def run(self, argString, inserts, workdir=None):
+    def run(self, argString, inserts):
         
         argString = argString.format(**inserts)
         argList = argString.split()
-        if not workdir:
-            workdir = join(self.rootdir, str(self.moleculeNumber))
         
-        logFile = open(join(workdir, self.log),"a")
-        errFile = open(join(workdir, self.err),"a")
+        logFile = open(join(self.rundir, self.log),"a")
+        errFile = open(join(self.rundir, self.err),"a")
         try:
-            logging.debug("Running from: '{0}'".format(workdir))
+            logging.debug("Running from: '{0}'".format(self.rundir))
             logging.debug("Running command: '{0}'".format(argString))
-            subprocess.Popen(argList, cwd=workdir, stdout=logFile, stderr=errFile).wait()
+            subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile).wait()
         except:
             print "Subprocess terminated with error: \n{0}\n\n{1}".format(argString, format_exc())
         finally: 
@@ -204,19 +220,24 @@ class Deposition(object):
             sigma = math.sqrt(K_B*self.runConfig["temperature"]/atom.m)
             atom.v[0] = random.gauss(0.0, sigma)
             atom.v[1] = random.gauss(0.0, sigma)
-            atom.v[2] = -abs(random.gauss(self.runConfig["drift_vel"], sigma))
+            atom.v[2] = -abs(random.gauss(self.runConfig["drift_velocity"], sigma))
             
         
     def sampleMixture(self):
         if len(self.runConfig["mixture"]) == 1:
-            return join(PROJECT_DIR, self.runConfig["mixture"].values()[0])
+            return self.runConfig["mixture"].values()[0]
+        else:
+            return self.runConfig["mixture"]["CBP"]
         
     def getNextMolecule(self):
         nextMol = self.sampleMixture()
-        nextMolecule = pmx.Model(nextMol["pdb_file"])
+        nextMolecule = pmx.Model(join(self.runConfigFileDir, nextMol["pdb_file"]))
         nextMolecule.nm2a()
         
-        with open(join(PROJECT_DIR, nextMol["itp_file"]),"r") as fh:
+        self.runConfig["mixture"][nextMol["res_name"]].setdefault("count", 0)
+        self.runConfig["mixture"][nextMol["res_name"]]["count"] += 1
+        
+        with open(join(self.runConfigFileDir, nextMol["itp_file"])) as fh:
             cbpITPString = fh.read()
         massDict = getMassDict(cbpITPString)
         
@@ -234,7 +255,24 @@ class Deposition(object):
     def writeInitConfiguration(self):
         updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
         self.model.write(updatedPDBPath, "{0} deposited molecules".format(self.moleculeNumber), 0)
-        
+
+    def counterResidues(self):
+        for res in self.model.residues:
+            if not res.resname == self.runConfig["substrate"]["res_name"]: 
+                self.runConfig["mixture"][res.resname]["count"].setdefault(res.resname, 0)
+                self.runConfig["mixture"][res.resname]["count"] += 1
+        # now add in count of zero for any residues ont already in the model
+        for res in self.runConfig["mixture"].values():
+            if not res.has_key("count"):
+                res["count"] = 0
+
+def recursiveCorrectPaths(node, runConfigFileDir):
+    for key, value in node.items():
+        if isinstance(value, (list, dict)):
+            recursiveCorrectPaths(value, runConfigFileDir)
+        elif "file" in key:
+            node[key] = join(runConfigFileDir, value)
+
 def getMassDict(itpString):
     itpString = itpString.split("[ atoms ]")[1].split("[ bonds ]")[0]
     massDict = {}
@@ -248,19 +286,19 @@ def runDeposition(runConfigFile):
     
     deposition = Deposition(runConfigFile)
     
-    logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(deposition.runConfig["drift_vel"]))
-    while deposition.moleculeNumber < deposition.runConfig["cbpMax"]:
+    logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(deposition.runConfig["drift_velocity"]))
+    while deposition.moleculeNumber < deposition.runConfig["starting_deposition_number"] + deposition.runConfig["deposit_N_molecules"]:
         # increment cbp number
         deposition.moleculeNumber += 1
-        
-        # create run directory and run setup make file
-        deposition.runSetup()
         
         # get the next molecule and insert it into the deposition model with random position, orientation and velocity
         nextMolecule = deposition.getNextMolecule()
         deposition.model.insert_residue(deposition.moleculeNumber, nextMolecule.residues[0], " ")
         deposition.genInitialVelocitiesLastResidue()
      
+        # create run directory and run setup make file
+        deposition.runSetup()
+        
         # write updated model to run directory
         deposition.writeInitConfiguration()
         
