@@ -85,10 +85,8 @@ class Deposition(object):
             os.makedirs(self.rootdir)
         
         if self.moleculeNumber == 0:
-            self.genVel = True
             configurationPath = self.runConfig["substrate"]["pdb_file"]
         else:
-            self.genVel = False
             configurationPath = join(self.rundir, OUT_STRUCT_FILE)
         
         self.model = pmx.Model(configurationPath)
