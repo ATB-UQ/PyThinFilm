@@ -46,9 +46,9 @@ rvdw                     = 1.4                   ; van der Waals cutoff [nm]
 
 ; temperature coupling
 tcoupl                   = Berendsen             ; temperature coupling with Berendsen-thermostat
-tc-grps                  = CBP   GRP             ; groups to couple seperately to temperature bath
-tau_t                    = 0.1   0.1             ; [ps] time constant for coupling
-ref_t                    = 300   300             ; [K] reference temperature for coupling
+tc-grps                  = {{" ".join(resList)}}                ; groups to couple seperately to temperature bath
+tau_t                    = {{"0.1 "*resLength}}                ; [ps] time constant for coupling
+ref_t                    = {{"300 "*resLength}}                ; [K] reference temperature for coupling
 
 ;; pressure coupling
 ;Pcoupl                   = Berendsen
@@ -57,11 +57,13 @@ ref_t                    = 300   300             ; [K] reference temperature for
 ;compressibility          = 4.5e-5
 ;ref_p                    = 1.0
 
+
 ; velocity generation
-gen_vel                  = <%= ENV['n'].to_i == 0 ? "yes" : "no" %>                   ; generate velocities according to Maxwell distribution of temperature
-<% if ENV['n'].to_i == 0 %>gen_temp                 = 300                   ; [K] temperature for Maxwell distribution
+gen_vel                  = {{'yes' if genVel else 'no'}}; generate velocities according to Maxwell distribution of temperature
+{% if genVel -%}
+gen_temp                 = 300                   ; [K] temperature for Maxwell distribution
 gen_seed                 = 173529                ; [integer] used to initialize random generator for random velocities
-<% end %>
+{% endif %}
 
 ; bonds
 constraints              = all-bonds                      ; convert all bonds to constraints
@@ -70,5 +72,5 @@ lincs-order              = 4
 lincs-iter               = 1
 lincs-warnangle          = 30
 continuation             = no            ; no = apply constraints to the start configuration
-freezegrps               = GRP
+freezegrps               = {{substrateRes}}
 freezedim                = Y Y Y

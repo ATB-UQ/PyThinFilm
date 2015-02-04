@@ -1,7 +1,7 @@
 #!/bin/bash
 #$ -S /bin/bash
 #$ -N testmpi 
-#$ -pe mpi 8
+#$ -pe mpi 16
 #$ -cwd
 #$ -j y
 

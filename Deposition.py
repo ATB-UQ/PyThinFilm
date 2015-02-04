@@ -6,85 +6,82 @@ import pmx
 import random
 import logging
 import math
-import shutil
+import yaml
+import sys
 
-RUN_WITH_MPI = True
+
 VERBOCITY = logging.INFO
 VERBOCITY = logging.DEBUG
-
-MAX_CORES = 8
-
-INSERT_DISTANCE = 20.0 #angstrom 
-CONTACT_TOLERANCE = 4.0
-DRIFT_TIME = 4.0 #ps
-
-DRIFT_VEL = INSERT_DISTANCE*1e-1/DRIFT_TIME
-DRIFT_VEL_REALISTIC = 0.08
-DRIFT_VEL = DRIFT_VEL_REALISTIC
-
-
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-GMX_PATH = "/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
-OUT_STRUCT_FILE = "cbp{moleculeNumber}-end.gro"
-IN_STRUCT_FILE = "cbp{moleculeNumber}-init.gro"
-
 TEMPLATE_DIR = join(PROJECT_DIR, "templates")
 
-CBP_PDB_000 = join(TEMPLATE_DIR, "cbp.pdb")
 
-GRAPHENE_PDB = join(TEMPLATE_DIR, "graphene.pdb")
-ITP = join(TEMPLATE_DIR, "cbp-massmod.itp")
+#MAX_CORES = 16
+#
+#INSERT_DISTANCE = 20.0 #angstrom 
+#CONTACT_TOLERANCE = 4.0 #angstrom 
+#RUN_TIME = 4.0 #ps
+#
+#DRIFT_VEL = 0.08 #nm/ps
+#TEMPERATURE = 300 #k
+#
+
+
+
+#CBP_PDB_000 = join(TEMPLATE_DIR, "CBP.pdb")
+#
+#GRAPHENE_PDB = join(TEMPLATE_DIR, "GRP.pdb")
+#ITP = join(TEMPLATE_DIR, "CBP.itp")
+#
+#MIXTURE = {CBP_PDB_000:21,
+#           }
+#
+GMX_PATH = "/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
+
+OUT_STRUCT_FILE = "end.gro"
+IN_STRUCT_FILE = "init.gro"
 
 SETUP_TEMPLATE = "make {moleculeNumber} template_dir={templatePath}"
 
-GPP_TEMPLATE = "{GMX_PATH}grompp_d -f run.mdp -c {pdbTemplate} -p topo.top -o md.tpr".format(**{"pdbTemplate":IN_STRUCT_FILE,
+GPP_TEMPLATE = "{GMX_PATH}grompp_d -f run.mdp -c {struct} -p topo.top -o md.tpr".format(**{"struct":IN_STRUCT_FILE,
                                                                                                 "GMX_PATH":"{GMX_PATH}"})
 
 MPI_ADDITION = "mpirun -np {0} --bind-to-none "
 
-MDRUN = "mdrun_mpi_d" if RUN_WITH_MPI else "mdrun_d"
+MDRUN = "mdrun_d"
+MDRUN_MPI = "mdrun_mpi_d" 
 
 RERUN_FLAG = "-cpi md.cpt -append"
 
 
-MDRUN_TEMPLATE = "{mpiRun}{GMX_PATH}{mdrun} -pd -s md.tpr -deffnm md -c {pdbTemplate} {reRunFlag}".format(**{"pdbTemplate":OUT_STRUCT_FILE,
-                                                                                                             "mdrun":MDRUN,
+MDRUN_TEMPLATE = "{mpiRun}{GMX_PATH}{mdrun} -pd -s md.tpr -deffnm md -c {struct} {reRunFlag}".format(**{"struct":OUT_STRUCT_FILE,
+                                                                                                             "mdrun":       "{mdrun}",
                                                                                                              "GMX_PATH":    "{GMX_PATH}",
                                                                                                              "reRunFlag":   "{reRunFlag}",
                                                                                                              "mpiRun":      "{mpiRun}"}) 
 
-RERUN_SETUP_TEMPLATE = "{GMX_PATH}tpbconv_d -s md.tpr -extend {extendTime} -o md.tpr".format(**{"GMX_PATH":"{GMX_PATH}",
-                                                                                        "extendTime":DRIFT_TIME}) 
+RERUN_SETUP_TEMPLATE = "{GMX_PATH}tpbconv_d -s md.tpr -extend {run_time} -o md.tpr" 
 
-TEMPERATURE = 300 #k
 
 K_B = 0.00831451 #kJ / (mol K)
 
-MIXTURE = {CBP_PDB_000:21,
-           }
-
 class Deposition(object):
     
-    def __init__(self, moleculeNumber, rootdir):
+    def __init__(self, runConfigFile):
+        
+        self.runConfig = yaml.load(open(runConfigFile))
         
         logging.basicConfig(level=VERBOCITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
         
-        self.moleculeNumber = moleculeNumber
-        self.rootdir = os.path.abspath(rootdir)
-        
+        self.moleculeNumber = self.runConfig["starting_deposition_number"]
+        self.rootdir = os.path.abspath(self.runConfig["work_directory"])
         if not os.path.exists(self.rootdir):    
             os.makedirs(self.rootdir)
-        
-        # copy makefile to rootdir
-        makefilePath = join(rootdir, "Makefile")
-        if not os.path.exists(makefilePath):
-            shutil.copy(join(PROJECT_DIR, "Makefile"), makefilePath)
-        
+                    
         if self.moleculeNumber == 0:
-            configurationPath = join(PROJECT_DIR, GRAPHENE_PDB)
+            configurationPath = join(PROJECT_DIR, self.runConfig["substrate"]["pdb_file"])
         else:
-            configurationPath = join(self.rootdir, str(self.moleculeNumber), OUT_STRUCT_FILE.format(**{"moleculeNumber":self.moleculeNumber}))
+            configurationPath = join(self.rundir, OUT_STRUCT_FILE)
         
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
@@ -103,15 +100,18 @@ class Deposition(object):
         
         reRunFlag = RERUN_FLAG if rerun else ""
         
-        if RUN_WITH_MPI:
-            mpiRun = MPI_ADDITION.format(MAX_CORES) if self.moleculeNumber > MAX_CORES else MPI_ADDITION.format(self.moleculeNumber) 
+        if self.runConfig["run_with_mpi"]:
+            mpiRun = MPI_ADDITION.format(self.runConfig["max_cores"]) if self.moleculeNumber > self.runConfig["max_cores"] else MPI_ADDITION.format(self.moleculeNumber)
+            mdrun = MDRUN
         else:
+            mdrun = MDRUN_MPI
             mpiRun = ""
             
         inserts = {"GMX_PATH":   GMX_PATH,
                     "moleculeNumber": self.moleculeNumber,
                     "reRunFlag": reRunFlag,
-                    "mpiRun": mpiRun}
+                    "mpiRun":   mpiRun,
+                    "mdrun":    mdrun}
         
         if rerun:
             # run rerun setup script
@@ -137,6 +137,7 @@ class Deposition(object):
         self.updateModel(configurationPath)
     
     def runTPBConf(self, inserts):
+        inserts["run_time"] = self.runConfigFile["run_time"]
         self.run(RERUN_SETUP_TEMPLATE, inserts)
     
     def runGPP(self, inserts):
@@ -144,6 +145,13 @@ class Deposition(object):
         self.run(GPP_TEMPLATE, inserts)
         
     def runSetup(self):
+        
+        self.rundir = join(self.rootdir, str(self.moleculeNumber))
+        if os.path.exists(self.rundir):
+            raise Exception("Directory {0} already exists. Delete and rerun to continue.".format(self.rundir))
+        
+        os.mkdir(self.rundir)
+        
         inserts = {"GMX_PATH": GMX_PATH,
                     "moleculeNumber": self.moleculeNumber,
                     "templatePath": TEMPLATE_DIR}
@@ -173,7 +181,7 @@ class Deposition(object):
         
     
     def getInsertHeight(self):
-        return  self.maxZHeight() + INSERT_DISTANCE
+        return  self.maxZHeight() + self.runConfig["insert_distance"]
     
     def maxZHeight(self):
         return max([a.x[2] for a in self.model.atoms])
@@ -188,28 +196,27 @@ class Deposition(object):
         lastRes = self.model.residue(lastResID)
         maxLayerHeight = max([a.x[2] for a in self.model.atoms if a not in lastRes.atoms])
         logging.debug("Max layer height {0}".format(maxLayerHeight))
-        return any([a.x[2] < maxLayerHeight + CONTACT_TOLERANCE for a in lastRes.atoms])
+        return any([a.x[2] < maxLayerHeight + self.runConfig["contact_tolerance"] for a in lastRes.atoms])
     
     def genInitialVelocitiesLastResidue(self):
         
         for atom in self.model.residues[-1].atoms:
-            sigma = math.sqrt(K_B*TEMPERATURE/atom.m)
+            sigma = math.sqrt(K_B*self.runConfig["temperature"]/atom.m)
             atom.v[0] = random.gauss(0.0, sigma)
             atom.v[1] = random.gauss(0.0, sigma)
-            atom.v[2] = -abs(random.gauss(DRIFT_VEL, sigma))
+            atom.v[2] = -abs(random.gauss(self.runConfig["drift_vel"], sigma))
             
         
     def sampleMixture(self):
-        if len(MIXTURE) == 1:
-            return join(PROJECT_DIR, MIXTURE.keys()[0])
+        if len(self.runConfig["mixture"]) == 1:
+            return join(PROJECT_DIR, self.runConfig["mixture"].values()[0])
         
-                    
     def getNextMolecule(self):
-        nextMolPath = self.sampleMixture()
-        nextMolecule = pmx.Model(nextMolPath)
+        nextMol = self.sampleMixture()
+        nextMolecule = pmx.Model(nextMol["pdb_file"])
         nextMolecule.nm2a()
         
-        with open(join(PROJECT_DIR, ITP),"r") as fh:
+        with open(join(PROJECT_DIR, nextMol["itp_file"]),"r") as fh:
             cbpITPString = fh.read()
         massDict = getMassDict(cbpITPString)
         
@@ -225,8 +232,8 @@ class Deposition(object):
         return nextMolecule
         
     def writeInitConfiguration(self):
-        updatedPDBPath = join(self.rootdir, str(self.moleculeNumber), IN_STRUCT_FILE.format(**{"moleculeNumber":self.moleculeNumber}))
-        self.model.write(updatedPDBPath, "{0} CBP molecules".format(self.moleculeNumber), 0)
+        updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
+        self.model.write(updatedPDBPath, "{0} deposited molecules".format(self.moleculeNumber), 0)
         
 def getMassDict(itpString):
     itpString = itpString.split("[ atoms ]")[1].split("[ bonds ]")[0]
@@ -237,12 +244,12 @@ def getMassDict(itpString):
         massDict[line.split()[4]] = float(line.split()[7])
     return massDict
 
-def runDeposition(cbpCount, cbpMax, rootdir):
+def runDeposition(runConfigFile):
     
-    deposition = Deposition(cbpCount, rootdir)
+    deposition = Deposition(runConfigFile)
     
-    logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(DRIFT_VEL))
-    while deposition.moleculeNumber < cbpMax:
+    logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(deposition.runConfig["drift_vel"]))
+    while deposition.moleculeNumber < deposition.runConfig["cbpMax"]:
         # increment cbp number
         deposition.moleculeNumber += 1
         
@@ -268,5 +275,5 @@ def runDeposition(cbpCount, cbpMax, rootdir):
     logging.info("Finished deposition of {0} CBP molecules".format(deposition.moleculeNumber))
     
     
-runDeposition(45, 301, os.path.abspath("./dep60"))
-#runDeposition(108, 111, os.path.abspath("./firstRun110Mols"))
+if __name__=="__main__":
+    runDeposition(sys.argv[1])
