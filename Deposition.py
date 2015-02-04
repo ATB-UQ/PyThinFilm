@@ -224,7 +224,19 @@ class Deposition(object):
         if len(self.runConfig["mixture"]) == 1:
             return self.runConfig["mixture"].values()[0]
         else:
-            return self.runConfig["mixture"]["CBP"]
+            # TODO : Only do this once at setup time
+            ratioSum = reduce(lambda x, y: x+y, map(lambda x: x["count"], self.runConfig["mixture"].values()))
+            for i,res in enumerate(self.runConfig["mixture"]):
+                res["ratio_min"] = 0.0 if i==0 else previous_res['ratio_max']
+                res["ratio_max"] = 1.0 if i==len(self.runConfig["mixture"]) else previous_res['ratio_max'] + res["ratio"] / ratioSum
+                #res["ratio_max"] = previous_res['ratio_max'] + res["ratio"] / ratioSum
+                previous_res = res #FIXME
+            # END Only do this once
+            randomNumber = random.uniform(0.0,1.0)
+            for res in self.runConfig["mixture"]:
+                if randomNumber <= res["ratio_min"] and boundList["ratio_max"] < randomNumber
+                    return res
+            # TODO: Catch exception Here
         
     def getNextMolecule(self):
         nextMol = self.sampleMixture()
