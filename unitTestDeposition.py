@@ -5,7 +5,7 @@ import unittest
 class Test(unittest.TestCase):
 
     def testBasicRun(self):
-        Deposition.runDeposition("runConfig.yml")
+        Deposition.runDeposition("quickTestRunConfig.yml")
 
 
 if __name__ == "__main__":

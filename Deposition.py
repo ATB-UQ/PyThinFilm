@@ -72,7 +72,6 @@ class Deposition(object):
     def __init__(self, runConfigFile):
         
         self.runConfig = yaml.load(open(runConfigFile))
-       
         # convert paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, dirname(abspath(runConfigFile)))
  
@@ -94,6 +93,8 @@ class Deposition(object):
         
         self.counterResidues()
         
+        self.initMixtureSamplingBoundaries()
+ 
         self.log = "out.log"
         self.err = "out.err"
         
@@ -169,7 +170,7 @@ class Deposition(object):
         
         with open(join(self.rundir, basename(MDP_FILE)[:-4]),"w") as fh:
             resList = [res_name for res_name, res in self.runConfig["mixture"].items() if res["count"] > 0]
-            fh.write(mdpTemplate.render(resList=resList, substrate=self.runConfig["substrate"], resLength=len(resList), numberOfSteps=2000, temperature=self.runConfig["temperature"]))
+            fh.write(mdpTemplate.render(resList=resList, substrate=self.runConfig["substrate"], resLength=len(resList), numberOfSteps=int(self.runConfig["run_time"]/self.runConfig["time_step"]), temperature=self.runConfig["temperature"]))
         
         
     
@@ -218,25 +219,28 @@ class Deposition(object):
             atom.v[0] = random.gauss(0.0, sigma)
             atom.v[1] = random.gauss(0.0, sigma)
             atom.v[2] = -abs(random.gauss(self.runConfig["drift_velocity"], sigma))
-            
-        
+
+    ## this method generates regions between 0-1 that when sampled correspond to particular residues in the mixture
+    # e.g. A 1:9 ratio of res1 to res2 is given by: [0.0, 0.1] -> res1, [0.1, 1.0] -> res2
+    def initMixtureSamplingBoundaries(self):
+        ratioSum = float(sum([v["ratio"] for v in self.runConfig["mixture"].values()]))
+        logging.debug("ratio sum: " + str(ratioSum))
+        movingBoundary = 0.0
+        for res in self.runConfig["mixture"].values():
+            res["sample_boundary_min"] = movingBoundary
+            movingBoundary += res["ratio"] / ratioSum
+            res["sample_boundary_max"] = movingBoundary
+        logging.debug("Sampling boundaries: {0}".format(",".join([str((r["res_name"], r["sample_boundary_min"],r["sample_boundary_max"])) for r in self.runConfig["mixture"].values()])))
+ 
     def sampleMixture(self):
         if len(self.runConfig["mixture"]) == 1:
             return self.runConfig["mixture"].values()[0]
         else:
-            # TODO : Only do this once at setup time
-            ratioSum = reduce(lambda x, y: x+y, map(lambda x: x["count"], self.runConfig["mixture"].values()))
-            for i,res in enumerate(self.runConfig["mixture"]):
-                res["ratio_min"] = 0.0 if i==0 else previous_res['ratio_max']
-                res["ratio_max"] = 1.0 if i==len(self.runConfig["mixture"]) else previous_res['ratio_max'] + res["ratio"] / ratioSum
-                #res["ratio_max"] = previous_res['ratio_max'] + res["ratio"] / ratioSum
-                previous_res = res #FIXME
-            # END Only do this once
             randomNumber = random.uniform(0.0,1.0)
-            for res in self.runConfig["mixture"]:
-                if randomNumber <= res["ratio_min"] and boundList["ratio_max"] < randomNumber
+            for res in self.runConfig["mixture"].values():
+                if res["sample_boundary_min"] <= randomNumber <= res["sample_boundary_max"]:
                     return res
-            # TODO: Catch exception Here
+        
         
     def getNextMolecule(self):
         nextMol = self.sampleMixture()
@@ -311,15 +315,16 @@ def runDeposition(runConfigFile):
         # write updated model to run directory
         deposition.writeInitConfiguration()
         
+        actualMixture = ",".join([" {0}:{1}".format(r["res_name"], r["count"]) for r in deposition.runConfig["mixture"].values()])
         # Do first Run
-        logging.info("Running with {0} CBP molecules".format(deposition.moleculeNumber))
+        logging.info("Running with {0} molecules".format(actualMixture))
         deposition.runSystem()
         
         while not deposition.hasReachedLayer():
-            logging.info("Rerunning with {0} CBP molecules due to molecule not reaching layer".format(deposition.moleculeNumber))
+            logging.info("Rerunning with {0} molecules due to molecule not reaching layer".format(actualMixture))
             deposition.runSystem(rerun=True)
         
-    logging.info("Finished deposition of {0} CBP molecules".format(deposition.moleculeNumber))
+    logging.info("Finished deposition of {0} molecules".format(actualMixture))
     
     
 if __name__=="__main__":
