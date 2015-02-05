@@ -146,7 +146,7 @@ class Deposition(object):
         self.updateModel(configurationPath)
     
     def runTPBConf(self, inserts):
-        inserts["run_time"] = self.runConfigFile["run_time"]
+        inserts["run_time"] = self.runConfig["run_time"]
         self.run(RERUN_SETUP_TEMPLATE, inserts)
     
     def runGPP(self, inserts):
