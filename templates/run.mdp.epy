@@ -13,14 +13,18 @@ comm_grps               = system                 ; group(s) for center of mass m
 
 
 ; output control
-nstxout                  = 50                    ; [steps] freq to write coordinates to trajectory
-nstvout                  = 50                    ; [steps] freq to write velocities to trajectory
-nstfout                  = 50                    ; [steps] freq to write forces to trajectory
-nstlog                   = 50                    ; [steps] freq to write energies to log file
-nstenergy                = 25                    ; [steps] freq to write energies to energy file
 nstxtcout                = 25                    ; [steps] freq to write coordinates to xtc trajectory
 xtc_grps                 = system                ; group(s) to write to xtc trajectory
 energygrps               = system                ; group(s) to write to energy file
+
+; Completly disable .trr, except for last frame which is mandatory
+nstxout                  = 0
+nstvout                  = 0
+nstfout                  = 0
+; Also disable log file
+nstlog                   = 0                    ; [steps] freq to write energies to log file
+; And energies
+nstenergy                = 0                     ; [steps] freq to write energies to energy file
 
 ; neighbor searching
 nstlist                  = 5                     ; [steps] freq to update neighbor list and long-range forces
