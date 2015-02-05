@@ -13,8 +13,6 @@ System
 
 [ molecules ]
 ; Compound        #mols
-{{substrate["res_name"]}}   1
-{%- for res in resMixture.values() %}
-{{"{0}  {1}".format(res["res_name"], res["count"]) if res["count"] > 0}}
+{%- for cluster in resnameClusters %}
+{{ cluster }}
 {%- endfor %}
-

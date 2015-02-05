@@ -166,7 +166,7 @@ class Deposition(object):
             mdpTemplate = jinja2.Template(fh.read())
         
         with open(join(self.rundir, basename(TOP_FILE)[:-4]),"w") as fh:
-            fh.write(topTemplate.render(resMixture=self.runConfig["mixture"], substrate=self.runConfig["substrate"]))
+            fh.write(topTemplate.render(resMixture=self.runConfig["mixture"], substrate=self.runConfig["substrate"], resnameClusters=cluster(map( lambda x:x.resname, self.model.residues))))
         
         with open(join(self.rundir, basename(MDP_FILE)[:-4]),"w") as fh:
             resList = [res_name for res_name, res in self.runConfig["mixture"].items() if res["count"] > 0]
@@ -294,6 +294,32 @@ def getMassDict(itpString):
             continue 
         massDict[line.split()[4]] = float(line.split()[7])
     return massDict
+
+def cluster(resnameList):
+    clusterList = []
+    i = 0
+    current_resname = resnameList[0]
+    if not resnameList:
+        return ""
+    while current_resname != '':
+        count = 1
+        try:
+            next_resname = resnameList[i+1]
+        except IndexError:
+            next_resname = ""
+        while next_resname == current_resname :
+            count +=1
+            try:
+                next_resname = resnameList[i+count]
+            except IndexError:
+                next_resname = ""
+        clusterList.append("{} {}".format(current_resname, count))
+        i += count
+        try:
+            current_resname = resnameList[i]
+        except IndexError:
+            current_resname = ""
+    return clusterList
 
 def runDeposition(runConfigFile):
     
