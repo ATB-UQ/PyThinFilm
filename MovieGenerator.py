@@ -1,12 +1,11 @@
-import pymol
-import pymol.experimenting
-from pmx.xtc import *
-from pmx import *
-from os.path import join, basename, dirname, abspath
 import os
-import time
+os.environ["GMX_DLL"]="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"  
+import pmx
+from pmx.xtc import Trajectory
+from os.path import join, basename
 import subprocess
 import yaml
+import sys
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -25,46 +24,63 @@ set_view (\
 
 class MovieGenerator(object):
 
-  def __init__(self, runConfigFile, sim_number):
-    self.runConfig = yaml.load(open(runConfigFile))
-    self.dirname = join(PROJECT_DIR, self.run_config, sim_number)
-    self.fn = absolute('init.pdb')
-    self.fn_xtc = absolute('md.xtc')
-    map(lambda x: os.makedirs(x) if not os.path.exists(x) else '', map(absolute, ['pml', 'pdb', 'png']))
+    def __init__(self, runConfig, sim_number):
+        self.runConfig = runConfig
+        self.dirname = join(PROJECT_DIR, self.runConfig["work_directory"], str(sim_number))
+        self.fn = self.absolute('init.gro')
+        self.fn_xtc = self.absolute('md.xtc')
+        map(lambda x: os.makedirs(x) if not os.path.exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
 
-  def absolute(path):
-    return join(self.dirname, path)
+    def absolute(self, path):
+        return join(self.dirname, path)
 
-  # pnx requires having set up the GMX_DLL variable pointing to gromacs shared libraries
-  # GMX_DLL="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"
-
-  # Iterate over frames
-  def generatePNGs():
-    # Read trajectory in
-    m = Model(self.fn)
-    trj = Trajectory(self.fn_xtc)
-
-    tmp_base_fn = absolute("pdb/" + self.fn_xtc[:-4])
-    for i, frame in enumerate(trj):
-        trj.update(m)
-        tmp_fn = absolute(tmp_base_fn + str(i) + ".pdb")
-        m.write(tmp_fn)
-        with open(absolute('pml/{0}.pml'.format(i)), 'w') as fp:
-          fp.write(PYMOL_TEMPLATE.format(tmp_fn, absolute("png/{0:0>4d}.png".format(i))))
-        subprocess.Popen("pymol -qc -n pml/{0}.pml".format(i).split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
-        print "Processed png number {}".format(i)
-
-  # Then make a movie with the pngs ...
-  # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
-  def generateMovie():
-    subprocess.Popen("ffmpeg -i {}/%04d.png md.mp4".format(absolute('png')).split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
+    # pnx requires having set up the GMX_DLL variable pointing to gromacs shared libraries
+    # GMX_DLL="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"
+    
+    # Iterate over frames
+    def generatePNGs(self):
+        # Read trajectory in
+        m = pmx.Model(self.fn)
+        trj = Trajectory(self.fn_xtc)
+        
+        tmp_base_fn = self.absolute("pdb/" + basename(self.fn_xtc)[:-4])
+        for i, _ in enumerate(trj):
+            trj.update(m)
+            tmp_fn = tmp_base_fn + str(i) + ".pdb"
+            m.write(tmp_fn)
+            pml_fn = self.absolute('pml/{0}.pml'.format(i))
+            with open(pml_fn, 'w') as fp:
+                fp.write(PYMOL_TEMPLATE.format(tmp_fn, self.absolute("png/{0:0>4d}.png".format(i))))
+            
+            subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
+            print "Processed png number {0}".format(i)
+    
+    
+    # Then make a movie with the pngs ...
+    # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
+    def generateMovie(self):
+        args = "ffmpeg -i {0} {1}".format(*[self.absolute(x) for x in (r'png/%04d.png','md.mp4')])
+        print args
+        subprocess.Popen(args.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
+def concatenateMovies(fileList):
+    with open("file.list", 'w') as f:
+        for filename in fileList:
+            f.write("file {0}\n".format(filename))
+            
+    args = "ffmpeg -f concat -i file.list md_tot.mp4"
+    print args
+    subprocess.Popen(args.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
 
 def runMovieGenerator(runConfigFile):
-
-  for i in map(lambda x:x+1,range(0,1)):
-    movie_generator = MovieGenerator(runConfigFile, i)
-    movie_generator.generatePNGs()
-    movie_generator.generateMovie()
+    runConfig = yaml.load(open(runConfigFile))
+    fileList = []
+    for runID in (1,2):
+        movie_generator = MovieGenerator(runConfig, runID)
+        fileList.append(movie_generator.absolute('md.mp4'))
+        #movie_generator.generatePNGs()
+        #movie_generator.generateMovie()
+    
+    concatenateMovies(fileList)
 
 if __name__=="__main__":
     runMovieGenerator(sys.argv[1])
