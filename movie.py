@@ -1,53 +1,46 @@
 import pymol
 import pymol.experimenting
 from pmx.xtc import *
+from pmx import *
+import os.path
+import time
+import subprocess
 
-fn = 'test.pdb'
+PYMOL_TEMPLATE="""\
+set_view (\
+     0.449250728,    0.289243400,   -0.845287681,\
+    -0.884793460,    0.275103867,   -0.376111388,\
+     0.123753794,    0.916872859,    0.379511178,\
+    -0.000082850,   -0.000003487, -343.202331543,\
+    44.792270660,   42.472671509,   34.783828735,\
+   265.900756836,  420.503906250,  -20.000000000 )
+    load {0}
+    ray
+    png {1}
+"""
 
-# GMX_DLL="/Users/BertrandCaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"
+fn = 'init.pdb'
+fn_xtc = 'md.xtc'
 
-# Initialize a pymol session
-pymol.pymol_argv = ['pymol','-qc']
-pymol.finish_launching()
-cmd = pymol.cmd
-
-# Normalize the view, otherwise the whole movies won't be fixed
-# Output of the get_view command
-cmd.set_view ("""\
-     0.985269666,    0.099541061,    0.139044806,\
-     0.137279570,    0.024403600,   -0.990231931,\
-    -0.101961575,    0.994734287,    0.010378729,\
-     0.000000000,    0.000000000, -258.863006592,\
-    41.115470886,   41.043762207,    6.654131889,\
-   204.089569092,  313.636444092,  -20.000000000 
-""")
-
+# pnx requires having set up the GMX_DLL variable pointing to gromacs shared libraries
+# GMX_DLL="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"
 
 # Read trajectory in
-trj = Trajectory("md.xtc")
-
-# This requires having set up the GMX_DLL variable pointing to gromacs shared libraries
+m = Model(fn)
+trj = Trajectory(fn_xtc)
 
 # Iterate over frames
-for frame in trj:
-    # It looks like we might need to write evrything to file, since the load_coords is not usable as is
-    cmd.load(fn)
-
-    cmd.ray()
-    cmd.png('png/' + fn[:-4] + '.png')
-
-    # Deleting the model should be quicker than relaunching pymol
-    cmd.delete(fn[:-4])
-
-# End Pymol Session
-cmd.quit()
+tmp_base_fn = "tmp/" + fn_xtc[:-4]
+for i, frame in enumerate(trj):
+    trj.update( m )
+    tmp_fn = tmp_base_fn + str(i) + ".pdb"
+    m.write(tmp_fn)
+    with open('pml/{0}.pml'.format(i), 'w') as fp:
+      fp.write(PYMOL_TEMPLATE.format(tmp_fn, "png/{0:0>4d}.png".format(i) ))
+    subprocess.Popen("pymol -qc -n pml/{0}.pml".format(i).split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
 
 
 # Then make a movie with the pngs ...
 # Source : https://trac.ffmpeg.org/wiki/Encode/H.264
 # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
-
-
-
-#DEBUG
-#pymol.cmd.load_coords([ [0.8,0.8,0.8], [4.0, 0.0, 0.0] ], fn[:-4] , 1)
+subprocess.Popen("ffmpeg -i png/%04d.png md.mp4".split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
