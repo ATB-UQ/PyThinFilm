@@ -20,8 +20,7 @@ set_view (\
 color black, resi 1
 bg_color white
 load {0}
-ray
-png {1}
+png {1}, width=1200, height=800, dpi=300, ray=1
 """
 
 class MovieGenerator(object):
@@ -79,8 +78,8 @@ def runMovieGenerator(runConfigFile):
     for runID in (1,2):
         movie_generator = MovieGenerator(runConfig, runID)
         fileList.append(movie_generator.absolute('md.mp4'))
-        #movie_generator.generatePNGs()
-        #movie_generator.generateMovie()
+        movie_generator.generatePNGs()
+        movie_generator.generateMovie()
     
     concatenateMovies(fileList)
 
