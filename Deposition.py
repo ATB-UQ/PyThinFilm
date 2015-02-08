@@ -313,7 +313,7 @@ def cluster(resnameList):
                 next_resname = resnameList[i+count]
             except IndexError:
                 next_resname = ""
-        clusterList.append("{} {}".format(current_resname, count))
+        clusterList.append("{0} {1}".format(current_resname, count))
         i += count
         try:
             current_resname = resnameList[i]
