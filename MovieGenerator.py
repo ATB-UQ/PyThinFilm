@@ -48,7 +48,7 @@ class MovieGenerator(object):
         tmp_base_fn = self.absolute("pdb/" + basename(self.fn_xtc)[:-4])
         for i, _ in enumerate(trj):
             png_file = self.absolute("png/{0:0>4d}.png".format(i))
-            if (not os.path.exists(png_file)) and overwrite :
+            if not overwrite and os.path.exists(png_file):
                 continue
             trj.update(m)
             tmp_fn = tmp_base_fn + str(i) + ".pdb"
