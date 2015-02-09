@@ -6,6 +6,7 @@ from os.path import join, basename
 import subprocess
 import yaml
 import sys
+import argparse
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -39,19 +40,22 @@ class MovieGenerator(object):
     # GMX_DLL="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"
     
     # Iterate over frames
-    def generatePNGs(self):
+    def generatePNGs(self, overwrite=True):
         # Read trajectory in
         m = pmx.Model(self.fn)
         trj = Trajectory(self.fn_xtc)
         
         tmp_base_fn = self.absolute("pdb/" + basename(self.fn_xtc)[:-4])
         for i, _ in enumerate(trj):
+            png_file = self.absolute("png/{0:0>4d}.png".format(i))
+            if (not os.path.exists(png_file)) and overwrite :
+                continue
             trj.update(m)
             tmp_fn = tmp_base_fn + str(i) + ".pdb"
             m.write(tmp_fn)
             pml_fn = self.absolute('pml/{0}.pml'.format(i))
             with open(pml_fn, 'w') as fp:
-                fp.write(PYMOL_TEMPLATE.format(tmp_fn, self.absolute("png/{0:0>4d}.png".format(i))))
+                fp.write(PYMOL_TEMPLATE.format(tmp_fn, png_file))
             
             subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
             print "Processed png number {0}".format(i)
@@ -72,16 +76,20 @@ def concatenateMovies(fileList):
     print args
     subprocess.Popen(args.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
 
-def runMovieGenerator(runConfigFile):
-    runConfig = yaml.load(open(runConfigFile))
+def runMovieGenerator(args):
+    runConfig = yaml.load(open(args.input))
     fileList = []
     for runID in (1,2):
         movie_generator = MovieGenerator(runConfig, runID)
         fileList.append(movie_generator.absolute('md.mp4'))
-        movie_generator.generatePNGs()
+        movie_generator.generatePNGs(overwrite=args.overwrite)
         movie_generator.generateMovie()
     
     concatenateMovies(fileList)
 
 if __name__=="__main__":
-    runMovieGenerator(sys.argv[1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input')
+    parser.add_argument('-D', '--dont-overwrite', dest='overwrite', action='store_false')
+    args = parser.parse_args()
+    runMovieGenerator(args)
