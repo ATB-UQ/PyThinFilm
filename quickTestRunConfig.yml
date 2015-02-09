@@ -1,5 +1,5 @@
 starting_deposition_number: 0
-deposit_N_molecules: 2
+final_deposition_number: 2
 work_directory: testing
 temperature: 300
 run_with_mpi: False

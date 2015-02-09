@@ -310,7 +310,7 @@ def runDeposition(runConfigFile):
     deposition = Deposition(runConfigFile)
     
     logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(deposition.runConfig["drift_velocity"]))
-    while deposition.moleculeNumber < deposition.runConfig["starting_deposition_number"] + deposition.runConfig["deposit_N_molecules"]:
+    while deposition.moleculeNumber < deposition.runConfig["final_deposition_number"]:
         # increment cbp number
         deposition.moleculeNumber += 1
         
