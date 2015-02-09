@@ -1,10 +1,10 @@
 #!/bin/bash
 #$ -S /bin/bash
-#$ -N testmpi 
+#$ -N deposition 
 #$ -pe mpi 16
 #$ -cwd
 #$ -j y
 
 module load openmpi-1.6.3-x86_64
 
-python CBPDeposition.py
+python Deposition.py runConfig.yml

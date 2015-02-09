@@ -18,10 +18,10 @@ set_view (\
     -0.000094324,    0.000004143, -346.935516357,\
     49.073009491,   49.164260864,   27.948474884,\
    188.773605347,  505.097320557,  -20.000000000 )
-color black, resi 1
-bg_color white
 load {0}
 png {1}, width=1200, height=800, dpi=300, ray=1
+color black, resi 1
+bg_color white
 """
 
 class MovieGenerator(object):
