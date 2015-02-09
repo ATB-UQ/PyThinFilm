@@ -17,26 +17,6 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = join(PROJECT_DIR, "templates")
 
 
-#MAX_CORES = 16
-#
-#INSERT_DISTANCE = 20.0 #angstrom 
-#CONTACT_TOLERANCE = 4.0 #angstrom 
-#RUN_TIME = 4.0 #ps
-#
-#DRIFT_VEL = 0.08 #nm/ps
-#TEMPERATURE = 300 #k
-#
-
-
-
-#CBP_PDB_000 = join(TEMPLATE_DIR, "CBP.pdb")
-#
-#GRAPHENE_PDB = join(TEMPLATE_DIR, "GRP.pdb")
-#ITP = join(TEMPLATE_DIR, "CBP.itp")
-#
-#MIXTURE = {CBP_PDB_000:21,
-#           }
-#
 GMX_PATH = "/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
 
 OUT_STRUCT_FILE = "end.gro"
@@ -82,6 +62,8 @@ class Deposition(object):
         
         if not os.path.exists(self.rootdir):    
             os.makedirs(self.rootdir)
+        
+        self.rundir = join(self.rootdir, str(self.moleculeNumber))
         
         if self.moleculeNumber == 0:
             configurationPath = self.runConfig["substrate"]["pdb_file"]
@@ -156,6 +138,7 @@ class Deposition(object):
     def runSetup(self):
         
         self.rundir = join(self.rootdir, str(self.moleculeNumber))
+        
         if not os.path.exists(self.rundir):
             os.mkdir(self.rundir)
         
@@ -271,8 +254,9 @@ class Deposition(object):
 
     def counterResidues(self):
         for res in self.model.residues:
-            if not res.resname == self.runConfig["substrate"]["res_name"]: 
-                self.runConfig["mixture"][res.resname]["count"].setdefault(res.resname, 0)
+            # ignore the substrate residue
+            if res.resname != self.runConfig["substrate"]["res_name"]: 
+                self.runConfig["mixture"][res.resname].setdefault("count", 0)
                 self.runConfig["mixture"][res.resname]["count"] += 1
         # now add in count of zero for any residues ont already in the model
         for res in self.runConfig["mixture"].values():
@@ -326,7 +310,7 @@ def runDeposition(runConfigFile):
     deposition = Deposition(runConfigFile)
     
     logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(deposition.runConfig["drift_velocity"]))
-    while deposition.moleculeNumber < deposition.runConfig["starting_deposition_number"] + deposition.runConfig["deposit_N_molecules"]:
+    while deposition.moleculeNumber < deposition.runConfig["final_deposition_number"]:
         # increment cbp number
         deposition.moleculeNumber += 1
         

@@ -1,8 +1,8 @@
-starting_deposition_number: 0
-deposit_N_molecules: 10
-work_directory: deposit10
+starting_deposition_number: 381
+final_deposition_number: 1000
+work_directory: deposit1000
 temperature: 300
-run_with_mpi: False
+run_with_mpi: True
 max_cores: 8
 insert_distance: 20.0 #angstrom 
 contact_tolerance: 4.0 #angstrom 
