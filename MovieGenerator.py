@@ -1,5 +1,4 @@
 import os
-import sys
 os.environ["GMX_DLL"]="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"  
 import pmx
 from pmx.xtc import Trajectory
@@ -18,6 +17,7 @@ from Deposition import GMX_PATH
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 PYMOL_TEMPLATE="""
+set max_threads, 1
 load {0}
 set_view (\
      0.449250728,    0.289243400,   -0.845287681,\
@@ -72,7 +72,7 @@ class MovieGenerator(object):
             logging.debug("Processed png number {0} ({1})".format(i, png_file))
             subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
             #subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split()).wait()
-            
+            os.remove(tmp_fn)
     
     
     # Then make a movie with the pngs ...
@@ -82,7 +82,7 @@ class MovieGenerator(object):
         logging.debug("running: {0}".format(args))
         #subprocess.Popen(args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
         subprocess.Popen(args, shell=True).wait()
-        
+    
 def concatenateMovies(fileList):
     with open("file.list", 'w') as f:
         for filename in fileList:
@@ -105,29 +105,51 @@ def getMovieFileList(workdir):
     fileList = glob.glob(globPattern)
     return fileList
 
-def getSortedRunDirList(dirname):
-    return sorted(filter(isRunDir, map(lambda x:join(dirname, x), os.listdir(dirname))), key=lambda x:int(basename(x)))
-
-def runMovieGenerator(args):
-    logging.basicConfig(level=VERBOCITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
-    runConfig = yaml.load(open(args.input))
-    workdir = join(PROJECT_DIR, runConfig["work_directory"])
+def getSortedRunDirList(dirname, batchStr):
+    if not batchStr: return sorted(filter(isRunDir, map(lambda x:join(dirname, x), os.listdir(dirname))), key=lambda x:int(basename(x)))
     
-    for runID in getSortedRunDirList(workdir):
+    start, end = map(int, batchStr.split(":"))
+    runRange = range(start, end+1)
+    
+    fullList = sorted(filter(isRunDir, map(lambda x:join(dirname, x), os.listdir(dirname))), key=lambda x:int(basename(x)))
+    existsList = filter(lambda x: int(basename(x)) in runRange, fullList)
+    
+    if len(existsList) != len(runRange):
+        logging.warning("Some runs specified in the range do not (yet) exist. Running those that do.")
+                        
+    return existsList
+
+def runMovieGeneratorSingle(runConfig, workdir, args):
+    logging.basicConfig(level=VERBOCITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
+    
+    for runID in getSortedRunDirList(workdir, args.batch):
+        
         movie_generator = MovieGenerator(runConfig, runID)
         
         if mp4Exists(movie_generator.dirname) and not args.overwrite:
             continue
         
-        movie_generator.fixPBC()
-        movie_generator.generatePNGs()
+        if not args.no_png:
+            movie_generator.fixPBC()
+            movie_generator.generatePNGs()
+            
         movie_generator.generateMovie()
     
-    concatenateMovies(getMovieFileList(workdir))
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
-    parser.add_argument('-D', '--overwrite', dest='overwrite', action='store_true')
+    parser.add_argument('-d', '--overwrite', dest='overwrite', action='store_true')
+    parser.add_argument('-b', '--batch', dest='batch')
+    parser.add_argument('-c', '--concatenate', dest='concatenate', action='store_true')
+    parser.add_argument('-n', '--no_png', dest='no_png', action='store_true')
+    
+    
     args = parser.parse_args()
-    runMovieGenerator(args)
+    
+    runConfig = yaml.load(open(args.input))
+    workdir = join(PROJECT_DIR, runConfig["work_directory"])
+    
+    runMovieGeneratorSingle(runConfig, workdir, args)
+    
+    if args.concatenate: concatenateMovies(getMovieFileList(workdir))
