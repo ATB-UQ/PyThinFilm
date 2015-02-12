@@ -1,4 +1,6 @@
 import os
+import shutil
+import numpy
 os.environ["GMX_DLL"]="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"  
 import pmx
 from pmx.xtc import Trajectory
@@ -8,6 +10,7 @@ import yaml
 import argparse
 import re
 import glob
+from copy import deepcopy
 
 import logging
 VERBOCITY = logging.DEBUG
@@ -17,7 +20,7 @@ from Deposition import GMX_PATH
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 PYMOL_TEMPLATE="""
-set max_threads, 1
+set max_threads, 8
 load {0}
 set_view (\
      0.449250728,    0.289243400,   -0.845287681,\
@@ -31,6 +34,9 @@ bg_color white
 png {1}, width=1200, height=800, dpi=300, ray=1
 """
 
+AVERAGE_N_FRAMES = 1
+
+
 class MovieGenerator(object):
 
     def __init__(self, runConfig, sim_number):
@@ -38,7 +44,7 @@ class MovieGenerator(object):
         self.runConfig = runConfig
         self.dirname = join(PROJECT_DIR, self.runConfig["work_directory"], str(sim_number))
         self.fn = self.absolute('init.gro')
-        self.fn_xtc = self.absolute('md_fixedPBC.xtc')
+        self.fn_xtc = self.absolute('md.xtc')
         map(lambda x: os.makedirs(x) if not os.path.exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
 
     def absolute(self, path):
@@ -49,31 +55,65 @@ class MovieGenerator(object):
         args = "{GMX_PATH}trjconv_d -pbc mol -s md.tpr -f md.xtc -o md_fixedPBC.xtc <<EOF\n0\nEOF".format(**{"GMX_PATH":GMX_PATH})
         logging.debug("running: {0}".format(args))
         subprocess.Popen(args, shell=True, cwd=self.dirname).wait()
+        shutil.move(join(self.dirname, "md_fixedPBC.xtc"), join(self.dirname, "md.xtc"))
         
     # pnx requires having set up the GMX_DLL variable pointing to gromacs shared libraries
     # GMX_DLL="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"
     
     # Iterate over frames
+
+    def createPNG(self, m, tmp_base_fn, count):
+        png_file = self.absolute("png/{0:0>4d}.png".format(count))
+        tmp_fn = tmp_base_fn + str(count) + ".pdb"
+        m.write(tmp_fn)
+        pml_fn = self.absolute('pml/{0}.pml'.format(count))
+        with open(pml_fn, 'w') as fp:
+            fp.write(PYMOL_TEMPLATE.format(tmp_fn, png_file))
+        logging.debug("Processed png number {0} ({1})".format(count, png_file))
+        subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
+        #subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split()).wait()
+        os.remove(tmp_fn)
+
     def generatePNGs(self):
         # Read trajectory in
+        
         m = pmx.Model(self.fn)
+        
+        if AVERAGE_N_FRAMES > 1:
+            mlist = [deepcopy(m) for _ in range(AVERAGE_N_FRAMES)]
+        
         trj = Trajectory(self.fn_xtc)
         
         tmp_base_fn = self.absolute("pdb/" + basename(self.fn_xtc)[:-4])
-        for i, _ in enumerate(trj):
-            png_file = self.absolute("png/{0:0>4d}.png".format(i))
-            trj.update(m)
-            tmp_fn = tmp_base_fn + str(i) + ".pdb"
-            m.write(tmp_fn)
-            pml_fn = self.absolute('pml/{0}.pml'.format(i))
-            with open(pml_fn, 'w') as fp:
-                fp.write(PYMOL_TEMPLATE.format(tmp_fn, png_file))
+        
+        count = 1
+        if AVERAGE_N_FRAMES > 1:
+            while True:
+                # update each model with next from in trajectory    
+                modelCounter = 0
+                for _ in trj:
+                    trj.update(mlist[modelCounter])
+                    modelCounter += 1
+                    if modelCounter == AVERAGE_N_FRAMES:
+                        break
+                # if there aren't AVERAGE_N_FRAMES number of models updated, exit while loop 
+                if modelCounter != AVERAGE_N_FRAMES:
+                    break
                 
-            logging.debug("Processed png number {0} ({1})".format(i, png_file))
-            subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
-            #subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split()).wait()
-            os.remove(tmp_fn)
-    
+                if AVERAGE_N_FRAMES > 1:
+                    for j, atom in enumerate(m.atoms):
+                        atom.x[0] = numpy.mean([m_i.atoms[j].x[0] for m_i in mlist]) 
+                        atom.x[1] = numpy.mean([m_i.atoms[j].x[1] for m_i in mlist])
+                        atom.x[2] = numpy.mean([m_i.atoms[j].x[2] for m_i in mlist])
+                self.createPNG(m, tmp_base_fn, count)
+                count += 1
+        else:
+            for _ in trj:
+                trj.update(m)
+                self.createPNG(m, tmp_base_fn, count)
+                count += 1
+            
+            
     
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
@@ -82,16 +122,22 @@ class MovieGenerator(object):
         logging.debug("running: {0}".format(args))
         #subprocess.Popen(args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
         subprocess.Popen(args, shell=True).wait()
+        self.cleanupPNGs()
+
+    def cleanupPNGs(self):
+        pngDir = join(self.dirname,"png")
+        logging.warning("Removing tree: {0}".format(pngDir))
+        #shutil.rmtree(pngDir)
     
-def concatenateMovies(fileList):
-    with open("file.list", 'w') as f:
+def concatenateMovies(fileList, workdir):
+    with open(join(workdir, "file.list"), 'w') as f:
         for filename in fileList:
             f.write("file {0}\n".format(filename))
             
     args = "yes | ffmpeg -f concat -i file.list md_tot.mp4"
     logging.debug("running: {0}".format(args))
     #subprocess.Popen(args.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
-    subprocess.Popen(args, shell=True).wait()
+    subprocess.Popen(args, shell=True, cwd=workdir).wait()
 
 def isRunDir(f):
     return os.path.isdir(f) and re.search(r"^[0-9]+$", basename(f))
@@ -99,11 +145,20 @@ def isRunDir(f):
 def mp4Exists(dirname):
     return "md.mp4" in os.listdir(dirname)
 
-def getMovieFileList(workdir):
+def getMovieFileList(workdir, batchStr):
+    
     globPattern = "{0}/[0-9]*/md.mp4".format(workdir)
     logging.debug("globbing pattern to find movie files: " + globPattern)
-    fileList = glob.glob(globPattern)
-    return fileList
+    fileList = sorted(glob.glob(globPattern), key=lambda x:int(x.split("/")[-2]))
+    
+    if not batchStr: return fileList
+    
+    start, end = map(int, batchStr.split(":"))
+    runRange = range(start, end + 1)
+    
+    filteredFileList = filter(lambda x:int(x.split("/")[-2]) in runRange, fileList)
+    
+    return filteredFileList
 
 def getSortedRunDirList(dirname, batchStr):
     if not batchStr: return sorted(filter(isRunDir, map(lambda x:join(dirname, x), os.listdir(dirname))), key=lambda x:int(basename(x)))
@@ -134,15 +189,15 @@ def runMovieGeneratorSingle(runConfig, workdir, args):
             movie_generator.generatePNGs()
             
         movie_generator.generateMovie()
-    
 
-if __name__=="__main__":
+def parseCommandline():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
     parser.add_argument('-d', '--overwrite', dest='overwrite', action='store_true')
     parser.add_argument('-b', '--batch', dest='batch')
     parser.add_argument('-c', '--concatenate', dest='concatenate', action='store_true')
-    parser.add_argument('-n', '--no_png', dest='no_png', action='store_true')
+    parser.add_argument('-np', '--no_png', dest='no_png', action='store_true')
+    parser.add_argument('-nm', '--no_mp4', dest='no_mp4', action='store_true')
     
     
     args = parser.parse_args()
@@ -150,6 +205,10 @@ if __name__=="__main__":
     runConfig = yaml.load(open(args.input))
     workdir = join(PROJECT_DIR, runConfig["work_directory"])
     
-    runMovieGeneratorSingle(runConfig, workdir, args)
+    if not args.no_mp4: runMovieGeneratorSingle(runConfig, workdir, args)
     
-    if args.concatenate: concatenateMovies(getMovieFileList(workdir))
+    if args.concatenate: concatenateMovies(getMovieFileList(workdir,args.batch), workdir)
+
+if __name__=="__main__":
+    parseCommandline()
+    
