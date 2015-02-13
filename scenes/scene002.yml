@@ -1,0 +1,6 @@
+title: "Movie Scene n°2 (Do a tenfold speedup via frame averaging on last 500 frames)"
+first_sim_id: 500
+last_sim_id: 1000
+pymol_commands:
+  - ""
+frame_averaging: 10 

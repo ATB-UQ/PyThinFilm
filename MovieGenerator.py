@@ -11,6 +11,7 @@ import argparse
 import re
 import glob
 from copy import deepcopy
+from jinja2 import Template
 
 import logging
 VERBOCITY = logging.DEBUG
@@ -19,19 +20,8 @@ from Deposition import GMX_PATH
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-PYMOL_TEMPLATE="""
-set max_threads, 8
-load {0}
-set_view (\
-     0.449250728,    0.289243400,   -0.845287681,\
-    -0.884793460,    0.275103867,   -0.376111388,\
-     0.123753794,    0.916872859,    0.379511178,\
-    -0.000094324,    0.000004143, -346.935516357,\
-    49.073009491,   49.164260864,   27.948474884,\
-   188.773605347,  505.097320557,  -20.000000000 )
-color black, resi 1
-bg_color white
-png {1}, width=1200, height=800, dpi=300, ray=1
+PYMOL_PNG_TEMPLATE="""
+png {0}, width=1200, height=800, dpi=300, ray=1
 """
 
 AVERAGE_N_FRAMES = 1
@@ -42,6 +32,7 @@ class MovieGenerator(object):
     def __init__(self, runConfig, sim_number):
         logging.info("Running movie generation for: {0}".format(sim_number))
         self.runConfig = runConfig
+        self.sim_number = sim_number
         self.dirname = join(PROJECT_DIR, self.runConfig["work_directory"], str(sim_number))
         self.fn = self.absolute('init.gro')
         self.fn_xtc = self.absolute('md.xtc')
@@ -68,11 +59,29 @@ class MovieGenerator(object):
         m.write(tmp_fn)
         pml_fn = self.absolute('pml/{0}.pml'.format(count))
         with open(pml_fn, 'w') as fp:
-            fp.write(PYMOL_TEMPLATE.format(tmp_fn, png_file))
+            # Scenes need to be read and written in numerial order
+            fp.write( self.createPymolSceneString(tmp_fn) )
+            # The PNG generation is the same for all of them
+            fp.write(PYMOL_PNG_TEMPLATE.format(png_file))
         logging.debug("Processed png number {0} ({1})".format(count, png_file))
         subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
         #subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split()).wait()
         os.remove(tmp_fn)
+
+    def createPymolSceneString(self, tmp_fn):
+        strPML = ''
+        for sceneFile in glob.glob('scenes/*.yml'):
+            scene = yaml.load(open(sceneFile))
+            # If the current scene is not in the scene range, continue to the next one
+            if scene['first_sim_id'] <= self.sim_number <= scene['last_sim_id'] :
+                continue
+            # Reconstruct python string by joining the individual lines
+            scenePML = '\n'.join(scene['pymol_commands'])
+            # Interpret it with jinja2
+            t = Template(scenePML)
+            # Write it to file
+            strPML += t.render(tmp_fn=tmp_fn))
+        return strPML
 
     def generatePNGs(self):
         # Read trajectory in
