@@ -13,3 +13,4 @@ pymol_commands:
    188.773605347,  505.097320557,  -20.000000000 )"
   - "color black, resi 1"
   - "bg_color white"
+frame_averaging: 1

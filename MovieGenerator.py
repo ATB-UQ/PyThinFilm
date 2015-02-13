@@ -24,7 +24,6 @@ PYMOL_PNG_TEMPLATE="""
 png {0}, width=1200, height=800, dpi=300, ray=1
 """
 
-AVERAGE_N_FRAMES = 1
 
 
 class MovieGenerator(object):
@@ -37,6 +36,8 @@ class MovieGenerator(object):
         self.fn = self.absolute('init.gro')
         self.fn_xtc = self.absolute('md.xtc')
         map(lambda x: os.makedirs(x) if not os.path.exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
+        # Take the maximum of the frame_averaging over all the scenes
+        self.average_n_frames = max( map(lambda x: yaml.load(open(x))["frame_averaging"], glob.glob('scenes/*.yml')))
 
     def absolute(self, path):
         return join(self.dirname, path)
@@ -88,28 +89,28 @@ class MovieGenerator(object):
         
         m = pmx.Model(self.fn)
         
-        if AVERAGE_N_FRAMES > 1:
-            mlist = [deepcopy(m) for _ in range(AVERAGE_N_FRAMES)]
+        if self.average_n_frames > 1:
+            mlist = [deepcopy(m) for _ in range(self.average_n_frames)]
         
         trj = Trajectory(self.fn_xtc)
         
         tmp_base_fn = self.absolute("pdb/" + basename(self.fn_xtc)[:-4])
         
         count = 1
-        if AVERAGE_N_FRAMES > 1:
+        if self.average_n_frames > 1:
             while True:
                 # update each model with next from in trajectory    
                 modelCounter = 0
                 for _ in trj:
                     trj.update(mlist[modelCounter])
                     modelCounter += 1
-                    if modelCounter == AVERAGE_N_FRAMES:
+                    if modelCounter == self.average_n_frames:
                         break
-                # if there aren't AVERAGE_N_FRAMES number of models updated, exit while loop 
-                if modelCounter != AVERAGE_N_FRAMES:
+                # if there aren't self.average_n_frames number of models updated, exit while loop 
+                if modelCounter != self.average_n_frames:
                     break
                 
-                if AVERAGE_N_FRAMES > 1:
+                if self.average_n_frames > 1:
                     for j, atom in enumerate(m.atoms):
                         atom.x[0] = numpy.mean([m_i.atoms[j].x[0] for m_i in mlist]) 
                         atom.x[1] = numpy.mean([m_i.atoms[j].x[1] for m_i in mlist])
