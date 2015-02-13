@@ -194,6 +194,18 @@ class Deposition(object):
         maxLayerHeight = max([a.x[2] for a in self.model.atoms if a not in lastRes.atoms])
         logging.debug("Max layer height {0}".format(maxLayerHeight))
         return any([a.x[2] < maxLayerHeight + self.runConfig["contact_tolerance"] for a in lastRes.atoms])
+
+    # A molecule has bounced if any of its atoms is above its insertion height
+    # NB: Relies on the definition of self.insertionHeight
+    def hasBounced(self):
+        lastResID = self.model.residues[-1].id
+        lastRes = self.model.residue(lastResID)
+        return any([a.x[2] > self.insertionHeight for a in lastRes.atoms])
+
+    # A molecule as left layer if it is above a certain height (above the layer's mean height ??)  with a net z velocity
+    def hasLeftLayer(self):
+        pass
+
     
     def genInitialVelocitiesLastResidue(self):
         
@@ -246,6 +258,10 @@ class Deposition(object):
             
         nextMolecule.translate([xPos, yPos, insertHeight])
         nextMolecule.random_rotation()
+
+        # Define its insertion height as the highest Z value amongst its atoms
+        self.insertionHeight = max([ a.x[2] for x in nextMolecule.atoms])
+
         return nextMolecule
         
     def writeInitConfiguration(self):
