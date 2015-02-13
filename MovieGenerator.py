@@ -36,8 +36,8 @@ class MovieGenerator(object):
         self.fn = self.absolute('init.gro')
         self.fn_xtc = self.absolute('md.xtc')
         map(lambda x: os.makedirs(x) if not os.path.exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
-        # Take the maximum of the frame_averaging over all the scenes
-        self.average_n_frames = max( map(lambda x: yaml.load(open(x))["frame_averaging"], glob.glob('scenes/*.yml')))
+        # Take the maximum of the frame_averaging over all the **active** scenes for a given sim_number
+        self.average_n_frames = max( [ x["frame_averaging"] for x in map(lambda x: yaml.load(open(x)), glob.glob('scenes/*.yml')) if x['first_sim_id'] <= self.sim_number <= x['last_sim_id'] ] )
 
     def absolute(self, path):
         return join(self.dirname, path)
