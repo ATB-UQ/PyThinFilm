@@ -130,7 +130,8 @@ class MovieGenerator(object):
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
     def generateMovie(self):
-        args = "yes | ffmpeg -i {0} {1}".format(*[self.absolute(x) for x in (r'png/%04d.png','md.mp4')])
+        counter_text = "Hello World"
+        args = "yes | ffmpeg -i {0} drawtext=\"text:'{2}':fontsize=20;x=(w/2):y=(h-25)\" {1}".format(*[self.absolute(x) for x in (r'png/%04d.png','md.mp4')] + [counter_text] )
         logging.debug("running: {0}".format(args))
         #subprocess.Popen(args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
         subprocess.Popen(args, shell=True).wait()
