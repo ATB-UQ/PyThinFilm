@@ -24,6 +24,8 @@ PYMOL_PNG_TEMPLATE="""
 png {0}, width=1200, height=800, dpi=300, ray=1
 """
 
+YAML_SCENES = glob.glob('scenes/*.yml')
+
 
 
 class MovieGenerator(object):
@@ -37,7 +39,7 @@ class MovieGenerator(object):
         self.fn_xtc = self.absolute('md.xtc')
         map(lambda x: os.makedirs(x) if not os.path.exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
         # Take the maximum of the frame_averaging over all the **active** scenes for a given sim_number
-        self.average_n_frames = max( [ x["frame_averaging"] for x in map(lambda x: yaml.load(open(x)), glob.glob('scenes/*.yml')) if x['first_sim_id'] <= self.sim_number <= x['last_sim_id'] ] )
+        self.average_n_frames = max( [ x["frame_averaging"] for x in map(lambda x: yaml.load(open(x)), YAML_SCENES) if x['first_sim_id'] <= self.sim_number <= x['last_sim_id'] ] )
 
     def absolute(self, path):
         return join(self.dirname, path)
@@ -71,7 +73,7 @@ class MovieGenerator(object):
 
     def createPymolSceneString(self, tmp_fn):
         strPML = ''
-        for sceneFile in glob.glob('scenes/*.yml'):
+        for sceneFile in YAML_SCENES
             scene = yaml.load(open(sceneFile))
             # If the current scene is not in the scene range, continue to the next one
             if scene['first_sim_id'] <= self.sim_number <= scene['last_sim_id'] :
