@@ -139,16 +139,8 @@ class MovieGenerator(object):
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
     def generateMovie(self):
-        counter_text = "[in]"
-        BASE_HEIGHT = 25
-        LINE_HEIGHT = 45
-        height = BASE_HEIGHT - LINE_HEIGHT
-        for compound, counter in self.getSortedMixtureFromTopologyFile():
-            height += LINE_HEIGHT
-            if counter_text != "[in]" : counter_text += ", "
-            counter_text += "drawtext=fontfile=/home/uqbcaron/.fonts/OpenSans-Regular.ttf:text='{0} {1}':fontsize=40:x=25:y={2}".format(compound, counter, height)
-        overlaid_command = counter_text
-        args = "yes | ffmpeg -i {0} -vf \"{2}\" {1}".format(*[self.absolute(x) for x in (r'png/%04d.png','md.mp4')] + [overlaid_command] )
+        overlaid_command = self.FFmpegOverlaidCommand()
+        args = "yes | ffmpeg -i {0} {2} {1}".format(*[self.absolute(x) for x in (r'png/%04d.png','md.mp4')] + [overlaid_command] )
         logging.debug("running: {0}".format(args))
         #Popen(args, shell=True, stdout=PIPE, stderr=PIPE).wait()
         p = Popen(args, shell=True, stdout=PIPE, stderr=PIPE)
@@ -158,6 +150,17 @@ class MovieGenerator(object):
             logging.error("Generating movie from png with ffmpeg failed with error message: {0}. Check the log.".format(error))
         else :
             self.flushPNGs()
+
+    def FFmpegOverlaidCommand(self):
+        counter_text = "[in]"
+        BASE_HEIGHT = 25
+        LINE_HEIGHT = 45
+        height = BASE_HEIGHT - LINE_HEIGHT
+        for compound, counter in self.getSortedMixtureFromTopologyFile():
+            height += LINE_HEIGHT
+            if counter_text != "[in]" : counter_text += ", "
+            counter_text += "drawtext=fontfile=/home/uqbcaron/.fonts/OpenSans-Regular.ttf:text='{0} {1}':fontsize=40:x=25:y={2}".format(compound, counter, height)
+        return '-vf "{0}"'.format(counter_text)
 
     def getSortedMixtureFromTopologyFile(self):
         mixture = {}
