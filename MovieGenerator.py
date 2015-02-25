@@ -30,16 +30,17 @@ YAML_SCENES = glob.glob('scenes/*.yml')
 
 class MovieGenerator(object):
 
-    def __init__(self, runConfig, sim_number):
-        logging.info("Running movie generation for: {0}".format(sim_number))
+    def __init__(self, runConfig, runID):
+        logging.info("Running movie generation for: {0}".format(runID))
         self.runConfig = runConfig
-        self.sim_number = sim_number
-        self.dirname = join(PROJECT_DIR, self.runConfig["work_directory"], str(sim_number))
+        self.dirname = runID
+        self.sim_number = int(basename(runID))
         self.fn = self.absolute('init.gro')
         self.fn_xtc = self.absolute('md.xtc')
         map(lambda x: os.makedirs(x) if not os.path.exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
         # Take the maximum of the frame_averaging over all the **active** scenes for a given sim_number
         self.average_n_frames = max( [ x["frame_averaging"] for x in map(lambda x: yaml.load(open(x)), YAML_SCENES) if x['first_sim_id'] <= self.sim_number <= x['last_sim_id'] ] )
+        exit()
 
     def absolute(self, path):
         return join(self.dirname, path)
@@ -73,7 +74,7 @@ class MovieGenerator(object):
 
     def createPymolSceneString(self, tmp_fn):
         strPML = ''
-        for sceneFile in YAML_SCENES
+        for sceneFile in YAML_SCENES :
             scene = yaml.load(open(sceneFile))
             # If the current scene is not in the scene range, continue to the next one
             if scene['first_sim_id'] <= self.sim_number <= scene['last_sim_id'] :
@@ -189,8 +190,10 @@ def getSortedRunDirList(dirname, batchStr):
 
 def runMovieGeneratorSingle(runConfig, workdir, args):
     logging.basicConfig(level=VERBOCITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
-    
-    for runID in getSortedRunDirList(workdir, args.batch):
+   
+    sortedRunDirList = getSortedRunDirList(workdir, args.batch)
+    logging.info("Will run movie generation on the following sorted directory list :{0}".format(sortedRunDirList))
+    for runID in sortedRunDirList :
         
         movie_generator = MovieGenerator(runConfig, runID)
         
