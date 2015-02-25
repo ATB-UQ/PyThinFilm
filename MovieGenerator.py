@@ -4,19 +4,20 @@ import numpy
 os.environ["GMX_DLL"]="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"  
 import pmx
 from pmx.xtc import Trajectory
-from os.path import join, basename
-import subprocess
+from os.path import join, basename, exists
+from subprocess import Popen, PIPE
 import yaml
 import argparse
 import re
 import glob
 from copy import deepcopy
 from jinja2 import Template
+from operator import itemgetter
 
 import logging
 VERBOCITY = logging.DEBUG
 
-from Deposition import GMX_PATH
+from Deposition import GMX_PATH, TOPOLOGY_FILE
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -25,8 +26,6 @@ png {0}, width=1200, height=800, dpi=300, ray=1
 """
 
 YAML_SCENES = glob.glob('scenes/*.yml')
-
-
 
 class MovieGenerator(object):
 
@@ -37,7 +36,7 @@ class MovieGenerator(object):
         self.sim_number = int(basename(runID))
         self.fn = self.absolute('init.gro')
         self.fn_xtc = self.absolute('md.xtc')
-        map(lambda x: os.makedirs(x) if not os.path.exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
+        map(lambda x: os.makedirs(x) if not exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
         # Take the maximum of the frame_averaging over all the **active** scenes for a given sim_number
         self.average_n_frames = max( [ x["frame_averaging"] for x in map(lambda x: yaml.load(open(x)), YAML_SCENES) if x['first_sim_id'] <= self.sim_number <= x['last_sim_id'] ] )
 
@@ -48,7 +47,7 @@ class MovieGenerator(object):
     def fixPBC(self):
         args = "{GMX_PATH}trjconv_d -pbc mol -s md.tpr -f md.xtc -o md_fixedPBC.xtc <<EOF\n0\nEOF".format(**{"GMX_PATH":GMX_PATH})
         logging.debug("running: {0}".format(args))
-        subprocess.Popen(args, shell=True, cwd=self.dirname).wait()
+        Popen(args, shell=True, cwd=self.dirname).wait()
         shutil.move(join(self.dirname, "md_fixedPBC.xtc"), join(self.dirname, "md.xtc"))
         
     # pnx requires having set up the GMX_DLL variable pointing to gromacs shared libraries
@@ -67,8 +66,8 @@ class MovieGenerator(object):
             # The PNG generation is the same for all of them
             fp.write(PYMOL_PNG_TEMPLATE.format(png_file))
         logging.debug("Processed png number {0} ({1})".format(count, png_file))
-        subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
-        #subprocess.Popen("pymol -qc -n {0}".format(pml_fn).split()).wait()
+        Popen("pymol -qc -n {0}".format(pml_fn).split(), stdout=PIPE, stderr=PIPE).wait()
+        #Popen("pymol -qc -n {0}".format(pml_fn).split()).wait()
         os.remove(tmp_fn)
 
     def createPymolSceneString(self, tmp_fn):
@@ -87,8 +86,10 @@ class MovieGenerator(object):
         return strPML
 
     def generatePNGs(self):
-        # Read trajectory in
-        
+        # First, flush all potential old png's
+        self.flushPNGs()
+
+        # Then, read trajectory in
         m = pmx.Model(self.fn)
         
         if self.average_n_frames > 1:
@@ -125,22 +126,46 @@ class MovieGenerator(object):
                 self.createPNG(m, tmp_base_fn, count)
                 count += 1
             
+    def flushPNGs(self):
+        # Remove all pngs (before regenerating them). This is useful when we modify the frame avaraging and end up overwriting less pngs than previously generated.
+        pngDir = join(self.dirname,"png")
+        if exists(pngDir) :
+            logging.warning("Removing tree: {0}".format(pngDir))
+            shutil.rmtree(pngDir)
+            # Then, make the png directory back, just in case.
+            os.makedirs(pngDir)
             
     
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
     def generateMovie(self):
-        counter_text = "Hello World"
-        args = "yes | ffmpeg -i {0} drawtext=\"text:'{2}':fontsize=20;x=(w/2):y=(h-25)\" {1}".format(*[self.absolute(x) for x in (r'png/%04d.png','md.mp4')] + [counter_text] )
+        counter_text = ""
+        for compound, counter in self.getSortedMixtureFromTopologyFile():
+            counter_text += "{0} {1}".format(compound, counter)
+        overlaid_command = "drawtext=fontfile=/home/uqbcaron/.fonts/OpenSans-Regular.ttf:text='{0}':fontsize=40:x=25:y=25".format(counter_text)
+        args = "yes | ffmpeg -i {0} -vf \"{2}\" {1}".format(*[self.absolute(x) for x in (r'png/%04d.png','md.mp4')] + [overlaid_command] )
         logging.debug("running: {0}".format(args))
-        #subprocess.Popen(args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
-        subprocess.Popen(args, shell=True).wait()
-        self.cleanupPNGs()
+        #Popen(args, shell=True, stdout=PIPE, stderr=PIPE).wait()
+        p = Popen(args, shell=True, stdout=PIPE, stderr=PIPE)
+        p.wait()
+        error = p.stderr.read()
+        if error : 
+            logging.error("Generating movie from png with ffmpeg failed with error message: {0}. Check the log.".format(error))
+        else :
+            self.flushPNGs()
 
-    def cleanupPNGs(self):
-        pngDir = join(self.dirname,"png")
-        logging.warning("Removing tree: {0}".format(pngDir))
-        #shutil.rmtree(pngDir)
+    def getSortedMixtureFromTopologyFile(self):
+        mixture = {}
+        with open( join(self.dirname, TOPOLOGY_FILE) ) as fh:
+            for line in fh:
+                m = re.search("^([a-zA-Z0-9]+) ([0-9]+)", line)
+                if m :
+                    mixture.setdefault(m.group(1), 0)
+                    mixture[m.group(1)] += int(m.group(2))
+        # Don't forget to remote substrate name
+        del mixture[ self.runConfig["substrate"]["res_name"] ]
+        # Return the list sorted by alphabetical order
+        return sorted(mixture.items(), key=itemgetter(0))
     
 def concatenateMovies(fileList, workdir):
     with open(join(workdir, "file.list"), 'w') as f:
@@ -149,8 +174,8 @@ def concatenateMovies(fileList, workdir):
             
     args = "yes | ffmpeg -f concat -i file.list md_tot.mp4"
     logging.debug("running: {0}".format(args))
-    #subprocess.Popen(args.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
-    subprocess.Popen(args, shell=True, cwd=workdir).wait()
+    #Popen(args.split(), stdout=PIPE, stderr=PIPE).wait()
+    Popen(args, shell=True, cwd=workdir).wait()
 
 def isRunDir(f):
     return os.path.isdir(f) and re.search(r"^[0-9]+$", basename(f))
