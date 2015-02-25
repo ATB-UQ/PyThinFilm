@@ -40,7 +40,6 @@ class MovieGenerator(object):
         map(lambda x: os.makedirs(x) if not os.path.exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
         # Take the maximum of the frame_averaging over all the **active** scenes for a given sim_number
         self.average_n_frames = max( [ x["frame_averaging"] for x in map(lambda x: yaml.load(open(x)), YAML_SCENES) if x['first_sim_id'] <= self.sim_number <= x['last_sim_id'] ] )
-        exit()
 
     def absolute(self, path):
         return join(self.dirname, path)
