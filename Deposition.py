@@ -22,7 +22,9 @@ GMX_PATH = "/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
 OUT_STRUCT_FILE = "end.gro"
 IN_STRUCT_FILE = "init.gro"
 
-TOP_FILE = "templates/topo.top.epy"
+TOPOLOGY_FILE = "topo.top"
+
+TOP_FILE = "templates/{0}.epy".format(TOPOLOGY_FILE)
 MDP_FILE = "templates/run.mdp.epy"
 
 GPP_TEMPLATE = "{GMX_PATH}grompp_d -f run.mdp -c {struct} -p topo.top -o md.tpr".format(**{"struct":IN_STRUCT_FILE,
