@@ -76,7 +76,7 @@ class MovieGenerator(object):
         for sceneFile in YAML_SCENES :
             scene = yaml.load(open(sceneFile))
             # If the current scene is not in the scene range, continue to the next one
-            if scene['first_sim_id'] <= self.sim_number <= scene['last_sim_id'] :
+            if not (scene['first_sim_id'] <= self.sim_number <= scene['last_sim_id'] ) :
                 continue
             # Reconstruct python string by joining the individual lines
             scenePML = '\n'.join(scene['pymol_commands'])
