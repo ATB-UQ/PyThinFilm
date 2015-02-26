@@ -139,14 +139,19 @@ class MovieGenerator(object):
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
     def generateMovie(self):
+        abs_md_mp4 = self.absolute("md.mp4")
+        # First, clean up potential old "md.mp4"
+        # This is necessary since we will use the presence of this file as the proof ffmpeg succeeded
+        if exists(abs_md_mp4) : os.remove(abs_md_mp4)
+        # Then, generate the overlaid text
         overlaid_command = self.FFmpegOverlaidCommand()
-        args = "yes | ffmpeg -i {0} {2} {1}".format(*[self.absolute(x) for x in (r'png/%04d.png','md.mp4')] + [overlaid_command] )
+        args = "ffmpeg -i {0} {2} {1}".format(self.absolute(r'png/%04d.png'), abs_md_mp4, overlaid_command )
         logging.debug("running: {0}".format(args))
-        #Popen(args, shell=True, stdout=PIPE, stderr=PIPE).wait()
         p = Popen(args, shell=True, stdout=PIPE, stderr=PIPE)
         p.wait()
         error = p.stderr.read()
-        if error : 
+        # ffmpeg writes everything to stderr, so we have to deal with it manually by checking the file exists...
+        if not exists( abs_md_mp4 ) : 
             logging.error("Generating movie from png with ffmpeg failed with error message: {0}. Check the log.".format(error))
         else :
             self.flushPNGs()
