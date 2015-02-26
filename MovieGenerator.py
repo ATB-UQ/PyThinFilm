@@ -27,7 +27,7 @@ png {0}, width=1200, height=800, dpi=300, ray=1
 
 YAML_SCENES = glob.glob('scenes/*.yml')
 
-FAST_PNG_LIMIT = 10
+FAST_PNG_LIMIT = 3
 
 class MovieGenerator(object):
 
@@ -138,7 +138,7 @@ class MovieGenerator(object):
             os.makedirs(pngDir)
             
     def shouldGenerateMorePNG(self, count, fast_run):
-     return (not fast_run) or(count <= FAST_PNG_LIMIT )
+     return (not fast_run) or (count <= FAST_PNG_LIMIT )
 
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
