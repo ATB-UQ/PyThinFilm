@@ -87,7 +87,7 @@ class MovieGenerator(object):
             strPML += t.render(tmp_fn=tmp_fn, last_resid=(self.sim_number+1) )
         return strPML
 
-    def generatePNGs(self, fast_run=fast_run):
+    def generatePNGs(self, fast_run=False):
         # First, flush all potential old png's
         self.flushPNGs()
 
@@ -103,7 +103,7 @@ class MovieGenerator(object):
         
         count = 1
         if self.average_n_frames > 1:
-            while shouldGeneratePNG(count, fast_run):
+            while self.shouldGenerateMorePNG(count, fast_run):
                 # update each model with next from in trajectory    
                 modelCounter = 0
                 for _ in trj:
@@ -137,7 +137,7 @@ class MovieGenerator(object):
             # Then, make the png directory back, just in case.
             os.makedirs(pngDir)
             
-    def shouldGeneratePNG(self, count, fast_run):
+    def shouldGenerateMorePNG(self, count, fast_run):
      return (not fast_run) and (count <= FAST_PNG_LIMIT )
 
     # Then make a movie with the pngs ...
