@@ -142,14 +142,15 @@ class MovieGenerator(object):
 
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
-    def generateMovie(self):
+    def generateMovie(self, fast_run=False, keep_png=False):
         abs_md_mp4 = self.absolute("md.mp4")
         # First, clean up potential old "md.mp4"
         # This is necessary since we will use the presence of this file as the proof ffmpeg succeeded
         if exists(abs_md_mp4) : os.remove(abs_md_mp4)
         # Then, generate the overlaid text
         overlaid_command = self.FFmpegOverlaidCommand()
-        args = "ffmpeg -i {0} {2} {1}".format(self.absolute(r'png/%04d.png'), abs_md_mp4, overlaid_command )
+        fast_run_command = "" if not fast_run else "-r 1"
+        args = "ffmpeg {3} -i {0} {2} {1}".format(self.absolute(r'png/%04d.png'), abs_md_mp4, overlaid_command, fast_run_command )
         logging.debug("running: {0}".format(args))
         p = Popen(args, shell=True, stdout=PIPE, stderr=PIPE)
         p.wait()
@@ -158,7 +159,7 @@ class MovieGenerator(object):
         if not exists( abs_md_mp4 ) : 
             logging.error("Generating movie from png with ffmpeg failed with error message: {0}. Check the log.".format(error))
         else :
-            self.flushPNGs()
+            if not keep_png: self.flushPNGs()
 
     def FFmpegOverlaidCommand(self):
         counter_text = "[in]"
@@ -245,7 +246,7 @@ def runMovieGeneratorSingle(runConfig, workdir, args):
             movie_generator.fixPBC()
             movie_generator.generatePNGs(fast_run=args.fast_run)
             
-        movie_generator.generateMovie()
+        movie_generator.generateMovie(fast_run=args.fast_run, keep_png=args.keep_png)
 
 def parseCommandline():
     parser = argparse.ArgumentParser()
@@ -256,6 +257,7 @@ def parseCommandline():
     parser.add_argument('-np', '--no_png', dest='no_png', action='store_true')
     parser.add_argument('-nm', '--no_mp4', dest='no_mp4', action='store_true')
     parser.add_argument('-f', '--fast', dest='fast_run', action='store_true')
+    parser.add_argument('-kp', '--keep_png', dest='keep_png', action='store_true')
     
     
     args = parser.parse_args()
