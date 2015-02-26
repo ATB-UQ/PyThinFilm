@@ -27,6 +27,8 @@ png {0}, width=1200, height=800, dpi=300, ray=1
 
 YAML_SCENES = glob.glob('scenes/*.yml')
 
+FAST_PNG_LIMIT = 10
+
 class MovieGenerator(object):
 
     def __init__(self, runConfig, runID):
@@ -85,7 +87,7 @@ class MovieGenerator(object):
             strPML += t.render(tmp_fn=tmp_fn, last_resid=(self.sim_number+1) )
         return strPML
 
-    def generatePNGs(self):
+    def generatePNGs(self, fast_run=fast_run):
         # First, flush all potential old png's
         self.flushPNGs()
 
@@ -101,7 +103,7 @@ class MovieGenerator(object):
         
         count = 1
         if self.average_n_frames > 1:
-            while True:
+            while shouldGeneratePNG(count, fast_run):
                 # update each model with next from in trajectory    
                 modelCounter = 0
                 for _ in trj:
@@ -135,7 +137,9 @@ class MovieGenerator(object):
             # Then, make the png directory back, just in case.
             os.makedirs(pngDir)
             
-    
+    def shouldGeneratePNG(self, count, fast_run):
+     return (not fast_run) and (count <= FAST_PNG_LIMIT )
+
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
     def generateMovie(self):
@@ -239,7 +243,7 @@ def runMovieGeneratorSingle(runConfig, workdir, args):
         
         if not args.no_png:
             movie_generator.fixPBC()
-            movie_generator.generatePNGs()
+            movie_generator.generatePNGs(fast_run=args.fast_run)
             
         movie_generator.generateMovie()
 
@@ -251,6 +255,7 @@ def parseCommandline():
     parser.add_argument('-c', '--concatenate', dest='concatenate', action='store_true')
     parser.add_argument('-np', '--no_png', dest='no_png', action='store_true')
     parser.add_argument('-nm', '--no_mp4', dest='no_mp4', action='store_true')
+    parser.add_argument('-f', '--fast', dest='fast_run', action='store_true')
     
     
     args = parser.parse_args()
