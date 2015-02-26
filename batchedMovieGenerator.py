@@ -1,6 +1,6 @@
 from MovieGenerator import getSortedRunDirList
 from Deposition import PROJECT_DIR
-from os.path import join, exists
+from os.path import join, exists, basename
 import os
 import yaml
 import argparse
@@ -11,7 +11,7 @@ MAX_N_CORES = 100
 
 JOB_TEMPLATE = '''#!/bin/bash
 #$ -S /bin/bash
-#$ -N batchMovie 
+#$ -N bMov{2}
 #$ -cwd
 #$ -o /dev/null
 #$ -e /dev/null
@@ -26,16 +26,17 @@ def runBatchMovie(runConfig, args):
     jobDir = join(workdir, JOBS_DIRECTORY)
     if not exists(jobDir):
         os.mkdir(jobDir)
-    fullRunList = getSortedRunDirList(workdir, "")
+    fullRunList = getSortedRunDirList(workdir, args.batch)
     numberOfJobs = len(fullRunList)
     
     # integer division on purpose
     jobsPerCore = numberOfJobs/(MAX_N_CORES + 1) + 1
-    
-    i = 1
-    while i < len(fullRunList):
+
+    for dirname in fullRunList:
+        i = int(basename(dirname))
+        print i
         start, end = i, i + jobsPerCore - 1
-        jobStr = JOB_TEMPLATE.format(args.input, "{0}:{1}".format(start, end))
+        jobStr = JOB_TEMPLATE.format(args.input, "{0}:{1}".format(start, end), "{0}-{1}".format(start, end))
         
         jobPath = join(jobDir, "BM_{0}-{1}.sh".format(start, end))
         with open(jobPath, "w") as fh:
@@ -48,6 +49,7 @@ def runBatchMovie(runConfig, args):
 def parseCommandline():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
+    parser.add_argument('-b', '--batch', dest='batch')
     
     args = parser.parse_args()
     runConfig = yaml.load(open(args.input))
