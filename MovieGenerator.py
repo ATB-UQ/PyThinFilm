@@ -82,7 +82,7 @@ class MovieGenerator(object):
             # Interpret it with jinja2
             t = Template(scenePML)
             # Write it to file
-            strPML += t.render(tmp_fn=tmp_fn)
+            strPML += t.render(tmp_fn=tmp_fn, last_resid=(self.sim_number+1) )
         return strPML
 
     def generatePNGs(self):
