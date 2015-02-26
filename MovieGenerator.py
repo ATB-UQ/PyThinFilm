@@ -27,7 +27,7 @@ png {0}, width=1200, height=800, dpi=300, ray=1
 
 YAML_SCENES = glob.glob('scenes/*.yml')
 
-FAST_PNG_LIMIT = 3
+FAST_PNG_LIMIT = 30
 
 class MovieGenerator(object):
 
@@ -149,7 +149,7 @@ class MovieGenerator(object):
         if exists(abs_md_mp4) : os.remove(abs_md_mp4)
         # Then, generate the overlaid text
         overlaid_command = self.FFmpegOverlaidCommand()
-        fast_run_command = "" if not fast_run else "-r 1"
+        fast_run_command = "" #if not fast_run else "-r 1"
         args = "ffmpeg {3} -i {0} {2} {1}".format(self.absolute(r'png/%04d.png'), abs_md_mp4, overlaid_command, fast_run_command )
         logging.debug("running: {0}".format(args))
         p = Popen(args, shell=True, stdout=PIPE, stderr=PIPE)
