@@ -5,18 +5,22 @@ import os
 import yaml
 import argparse
 import subprocess
+from jinja2 import Template
 
 JOBS_DIRECTORY = "qsub"
 MAX_N_CORES = 100
 
 JOB_TEMPLATE = '''#!/bin/bash
+{%- if n_cores %}
+#$ -pe mpi {{n_cores}}
+{%- endif %}
 #$ -S /bin/bash
-#$ -N bMov{2}
+#$ -N Mov{{batchStr_escaped}}
 #$ -cwd
 #$ -o /dev/null
 #$ -e /dev/null
 
-python MovieGenerator.py -i {0} -b {1}
+python MovieGenerator.py -i {{config_file}} -b {{batchStr}}
 '''
 
 def runBatchMovie(runConfig, args):
@@ -28,15 +32,18 @@ def runBatchMovie(runConfig, args):
         os.mkdir(jobDir)
     fullRunList = getSortedRunDirList(workdir, args.batch)
     numberOfJobs = len(fullRunList)
+
     
     # integer division on purpose
-    jobsPerCore = numberOfJobs/(MAX_N_CORES + 1) + 1
+    n_cores = runConfig['movies']['n_cores']
+    jobsPerCore = (numberOfJobs * n_cores)/(MAX_N_CORES + 1) + 1
 
     for dirname in fullRunList:
         i = int(basename(dirname))
         print i
         start, end = i, i + jobsPerCore - 1
-        jobStr = JOB_TEMPLATE.format(args.input, "{0}:{1}".format(start, end), "{0}-{1}".format(start, end))
+        t = Template(JOB_TEMPLATE)
+        jobStr = t.render( config_file=args.input, batchStr="{0}:{1}".format(start, end), batchStr_escaped="{0}-{1}".format(start, end), n_cores=n_cores )
         
         jobPath = join(jobDir, "BM_{0}-{1}.sh".format(start, end))
         with open(jobPath, "w") as fh:

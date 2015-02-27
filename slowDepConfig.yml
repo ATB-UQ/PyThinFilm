@@ -29,4 +29,5 @@ substrate:
       res_name: GRP
       pdb_file: templates/GRP.pdb
       itp_file: templates/GRP.itp
-
+movies:
+    n_cores: 8
