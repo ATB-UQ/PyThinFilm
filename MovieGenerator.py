@@ -32,7 +32,6 @@ FAST_PNG_LIMIT = 30
 class MovieGenerator(object):
 
     def __init__(self, runConfig, runID):
-        logging.info("Running movie generation for: {0}".format(runID))
         self.runConfig = runConfig
         self.dirname = runID
         self.sim_number = int(basename(runID))
@@ -143,6 +142,9 @@ class MovieGenerator(object):
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
     def generateMovie(self, fast_run=False, keep_png=False):
+        # Log
+        self.logging.info("Running movie generation for: {0}".format(self.dirname))
+
         abs_md_mp4 = self.absolute("md.mp4")
         # First, clean up potential old "md.mp4"
         # This is necessary since we will use the presence of this file as the proof ffmpeg succeeded
