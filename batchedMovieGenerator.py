@@ -38,8 +38,8 @@ def runBatchMovie(runConfig, args):
     n_cores = runConfig['movies']['n_cores']
     jobsPerCore = (numberOfJobs * n_cores)/(MAX_N_CORES + 1) + 1
 
-    for dirname in fullRunList:
-        i = int(basename(dirname))
+    for dirname in chunks(fullRunList, jobsPerCore):
+        i = int(basename(dirname[0]))
         print i
         start, end = i, i + jobsPerCore - 1
         t = Template(JOB_TEMPLATE)
@@ -49,9 +49,14 @@ def runBatchMovie(runConfig, args):
         with open(jobPath, "w") as fh:
             fh.write(jobStr)
         subprocess.Popen("qsub {0}".format(jobPath).split()).wait()
-        
-        i += jobsPerCore
-    
+
+
+# Source : http://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks-in-python
+def chunks(l, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
 
 def parseCommandline():
     parser = argparse.ArgumentParser()
