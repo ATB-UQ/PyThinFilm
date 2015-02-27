@@ -36,7 +36,7 @@ class MovieGenerator(object):
         self.dirname = runID
         self.sim_number = int(basename(runID))
         self.fn = self.absolute('init.gro')
-        self.fn_xtc = self.absolute('md.xtc')
+        
         map(lambda x: os.makedirs(x) if not exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
         # Take the maximum of the frame_averaging over all the **active** scenes for a given sim_number
         self.average_n_frames = max( [ x["frame_averaging"] for x in map(lambda x: yaml.load(open(x)), YAML_SCENES) if x['first_sim_id'] <= self.sim_number <= x['last_sim_id'] ] )
@@ -46,16 +46,23 @@ class MovieGenerator(object):
             logging.error(error_string)
             raise Exception(error_string)
         self.n_cores = self.runConfig['movies']['n_cores']
+        
+        self.fn_xtc_orig = self.absolute('md.xtc')
+        self.fn_xtc = self.fn_xtc_orig if self.skip_n_frames == 1 else self.absolute('md_skipped_{0}.xtc'.format(self.skip_n_frames))  
 
     def absolute(self, path):
         return join(self.dirname, path)
     
     
-    def fixPBC(self):
-        args = "{GMX_PATH}trjconv_d -pbc mol -s md.tpr -f md.xtc -o md_fixedPBC.xtc <<EOF\n0\nEOF".format(**{"GMX_PATH":GMX_PATH})
+    def fixPBCAndSkipFrames(self):
+        args = "{GMX_PATH}trjconv_d -pbc mol -s md.tpr -f {xtc_in} -o temp_{xtc_out} -skip {skip} <<EOF\n0\nEOF".format(**{"GMX_PATH":GMX_PATH, 
+                                                                                                                    "skip":self.skip_n_frames,
+                                                                                                                    "xtc_out" : self.fn_xtc,
+                                                                                                                    "xtc_in" : self.fn_xtc_orig,})
         logging.debug("running: {0}".format(args))
         Popen(args, shell=True, cwd=self.dirname).wait()
-        shutil.move(join(self.dirname, "md_fixedPBC.xtc"), join(self.dirname, "md.xtc"))
+        
+        shutil.move(join(self.dirname, "temp_{0}".format(self.fn_xtc)), join(self.dirname, self.fn_xtc))
         
     # pnx requires having set up the GMX_DLL variable pointing to gromacs shared libraries
     # GMX_DLL="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"
@@ -107,7 +114,7 @@ class MovieGenerator(object):
         
         trj = Trajectory(self.fn_xtc)
         
-        tmp_base_fn = self.absolute("pdb/" + basename(self.fn_xtc)[:-4])
+        tmp_base_fn = self.absolute("pdb/" + basename(self.fn_xtc_orig).split(".")[0])
         
         count = 1
         if self.average_n_frames > 1:
@@ -256,7 +263,7 @@ def generateAllIndividualMovies(runConfig, workdir, args):
         if args.skip_png_generation:
             logging.warning("Skipping png generation in directory: {0}".format(runID))
         else:
-            movie_generator.fixPBC()
+            movie_generator.fixPBCAndSkipFrames()
             movie_generator.generatePNGs(fast_run=args.fast_run)
             
         movie_generator.generateMovie(fast_run=args.fast_run, keep_png=args.keep_png)
