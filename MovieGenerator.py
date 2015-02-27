@@ -236,7 +236,7 @@ def getSortedRunDirList(dirname, batchStr):
                         
     return existsList
 
-def runMovieGeneratorSingle(runConfig, workdir, args):
+def generateAllIndividualMovies(runConfig, workdir, args):
     logging.basicConfig(level=VERBOCITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
    
     sortedRunDirList = getSortedRunDirList(workdir, args.batch)
@@ -248,7 +248,9 @@ def runMovieGeneratorSingle(runConfig, workdir, args):
         if mp4Exists(movie_generator.dirname) and not args.overwrite:
             continue
         
-        if not args.no_png:
+        if args.skip_png_generation:
+            logging.warning("Skipping png generation in directory: {0}".format(runID))
+        else:
             movie_generator.fixPBC()
             movie_generator.generatePNGs(fast_run=args.fast_run)
             
@@ -260,8 +262,7 @@ def parseCommandline():
     parser.add_argument('-d', '--overwrite', dest='overwrite', action='store_true')
     parser.add_argument('-b', '--batch', dest='batch')
     parser.add_argument('-c', '--concatenate', dest='concatenate', action='store_true')
-    parser.add_argument('-np', '--no_png', dest='no_png', action='store_true')
-    parser.add_argument('-nm', '--no_mp4', dest='no_mp4', action='store_true')
+    parser.add_argument('-sp', '--skip_png_generation', dest='skip_png_generation', action='store_true')
     parser.add_argument('-f', '--fast', dest='fast_run', action='store_true')
     parser.add_argument('-kp', '--keep_png', dest='keep_png', action='store_true')
     
@@ -271,9 +272,11 @@ def parseCommandline():
     runConfig = yaml.load(open(args.input))
     workdir = join(PROJECT_DIR, runConfig["work_directory"])
     
-    if not args.no_mp4: runMovieGeneratorSingle(runConfig, workdir, args)
+    generateAllIndividualMovies(runConfig, workdir, args)
     
-    if args.concatenate: concatenateMovies(getMovieFileList(workdir,args.batch), workdir)
+    if args.concatenate:
+        logging.info("Launching sub-movie concatenation in: {0}".format(workdir))
+        concatenateMovies(getMovieFileList(workdir,args.batch), workdir)
 
 if __name__=="__main__":
     parseCommandline()
