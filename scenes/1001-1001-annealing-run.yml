@@ -3,5 +3,14 @@ first_sim_id: 1001
 last_sim_id: 1001
 pymol_commands:
   - "hide everything, resname CBP"
+  - "set_view (
+     0.999904871,   -0.013452386,   -0.002183146,
+     0.013437288,    0.999887586,   -0.006701909,
+     0.002273494,    0.006673385,    0.999973536,
+    -0.000200450,    0.000060660, -303.094024658,
+    44.945934296,   40.205814362,   28.026891708,
+   148.080535889,  458.109283447,   20.000000000 )"
+  - "show spheres, resname IPR or resname IPS"
+  - "util.cbao resname IPR"
 frame_averaging: 1
-frame_skipping: 40
+frame_skipping: 41
