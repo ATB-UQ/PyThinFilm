@@ -91,6 +91,7 @@ class MovieGenerator(object):
         # First, hard-code the number of threads pymol is allowed to use
         strPML += 'set max_threads, {0}\n'.format(self.n_cores)
         # Then, read and render YAML scene's pymol commands
+        # THis rely on the globbing pattern for oredering. You have been warned ...
         for sceneFile in YAML_SCENES :
             scene = yaml.load(open(sceneFile))
             # If the current scene is not in the scene range, continue to the next one
