@@ -112,7 +112,7 @@ class MovieGenerator(object):
 
     def generatePNGs(self, fast_run=False):
         # First, flush all potential old png's
-        self.flushPNGs()
+        #self.flushPNGs()
 
         # Then, read trajectory in
         m = pmx.Model(self.fn)
