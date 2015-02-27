@@ -31,7 +31,7 @@ FAST_PNG_LIMIT = 30
 
 class MovieGenerator(object):
 
-    def __init__(self, runConfig, runID):
+    def __init__(self, runConfig, runID, args):
         self.runConfig = runConfig
         self.dirname = runID
         self.sim_number = int(basename(runID))
@@ -49,6 +49,9 @@ class MovieGenerator(object):
         
         self.fn_xtc_orig = self.absolute('md.xtc')
         self.fn_xtc = self.fn_xtc_orig if self.skip_n_frames == 1 else self.absolute('md_skipped_{0}.xtc'.format(self.skip_n_frames))  
+
+        self.fast_run = args.fast_run
+        self.keep_png = args.keep_png
 
     def absolute(self, path):
         return join(self.dirname, path)
@@ -110,7 +113,7 @@ class MovieGenerator(object):
             strPML += '\n' + t.render(tmp_fn=tmp_fn, last_resid=(self.sim_number+1) )
         return strPML
 
-    def generatePNGs(self, fast_run=False):
+    def generatePNGs(self):
         # First, flush all potential old png's
         #self.flushPNGs()
 
@@ -126,7 +129,7 @@ class MovieGenerator(object):
         
         count = 1
         if self.average_n_frames > 1:
-            while self.shouldGenerateMorePNG(count, fast_run):
+            while self.shouldGenerateMorePNG(count):
                 # update each model with next from in trajectory    
                 modelCounter = 0
                 for _ in trj:
@@ -147,7 +150,7 @@ class MovieGenerator(object):
                 count += 1
         else:
             for _ in trj:
-                if not self.shouldGenerateMorePNG(count, fast_run):
+                if not self.shouldGenerateMorePNG(count):
                     break
                 trj.update(m)
                 self.createPNG(m, tmp_base_fn, count)
@@ -162,12 +165,12 @@ class MovieGenerator(object):
             # Then, make the png directory back, just in case.
             os.makedirs(pngDir)
             
-    def shouldGenerateMorePNG(self, count, fast_run):
-        return (not fast_run) or (count <= FAST_PNG_LIMIT )
+    def shouldGenerateMorePNG(self, count):
+        return (not self.fast_run) or (count <= FAST_PNG_LIMIT )
 
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
-    def generateMovie(self, fast_run=False, keep_png=False):
+    def generateMovie(self):
         # Log
         logging.info("Running movie generation for: {0}".format(self.dirname))
 
@@ -179,7 +182,7 @@ class MovieGenerator(object):
             os.remove(abs_md_mp4)
         # Then, generate the overlaid text
         overlaid_command = self.FFmpegOverlaidCommand()
-        fast_run_command = "" #if not fast_run else "-r 1"
+        fast_run_command = "" #if not self.fast_run else "-r 1"
         args = "ffmpeg {3} -i {0} {2} {1}".format(self.absolute(r'png/%04d.png'), abs_md_mp4, overlaid_command, fast_run_command )
         logging.debug("running: {0}".format(args))
         p = Popen(args, shell=True, stdout=PIPE, stderr=PIPE)
@@ -189,7 +192,7 @@ class MovieGenerator(object):
         if not exists( abs_md_mp4 ) : 
             logging.error("Generating movie from png with ffmpeg failed with error message: {0}. Check the log.".format(error))
         else :
-            if not keep_png: self.flushPNGs()
+            if not self.keep_png: self.flushPNGs()
 
     def FFmpegOverlaidCommand(self):
         counter_text = "[in]"
@@ -267,7 +270,7 @@ def generateAllIndividualMovies(runConfig, workdir, args):
     logging.info("Will run movie generation on the following sorted directory list :{0}".format(sortedRunDirList))
     for runID in sortedRunDirList :
         
-        movie_generator = MovieGenerator(runConfig, runID)
+        movie_generator = MovieGenerator(runConfig, runID, args)
         
         if mp4Exists(movie_generator.dirname) and not args.overwrite:
             continue
@@ -276,18 +279,19 @@ def generateAllIndividualMovies(runConfig, workdir, args):
             logging.warning("Skipping png generation in directory: {0}".format(runID))
         else:
             movie_generator.fixPBCAndSkipFrames()
-            movie_generator.generatePNGs(fast_run=args.fast_run)
+            movie_generator.generatePNGs()
             
-        movie_generator.generateMovie(fast_run=args.fast_run, keep_png=args.keep_png)
+        movie_generator.generateMovie()
 
 def parseCommandline():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
     parser.add_argument('-d', '--overwrite', dest='overwrite', action='store_true')
     parser.add_argument('-b', '--batch', dest='batch')
+    parser.add_argument('-f', '--frames', dest='frames')
     parser.add_argument('-c', '--concatenate', dest='concatenate', action='store_true')
     parser.add_argument('-sp', '--skip_png_generation', dest='skip_png_generation', action='store_true')
-    parser.add_argument('-f', '--fast', dest='fast_run', action='store_true')
+    parser.add_argument('--fast', dest='fast_run', action='store_true')
     parser.add_argument('-kp', '--keep_png', dest='keep_png', action='store_true')
     
     
