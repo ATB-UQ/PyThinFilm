@@ -14,3 +14,4 @@ pymol_commands:
   - "color black, resi 1"
   - "bg_color white"
 frame_averaging: 2
+frame_skipping: 1

@@ -4,3 +4,4 @@ last_sim_id: 100
 pymol_commands:
   - "color red, resi {{last_resid}}"
 frame_averaging: 8
+frame_skipping: 1

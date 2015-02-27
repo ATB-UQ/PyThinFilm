@@ -8,3 +8,4 @@ pymol_commands:
   - "show spheres, resid 14"
   - "util.cbao resid 14"
 frame_averaging: 6
+frame_skipping: 1

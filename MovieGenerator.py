@@ -40,6 +40,11 @@ class MovieGenerator(object):
         map(lambda x: os.makedirs(x) if not exists(x) else '', map(self.absolute, ['pml', 'pdb', 'png']))
         # Take the maximum of the frame_averaging over all the **active** scenes for a given sim_number
         self.average_n_frames = max( [ x["frame_averaging"] for x in map(lambda x: yaml.load(open(x)), YAML_SCENES) if x['first_sim_id'] <= self.sim_number <= x['last_sim_id'] ] )
+        self.skip_n_frames = max( [ x["frame_skipping"] for x in map(lambda x: yaml.load(open(x)), YAML_SCENES) if x['first_sim_id'] <= self.sim_number <= x['last_sim_id'] ] )
+        if self.skip_n_frames != 1 and self.average_n_frames != 1 :
+            error_string = "Error: Can't have both frame averaging and frame skipping enabled at the same time. Set one of them to 1 and try again."
+            logging.error(error_string)
+            raise Exception(error_string)
         self.n_cores = self.runConfig['movies']['n_cores']
 
     def absolute(self, path):
