@@ -1,0 +1,32 @@
+starting_deposition_number: 0
+final_deposition_number: 1000
+work_directory: /mddata/uqmstroe/phaseTransitionData/slowRun
+temperature: 300
+run_with_mpi: True
+max_cores: 20
+insert_distance: 40.0 #angstrom 
+contact_tolerance: 4.0 #angstrom 
+run_time: 50.0 #ps
+time_step: 0.004 #ps
+drift_velocity: 0.08 #nm/ps
+mixture:
+    CBP:
+      res_name: CBP
+      pdb_file: templates/CBP.pdb
+      itp_file: templates/CBP.itp
+      ratio: 42
+    IPR:
+      res_name: IPR
+      pdb_file: templates/IPR.pdb      
+      itp_file: templates/IPR.itp
+      ratio: 1
+    IPS:
+      res_name: IPS
+      pdb_file: templates/IPS.pdb      
+      itp_file: templates/IPS.itp
+      ratio: 1
+substrate: 
+      res_name: GRP
+      pdb_file: templates/GRP.pdb
+      itp_file: templates/GRP.itp
+
