@@ -143,7 +143,7 @@ class MovieGenerator(object):
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
     def generateMovie(self, fast_run=False, keep_png=False):
         # Log
-        self.logging.info("Running movie generation for: {0}".format(self.dirname))
+        logging.info("Running movie generation for: {0}".format(self.dirname))
 
         abs_md_mp4 = self.absolute("md.mp4")
         # First, clean up potential old "md.mp4"
