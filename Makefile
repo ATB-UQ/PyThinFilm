@@ -11,6 +11,6 @@ movie2:
 	scp /mddata/uqmstroe/phaseTransitionData/slowRun/md_tot.mp4 uqbcaron@scmb-momar01d.md.smms.uq.edu.au:~/Downloads/movie2.mp4
 
 movie3:
-	python batchedMovieGenerator.py -i slowDepConfig.yml -b 1001:1001
+	python MovieGenerator.py -i slowDepConfig.yml -b 1001:1001 -d -kp
 	python MovieGenerator.py -i slowDepConfig.yml -b 1001:1001 -c
 	scp /mddata/uqmstroe/phaseTransitionData/slowRun/md_tot.mp4 uqbcaron@scmb-momar01d.md.smms.uq.edu.au:~/Downloads/movie3.mp4
