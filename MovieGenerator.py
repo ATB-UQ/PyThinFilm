@@ -141,7 +141,7 @@ class MovieGenerator(object):
             os.makedirs(pngDir)
             
     def shouldGenerateMorePNG(self, count, fast_run):
-     return (not fast_run) or (count <= FAST_PNG_LIMIT )
+        return (not fast_run) or (count <= FAST_PNG_LIMIT )
 
     # Then make a movie with the pngs ...
     # Source : http://robotics.usc.edu/~ampereir/wordpress/?p=702
