@@ -56,11 +56,12 @@ class MovieGenerator(object):
     
     def fixPBCAndSkipFrames(self):
         if self.skip_n_frames > 1 and exists(self.fn_xtc):
+            logging.warning("Skipped MD trajectory file was cached as {0}. Skipping trjconv step.".format(self.fn_xtc))
             return
         temp_xtc = self.fn_xtc.replace(".xtc","_temp.xtc")
-        args = "{GMX_PATH}trjconv_d -pbc mol -s md.tpr -f {xtc_in} -o {tempxtc} -skip {skip} <<EOF\n0\nEOF".format(**{"GMX_PATH":GMX_PATH, 
+        args = "{GMX_PATH}trjconv_d -pbc mol -s md.tpr -f {xtc_in} -o {temp_xtc} -skip {skip} <<EOF\n0\nEOF".format(**{"GMX_PATH":GMX_PATH, 
                                                                                                                     "skip":self.skip_n_frames,
-                                                                                                                    "temp_xtc" :temp_xtc
+                                                                                                                    "temp_xtc" :temp_xtc,
                                                                                                                     "xtc_in" : self.fn_xtc_orig,})
         logging.debug("Running: {0}".format(args))
         Popen(args, shell=True, cwd=self.dirname).wait()
