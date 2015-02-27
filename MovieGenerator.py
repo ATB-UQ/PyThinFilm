@@ -75,6 +75,9 @@ class MovieGenerator(object):
 
     def createPNG(self, m, tmp_base_fn, count):
         png_file = self.absolute("png/{0:0>4d}.png".format(count))
+        if exists(png_file):
+            logging.warning("Using cached version of png for file: {0}".format(png_file))
+            return
         tmp_fn = tmp_base_fn + str(count) + ".pdb"
         m.write(tmp_fn)
         pml_fn = self.absolute('pml/{0}.pml'.format(count))
@@ -91,7 +94,7 @@ class MovieGenerator(object):
     def createPymolSceneString(self, tmp_fn):
         strPML = ''
         # First, hard-code the number of threads pymol is allowed to use
-        strPML += 'set max_threads, {0}\n'.format(self.n_cores)
+        strPML += 'set max_threads, {0}'.format(self.n_cores)
         # Then, read and render YAML scene's pymol commands
         # THis rely on the globbing pattern for oredering. You have been warned ...
         for sceneFile in YAML_SCENES :
@@ -144,6 +147,8 @@ class MovieGenerator(object):
                 count += 1
         else:
             for _ in trj:
+                if not self.shouldGenerateMorePNG(count, fast_run):
+                    break
                 trj.update(m)
                 self.createPNG(m, tmp_base_fn, count)
                 count += 1
@@ -169,7 +174,9 @@ class MovieGenerator(object):
         abs_md_mp4 = self.absolute("md.mp4")
         # First, clean up potential old "md.mp4"
         # This is necessary since we will use the presence of this file as the proof ffmpeg succeeded
-        if exists(abs_md_mp4) : os.remove(abs_md_mp4)
+        if exists(abs_md_mp4) : 
+            logging.warning("Removing old movie file:{0}".format(abs_md_mp4))
+            os.remove(abs_md_mp4)
         # Then, generate the overlaid text
         overlaid_command = self.FFmpegOverlaidCommand()
         fast_run_command = "" #if not fast_run else "-r 1"
