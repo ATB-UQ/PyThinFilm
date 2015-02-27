@@ -1,6 +1,6 @@
 title: "Hide Matrix to better see the diffusion of the IP* molecules"
-first_sim_id: 100
-last_sim_id: 500
+first_sim_id: 1000
+last_sim_id: 1000
 pymol_commands:
   - "hide all representation, resname CBP"
 frame_averaging: 10

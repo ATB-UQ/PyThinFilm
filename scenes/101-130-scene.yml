@@ -1,0 +1,10 @@
+title: "Scene"
+first_sim_id: 101
+last_sim_id: 130
+pymol_commands:
+  - "# Sphere is VdW"
+  - "show spheres, resid 102"
+  - "util.cbak resid 102"
+  - "show spheres, resid 14"
+  - "util.cbao resid 14"
+frame_averaging: 6

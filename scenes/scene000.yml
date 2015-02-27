@@ -12,6 +12,5 @@ pymol_commands:
     49.073009491,   49.164260864,   27.948474884,
    188.773605347,  505.097320557,  -20.000000000 )"
   - "color black, resi 1"
-  - "color red, resi {{last_resid}}"
   - "bg_color white"
-frame_averaging: 1
+frame_averaging: 2
