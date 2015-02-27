@@ -7,4 +7,4 @@
 
 module load openmpi-1.6.3-x86_64
 
-python Deposition.py runConfig.yml
+python Deposition.py -i runConfig.yml

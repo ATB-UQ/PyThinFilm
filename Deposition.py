@@ -9,7 +9,7 @@ import math
 import yaml
 import sys
 import jinja2
-
+import argparse
 
 VERBOCITY = logging.INFO
 VERBOCITY = logging.DEBUG
@@ -338,6 +338,13 @@ def runDeposition(runConfigFile):
         
     logging.info("Finished deposition of {0} molecules".format(actualMixture))
     
+
+def parseCommandLine():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input')
+    args = parser.parse_args()
+
+    runDeposition(args.input)
     
 if __name__=="__main__":
-    runDeposition(sys.argv[1])
+    parseCommandLine()
