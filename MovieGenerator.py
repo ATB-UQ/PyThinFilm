@@ -55,14 +55,16 @@ class MovieGenerator(object):
     
     
     def fixPBCAndSkipFrames(self):
-        args = "{GMX_PATH}trjconv_d -pbc mol -s md.tpr -f {xtc_in} -o temp_{xtc_out} -skip {skip} <<EOF\n0\nEOF".format(**{"GMX_PATH":GMX_PATH, 
+        if self.skip_n_frames > 1 and exists(self.fn_xtc):
+            return
+        args = "{GMX_PATH}trjconv_d -pbc mol -s md.tpr -f {xtc_in} -o {xtc_out}_temp -skip {skip} <<EOF\n0\nEOF".format(**{"GMX_PATH":GMX_PATH, 
                                                                                                                     "skip":self.skip_n_frames,
                                                                                                                     "xtc_out" : self.fn_xtc,
                                                                                                                     "xtc_in" : self.fn_xtc_orig,})
-        logging.debug("running: {0}".format(args))
+        logging.debug("Running: {0}".format(args))
         Popen(args, shell=True, cwd=self.dirname).wait()
         
-        shutil.move(join(self.dirname, "temp_{0}".format(self.fn_xtc)), join(self.dirname, self.fn_xtc))
+        shutil.move(join(self.dirname, "{0}_temp".format(self.fn_xtc)), join(self.dirname, self.fn_xtc))
         
     # pnx requires having set up the GMX_DLL variable pointing to gromacs shared libraries
     # GMX_DLL="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"
