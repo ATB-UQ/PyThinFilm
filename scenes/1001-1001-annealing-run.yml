@@ -1,0 +1,7 @@
+title: "Final Annealing Scene"
+first_sim_id: 1001
+last_sim_id: 1001
+pymol_commands:
+  - "#"
+frame_averaging: 1
+frame_skipping: 40
