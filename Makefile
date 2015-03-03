@@ -1,23 +1,16 @@
 SHELL=/bin/bash
 
-%/topo.top: 
-	n=$(shell echo $@ | egrep -o '[0-9]+') erb $(template_dir)/topo.top > $@
+movie1:
+	python batchedMovieGenerator.py -i slowDepConfig.yml -b 1:10
+	python MovieGenerator.py -i slowDepConfig.yml -b 1:10 -c
+	scp /mddata/uqmstroe/phaseTransitionData/slowRun/md_tot.mp4 uqbcaron@scmb-momar01d.md.smms.uq.edu.au:~/Downloads/movie1.mp4
 
-%/run.pbs: 
-	n=$(shell echo $@ | egrep -o '[0-9]+') erb $(template_dir)/run.pbs > $@
-	chmod +x $@
+movie2:
+	python batchedMovieGenerator.py -i slowDepConfig.yml -b 101:130
+	python MovieGenerator.py -i slowDepConfig.yml -b 101:130 -c
+	scp /mddata/uqmstroe/phaseTransitionData/slowRun/md_tot.mp4 uqbcaron@scmb-momar01d.md.smms.uq.edu.au:~/Downloads/movie2.mp4
 
-%/run.mdp:
-	n=$(shell echo $@ | egrep -o '[0-9]+') erb $(template_dir)/depo-50ps-run.mdp > $@
-	
-%/gph80OK.itp:
-	cp $(template_dir)/gph80OK.itp $@
-
-%/cbp-massmod.itp:
-	cp $(template_dir)/cbp-massmod.itp $@
-
-%:
-	[[ ! -d $@ ]] && mkdir $@
-	make $@/topo.top $@/run.pbs $@/run.mdp $@/cbp-massmod.itp $@/gph80OK.itp
-
-
+movie3:
+	python MovieGenerator.py -i slowDepConfig.yml -b 1001:1001 -d -kp
+	python MovieGenerator.py -i slowDepConfig.yml -b 1001:1001 -c
+	scp /mddata/uqmstroe/phaseTransitionData/slowRun/md_tot.mp4 uqbcaron@scmb-momar01d.md.smms.uq.edu.au:~/Downloads/movie3.mp4

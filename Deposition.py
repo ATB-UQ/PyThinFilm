@@ -9,7 +9,7 @@ import math
 import yaml
 import sys
 import jinja2
-
+import argparse
 
 VERBOCITY = logging.INFO
 VERBOCITY = logging.DEBUG
@@ -22,7 +22,9 @@ GMX_PATH = "/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
 OUT_STRUCT_FILE = "end.gro"
 IN_STRUCT_FILE = "init.gro"
 
-TOP_FILE = "templates/topo.top.epy"
+TOPOLOGY_FILE = "topo.top"
+
+TOP_FILE = "templates/{0}.epy".format(TOPOLOGY_FILE)
 MDP_FILE = "templates/run.mdp.epy"
 
 GPP_TEMPLATE = "{GMX_PATH}grompp_d -f run.mdp -c {struct} -p topo.top -o md.tpr".format(**{"struct":IN_STRUCT_FILE,
@@ -361,6 +363,13 @@ def runDeposition(runConfigFile):
         
     logging.info("Finished deposition of {0} molecules".format(actualMixture))
     
+
+def parseCommandLine():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input')
+    args = parser.parse_args()
+
+    runDeposition(args.input)
     
 if __name__=="__main__":
-    runDeposition(sys.argv[1])
+    parseCommandLine()
