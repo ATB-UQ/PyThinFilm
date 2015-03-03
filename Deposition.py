@@ -263,6 +263,10 @@ class Deposition(object):
         self.insertionHeight = max([ a.x[2] for x in nextMolecule.atoms])
 
         return nextMolecule
+
+    def removeLastMolecule(self):
+        lastMoleculeID = self.model.residues[-1]
+        self.model.remove_residue(lastMoleculeID)
         
     def writeInitConfiguration(self):
         updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
@@ -347,8 +351,13 @@ def runDeposition(runConfigFile):
         deposition.runSystem()
         
         while not deposition.hasReachedLayer():
-            logging.info("Rerunning with {0} molecules due to molecule not reaching layer".format(actualMixture))
-            deposition.runSystem(rerun=True)
+            if deposition.hasBounced():
+                error_message = 'It seems like the molecule has bounced off the surface. Removing the last molecule.'
+                logging.error(errorLog)
+                deposition.removeLastMolecule()
+            else:
+                logging.info("Rerunning with {0} molecules due to molecule not reaching layer".format(actualMixture))
+                deposition.runSystem(rerun=True)
         
     logging.info("Finished deposition of {0} molecules".format(actualMixture))
     
