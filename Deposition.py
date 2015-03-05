@@ -374,6 +374,10 @@ def runDeposition(runConfigFile):
             else:
                 logging.info("Rerunning with {0} molecules due to molecule not reaching layer".format(actualMixture))
                 deposition.runSystem(rerun=True)
+        # Iterate over the residues and remove the ones that left the layer
+        for residue in deposition.model.residues:
+            if deposition.hasResidueLeftLayer(residue):
+                deposition.removeResidue(residue)
         
     logging.info("Finished deposition of {0} molecules".format(actualMixture))
     
