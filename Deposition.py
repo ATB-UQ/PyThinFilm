@@ -274,7 +274,7 @@ class Deposition(object):
 
         return nextMolecule
 
-    def removeLastMolecule(self):
+    def removeLastResidue(self):
         lastMoleculeID = self.model.residues[-1]
         self.model.remove_residue(lastMoleculeID)
         logging.debug("Removing molecule: {0}".format(lastMoleculeID.resname))
@@ -369,7 +369,7 @@ def runDeposition(runConfigFile):
             if deposition.hasResidueBounced(-1): #-1 means last residue
                 error_message = 'It seems like the molecule has bounced off the surface. Removing the last molecule.'
                 logging.error(error_message)
-                deposition.removeLastMolecule()
+                deposition.removeLastResidue()
                 break
             else:
                 logging.info("Rerunning with {0} molecules due to molecule not reaching layer".format(actualMixture))
