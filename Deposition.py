@@ -367,12 +367,12 @@ def runDeposition(runConfigFile):
         
         while not deposition.hasResidueReachedLayer(-1): # -1 means last residue
             if deposition.hasResidueBounced(-1): #-1 means last residue
-                error_message = 'It seems like the molecule has bounced off the surface. Removing the last molecule.'
+                error_message = 'It seems like the last inserted molecule has bounced off the surface.'
                 logging.error(error_message)
                 deposition.removeLastResidue()
                 break
             else:
-                logging.info("Rerunning with {0} molecules due to molecule not reaching layer".format(actualMixture))
+                logging.info("Rerunning with {0} molecules due to last inserted  molecule not reaching layer".format(actualMixture))
                 deposition.runSystem(rerun=True)
         # Iterate over the residues and remove the ones that left the layer
         for residue in deposition.model.residues:
