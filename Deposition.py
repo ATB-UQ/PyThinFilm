@@ -206,7 +206,13 @@ class Deposition(object):
 
     # A molecule as left layer if it is above a certain height (above the layer's mean height ??)  with a net z velocity
     def hasLeftLayer(self):
-        pass
+        lastResID = self.model.residues[-1].id
+        lastRes = self.model.residue(lastResID)
+        maxLayerHeight = max([a.x[2] for a in self.model.atoms if a not in lastRes.atoms])
+        logging.debug("Max layer height {0}".format(maxLayerHeight))
+        #  Should it be mass weighted ?
+        net_z_velocity = sum(lastRes.atoms.v[2] ) / len(lastRes.atoms)
+        return net_z_velocity >= 0. and any([a.x[2] > maxLayerHeight + self.runConfig["escape_tolerance"] for a in lastRes.atoms])
 
     
     def genInitialVelocitiesLastResidue(self):
