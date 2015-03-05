@@ -274,15 +274,17 @@ class Deposition(object):
 
         return nextMolecule
 
-    def removeLastResidue(self):
-        lastMoleculeID = self.model.residues[-1]
-        self.model.remove_residue(lastMoleculeID)
-        logging.debug("Removing molecule: {0}".format(lastMoleculeID.resname))
+    def removeResidueWithID(self, residue_ID)
+        self.model.remove_residue(self.model.residues[residue_ID])
+        logging.debug("Removing residue: {0}".format(lastMoleculeID.resname))
         # Decrease the molecule number
         self.moleculeNumber -= 1
         # Decrease the mixture counts
         self.runConfig["mixture"][lastMoleculeID.resname]["count"] -= 1
-        
+
+    def removeResidue(self, residue):
+        self.removeResidueWithID(residue.id)
+
     def writeInitConfiguration(self):
         updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
         self.model.write(updatedPDBPath, "{0} deposited molecules".format(self.moleculeNumber), 0)
@@ -366,14 +368,14 @@ def runDeposition(runConfigFile):
         deposition.runSystem()
         
         while not deposition.hasResidueReachedLayer(-1): # -1 means last residue
-            if deposition.hasResidueBounced(-1): #-1 means last residue
-                error_message = 'It seems like the last inserted molecule has bounced off the surface.'
-                logging.error(error_message)
-                deposition.removeLastResidue()
+            if deposition.hasResidueBounced(-1): # -1 means last residue
+                logging.warning('It seems like the last inserted molecule has bounced off the surface.')
+                deposition.removeResidueWithID(-1) #-1 means last residue
                 break
             else:
                 logging.info("Rerunning with {0} molecules due to last inserted  molecule not reaching layer".format(actualMixture))
                 deposition.runSystem(rerun=True)
+
         # Iterate over the residues and remove the ones that left the layer
         for residue in deposition.model.residues:
             if deposition.hasResidueLeftLayer(residue):
