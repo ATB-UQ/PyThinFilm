@@ -190,30 +190,32 @@ class Deposition(object):
         # take the 0th and 1st element from x and y respectively as these must be rectangular boxes
         return random.uniform(0.0, x[0]), random.uniform(0.0, y[1])
 
-    def hasReachedLayer(self):
-        lastResID = self.model.residues[-1].id
-        lastRes = self.model.residue(lastResID)
-        maxLayerHeight = max([a.x[2] for a in self.model.atoms if a not in lastRes.atoms])
+    def maxLayerHeight(self, excluded_res):
+        return max([a.x[2] for a in self.model.atoms if a not in excluded_res.atoms])
+
+    def hasResidueReachedLayer(self, residue_ID):
+        resID = self.model.residues[residue_ID].id
+        res = self.model.residue(resID)
+        maxLayerHeight = self.maxLayerHeight(res)
         logging.debug("Max layer height {0}".format(maxLayerHeight))
-        return any([a.x[2] < maxLayerHeight + self.runConfig["contact_tolerance"] for a in lastRes.atoms])
+        return any([a.x[2] < maxLayerHeight + self.runConfig["contact_tolerance"] for a in res.atoms])
 
     # A molecule has bounced if any of its atoms is above its insertion height
     # NB: Relies on the definition of self.insertionHeight
-    def hasBounced(self):
-        lastResID = self.model.residues[-1].id
-        lastRes = self.model.residue(lastResID)
-        return any([a.x[2] > self.insertionHeight for a in lastRes.atoms])
+    def hasResidueBounced(self, residue_ID):
+        resID = self.model.residues[residue_ID].id
+        res = self.model.residue(resID)
+        return any([a.x[2] > self.insertionHeight for a in res.atoms])
 
     # A molecule as left layer if it is above a certain height (above the layer's mean height ??)  with a net z velocity
-    def hasLeftLayer(self):
-        lastResID = self.model.residues[-1].id
-        lastRes = self.model.residue(lastResID)
-        maxLayerHeight = max([a.x[2] for a in self.model.atoms if a not in lastRes.atoms])
+    def hasResidueLeftLayer(self, residue_ID):
+        resID = self.model.residues[residue_ID].id
+        res = self.model.residue(resID)
+        maxLayerHeight = self.maxLayerHeight(res)
         logging.debug("Max layer height {0}".format(maxLayerHeight))
         #  Should it be mass weighted ?
-        net_z_velocity = sum(lastRes.atoms.v[2] ) / len(lastRes.atoms)
-        return net_z_velocity >= 0. and any([a.x[2] > maxLayerHeight + self.runConfig["escape_tolerance"] for a in lastRes.atoms])
-
+        net_z_velocity = sum(res.atoms.v[2] ) / len(res.atoms)
+        return net_z_velocity >= 0.001 and any([a.x[2] > maxLayerHeight + self.runConfig["escape_tolerance"] for a in res.atoms])
     
     def genInitialVelocitiesLastResidue(self):
         
@@ -363,8 +365,8 @@ def runDeposition(runConfigFile):
         logging.info("Running with {0} molecules".format(actualMixture))
         deposition.runSystem()
         
-        while not deposition.hasReachedLayer():
-            if deposition.hasBounced():
+        while not deposition.hasResidueReachedLayer(-1): # -1 means last residue
+            if deposition.hasResidueBounced(-1): #-1 means last residue
                 error_message = 'It seems like the molecule has bounced off the surface. Removing the last molecule.'
                 logging.error(error_message)
                 deposition.removeLastMolecule()
