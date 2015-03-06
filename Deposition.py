@@ -51,15 +51,17 @@ K_B = 0.00831451 #kJ / (mol K)
 
 class Deposition(object):
     
-    def __init__(self, runConfigFile):
+    def __init__(self, runConfigFile, starting_deposition_number=None):
         
         self.runConfig = yaml.load(open(runConfigFile))
-        # Convert paths in runConfig to be absolute
+        # Convert "*_file" paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, dirname(abspath(runConfigFile)))
         
-        self.moleculeNumber = self.runConfig["starting_deposition_number"]
+        # Read starting_deposition_number from YAML file unless provided by command line
+        self.moleculeNumber = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
         self.rootdir = os.path.abspath(self.runConfig["work_directory"])
         
+        # Create the 'work_directory' if it doesn't exist
         if not os.path.exists(self.rootdir):    
             os.makedirs(self.rootdir)
         
@@ -73,24 +75,28 @@ class Deposition(object):
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
        
+        if self.moleculeNumber != 0 :
+            self.updateDepositionStep()
+            self.countResiduesFromModel()
+ 
+        self.log = "out.log"
+        self.err = "out.err"
+
+    def updateDepositionStep(self):
         # Get the list of all the deposition steps
         self.deposition_steps = self.runConfig['deposition_steps']
         # Filter the one that apply to this particular Deposition run
         self.deposition_steps = [ x for x in self.deposition_steps if x["first_sim_id"] <= self.moleculeNumber <= x["last_sim_id"] ]
         # Just to be sure, prevent overlapping deposition step simulation boundaries
-        if len(self.deposition_steps) != 1 :
+        if len(self.deposition_steps) > 1 :
             raise Exception("Overlapping deposition steps definitions. Aborting.")
-        else : 
-            self.deposition_step = self.deposition_steps[0]
-            self.mixture = self.deposition_step['mixture']
-        
-        self.counterResidues()
-        
-        self.initMixtureSamplingBoundaries()
- 
-        self.log = "out.log"
-        self.err = "out.err"
-        
+        elif len(self.deposition_steps) == 0 :
+            raise Exception("No deposition step defined for deposition molecule number {0}. Aborting.".format(self.moleculeNumber))
+
+        self.deposition_step = self.deposition_steps[0]
+        self.mixture = self.deposition_step['mixture']
+        # Finally, update the sampling boundaries with the (maybe new) mixture
+        self.setMixtureSamplingBoundaries()
         
     def updateModel(self, configurationPath):
         logging.info("Updating model with new configuration")
@@ -147,8 +153,8 @@ class Deposition(object):
         self.run(GPP_TEMPLATE, inserts)
         
     def runSetup(self):
-        
         self.rundir = join(self.rootdir, str(self.moleculeNumber))
+        print self.mixture
         
         if not os.path.exists(self.rundir):
             os.mkdir(self.rundir)
@@ -245,7 +251,7 @@ class Deposition(object):
 
     ## this method generates regions between 0-1 that when sampled correspond to particular residues in the mixture
     # e.g. A 1:9 ratio of res1 to res2 is given by: [0.0, 0.1] -> res1, [0.1, 1.0] -> res2
-    def initMixtureSamplingBoundaries(self):
+    def setMixtureSamplingBoundaries(self):
         ratioSum = float(sum([v["ratio"] for v in self.mixture.values()]))
         logging.debug("ratio sum: " + str(ratioSum))
         movingBoundary = 0.0
@@ -308,16 +314,18 @@ class Deposition(object):
         updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
         self.model.write(updatedPDBPath, "{0} deposited molecules".format(self.moleculeNumber), 0)
 
-    def counterResidues(self):
+    def countResiduesFromModel(self):
         for res in self.model.residues:
             # ignore the substrate residue
             if res.resname != self.runConfig["substrate"]["res_name"]: 
                 self.mixture[res.resname].setdefault("count", 0)
                 self.mixture[res.resname]["count"] += 1
-        # now add in count of zero for any residues ont already in the model
+# Why is this needed ?
+        # now add in count of zero for any residues not already in the model
         for res in self.mixture.values():
             if not res.has_key("count"):
                 res["count"] = 0
+# End Why
 
 def recursiveCorrectPaths(node, runConfigFileDir):
     for key, value in node.items():
@@ -364,16 +372,19 @@ def cluster(resnameList):
             current_resname = ""
     return clusterList
 
-def runDeposition(runConfigFile):
+def runDeposition(runConfigFile, starting_deposition_number=None):
     
-    deposition = Deposition(runConfigFile)
+    deposition = Deposition(runConfigFile, starting_deposition_number=starting_deposition_number)
     
     logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(deposition.runConfig["drift_velocity"]))
     while deposition.moleculeNumber < deposition.runConfig["final_deposition_number"]:
-        # increment cbp number
+        # Increment deposition molecule number
         deposition.moleculeNumber += 1
+
+        # Update the deposition step in case we enter a new deposition phase
+        deposition.updateDepositionStep()
         
-        # get the next molecule and insert it into the deposition model with random position, orientation and velocity
+        # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
         nextMolecule = deposition.getNextMolecule()
         deposition.model.insert_residue(deposition.moleculeNumber, nextMolecule.residues[0], " ")
         deposition.genInitialVelocitiesLastResidue()
@@ -412,6 +423,7 @@ def parseCommandLine():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
     parser.add_argument('--debug', dest='debug', action='store_true')
+    parser.add_argument('--start', help='{int} Provide a starting deposition number different from the one in the YAML file. Usedd to restart a deposition.')
     args = parser.parse_args()
 
     if args.debug :
@@ -419,7 +431,7 @@ def parseCommandLine():
         DEBUG = True
     logging.basicConfig(level=VERBOSITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
 
-    runDeposition(args.input)
+    runDeposition(args.input, starting_deposition_number=int(args.start) if args.start else None)
     
 if __name__=="__main__":
     parseCommandLine()

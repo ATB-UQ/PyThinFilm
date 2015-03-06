@@ -12,7 +12,7 @@ time_step: 0.004 #ps
 drift_velocity: 0.8 #nm/ps
 deposition_steps:
     - description: "Initial deposition of a full mixture of CBP"
-      first_sim_id: 0
+      first_sim_id: 1
       last_sim_id:  1
       mixture:
         CBP:
@@ -20,8 +20,8 @@ deposition_steps:
           pdb_file: templates/CBP.pdb
           itp_file: templates/CBP.itp
           ratio: 1
-    - description: "Second deposition of amixture of IPR and IPS"
-      first_sim_id: 1
+    - description: "Second deposition of a mixture of IPR and IPS"
+      first_sim_id: 2
       last_sim_id:  2
       mixture:
         IPR:
