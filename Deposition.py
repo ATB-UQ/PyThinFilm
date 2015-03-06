@@ -102,7 +102,10 @@ class Deposition(object):
         self.setMixtureSamplingBoundaries()
         # Finally, add the potential new residue to the actual system mixture
         if self.mixture :
-            self.mixture = dict(self.deposition_step['mixture'].items() + self.mixture.items()) # Update the mixture dictionnary
+            # Set the default count to 0 for "new" residues
+            new_mixture = self.deposition_step['mixture']
+            map(lambda x: x.setdefault("count", 0), new_mixture.values() )
+            self.mixture = dict(new_mixture.items() + self.mixture.items()) # Update the mixture dictionnary
         else :
             self.mixture = self.deposition_step['mixture']
         
@@ -162,7 +165,6 @@ class Deposition(object):
         
     def runSetup(self):
         self.rundir = join(self.rootdir, str(self.moleculeNumber))
-        print self.mixture
         
         if not os.path.exists(self.rundir):
             os.mkdir(self.rundir)
