@@ -76,6 +76,7 @@ class Deposition(object):
         self.model.nm2a()
        
         self.mixture = None
+        self.sampling_mixture = None
         if self.moleculeNumber != 0 :
             self.updateDepositionStep()
             self.countResiduesFromModel()
@@ -95,12 +96,15 @@ class Deposition(object):
             raise Exception("No deposition step defined for deposition molecule number {0}. Aborting.".format(self.moleculeNumber))
 
         self.deposition_step = self.deposition_steps[0]
+        # Set the sampling mixture
+        self.sampling_mixture = self.deposition_step['mixture']
+        # Then, update the sampling boundaries with the (maybe new) mixture
+        self.setMixtureSamplingBoundaries()
+        # Finally, add the potential new residue to the actual system mixture
         if self.mixture :
             self.mixture = dict(self.deposition_step['mixture'].items() + self.mixture.items()) # Update the mixture dictionnary
         else :
             self.mixture = self.deposition_step['mixture']
-        # Finally, update the sampling boundaries with the (maybe new) mixture
-        self.setMixtureSamplingBoundaries()
         
     def updateModel(self, configurationPath):
         logging.info("Updating model with new configuration")
@@ -256,21 +260,21 @@ class Deposition(object):
     ## this method generates regions between 0-1 that when sampled correspond to particular residues in the mixture
     # e.g. A 1:9 ratio of res1 to res2 is given by: [0.0, 0.1] -> res1, [0.1, 1.0] -> res2
     def setMixtureSamplingBoundaries(self):
-        ratioSum = float(sum([v["ratio"] for v in self.mixture.values()]))
-        logging.debug("ratio sum: " + str(ratioSum))
+        ratioSum = float(sum([v["ratio"] for v in self.sampling_mixture.values()]))
+        logging.debug("Ratio sum: " + str(ratioSum))
         movingBoundary = 0.0
-        for res in self.mixture.values():
+        for res in self.sampling_mixture.values():
             res["sample_boundary_min"] = movingBoundary
             movingBoundary += res["ratio"] / ratioSum
             res["sample_boundary_max"] = movingBoundary
-        logging.debug("Sampling boundaries: {0}".format(",".join([str((r["res_name"], r["sample_boundary_min"],r["sample_boundary_max"])) for r in self.mixture.values()])))
+        logging.debug("Sampling boundaries: {0}".format(",".join([str((r["res_name"], r["sample_boundary_min"],r["sample_boundary_max"])) for r in self.sampling_mixture.values()])))
  
     def sampleMixture(self):
-        if len(self.mixture) == 1:
-            return self.mixture.values()[0]
+        if len(self.sampling_mixture) == 1:
+            return self.sampling_mixture.values()[0]
         else:
             randomNumber = random.uniform(0.0,1.0)
-            for res in self.mixture.values():
+            for res in self.sampling_mixture.values():
                 if res["sample_boundary_min"] <= randomNumber <= res["sample_boundary_max"]:
                     return res
         
