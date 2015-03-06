@@ -75,6 +75,7 @@ class Deposition(object):
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
        
+        self.mixture = None
         if self.moleculeNumber != 0 :
             self.updateDepositionStep()
             self.countResiduesFromModel()
@@ -94,7 +95,10 @@ class Deposition(object):
             raise Exception("No deposition step defined for deposition molecule number {0}. Aborting.".format(self.moleculeNumber))
 
         self.deposition_step = self.deposition_steps[0]
-        self.mixture = self.deposition_step['mixture']
+        if self.mixture :
+            self.mixture = dict(self.deposition_step['mixture'].items() + self.mixture.items()) # Update the mixture dictionnary
+        else :
+            self.mixture = self.deposition_step['mixture']
         # Finally, update the sampling boundaries with the (maybe new) mixture
         self.setMixtureSamplingBoundaries()
         
