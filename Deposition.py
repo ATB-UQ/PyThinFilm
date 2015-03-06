@@ -321,7 +321,6 @@ class Deposition(object):
 
 def recursiveCorrectPaths(node, runConfigFileDir):
     for key, value in node.items():
-        print key
         if isinstance(value, dict):
             recursiveCorrectPaths(value, runConfigFileDir)
         elif isinstance(value, list):
