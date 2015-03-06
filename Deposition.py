@@ -11,11 +11,11 @@ import sys
 import jinja2
 import argparse
 
-VERBOCITY = logging.INFO
-VERBOCITY = logging.DEBUG
+VERBOSITY = logging.INFO
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = join(PROJECT_DIR, "templates")
 
+DEBUG = False
 
 GMX_PATH = "/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
 
@@ -56,8 +56,6 @@ class Deposition(object):
         self.runConfig = yaml.load(open(runConfigFile))
         # convert paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, dirname(abspath(runConfigFile)))
- 
-        logging.basicConfig(level=VERBOCITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
         
         self.moleculeNumber = self.runConfig["starting_deposition_number"]
         self.rootdir = os.path.abspath(self.runConfig["work_directory"])
@@ -221,6 +219,9 @@ class Deposition(object):
         maxLayerHeight = self.maxLayerHeight(res)
         #  Should it be mass weighted ?
         net_z_velocity = sum( map( lambda x: x.v[2], res.atoms) ) / len(res.atoms)
+        if DEBUG :
+            highest_atom_height = max([a.x[2] for a in res.atoms])
+            logging.debug("Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
         return net_z_velocity >= 0.001 and any([a.x[2] > maxLayerHeight + self.runConfig["escape_tolerance"] for a in res.atoms])
     
     def genInitialVelocitiesLastResidue(self):
@@ -393,9 +394,17 @@ def runDeposition(runConfigFile):
     
 
 def parseCommandLine():
+    global DEBUG, VERBOSITY
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
+    parser.add_argument('--debug', dest='debug', action='store_true')
     args = parser.parse_args()
+
+    if args.debug :
+        VERBOSITY = logging.DEBUG
+        DEBUG = True
+    print VERBOSITY
+    logging.basicConfig(level=VERBOSITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
 
     runDeposition(args.input)
     

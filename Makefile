@@ -1,7 +1,7 @@
 SHELL=/bin/bash
 
 deposition-test:
-	python Deposition.py -i quickTestRunConfig.yml
+	python Deposition.py -i quickTestRunConfig.yml --debug
 
 movie1:
 	python batchedMovieGenerator.py -i slowDepConfig.yml -b 1:10
