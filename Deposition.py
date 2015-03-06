@@ -54,7 +54,7 @@ class Deposition(object):
     def __init__(self, runConfigFile):
         
         self.runConfig = yaml.load(open(runConfigFile))
-        # convert paths in runConfig to be absolute
+        # Convert paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, dirname(abspath(runConfigFile)))
         
         self.moleculeNumber = self.runConfig["starting_deposition_number"]
@@ -72,6 +72,17 @@ class Deposition(object):
         
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
+       
+        # Get the list of all the deposition steps
+        self.deposition_steps = self.runConfig['deposition_steps']
+        # Filter the one that apply to this particular Deposition run
+        self.deposition_steps = [ x for x in self.deposition_steps if x["first_sim_id"] <= self.moleculeNumber <= x["last_sim_id"] ]
+        # Just to be sure, prevent overlapping deposition step simulation boundaries
+        if len(self.deposition_steps) != 1 :
+            raise Exception("Overlapping deposition steps definitions. Aborting.")
+        else : 
+            self.deposition_step = self.deposition_steps[0]
+            self.mixture = self.deposition_step['mixture']
         
         self.counterResidues()
         
@@ -149,10 +160,10 @@ class Deposition(object):
             mdpTemplate = jinja2.Template(fh.read())
         
         with open(join(self.rundir, basename(TOP_FILE)[:-4]),"w") as fh:
-            fh.write(topTemplate.render(resMixture=self.runConfig["mixture"], substrate=self.runConfig["substrate"], resnameClusters=cluster(map( lambda x:x.resname, self.model.residues))))
+            fh.write(topTemplate.render(resMixture=self.mixture, substrate=self.runConfig["substrate"], resnameClusters=cluster(map( lambda x:x.resname, self.model.residues))))
         
         with open(join(self.rundir, basename(MDP_FILE)[:-4]),"w") as fh:
-            resList = [res_name for res_name, res in self.runConfig["mixture"].items() if res["count"] > 0]
+            resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
             fh.write(mdpTemplate.render(resList=resList, substrate=self.runConfig["substrate"], resLength=len(resList), numberOfSteps=int(self.runConfig["run_time"]/self.runConfig["time_step"]), temperature=self.runConfig["temperature"]))
         
         
@@ -235,21 +246,21 @@ class Deposition(object):
     ## this method generates regions between 0-1 that when sampled correspond to particular residues in the mixture
     # e.g. A 1:9 ratio of res1 to res2 is given by: [0.0, 0.1] -> res1, [0.1, 1.0] -> res2
     def initMixtureSamplingBoundaries(self):
-        ratioSum = float(sum([v["ratio"] for v in self.runConfig["mixture"].values()]))
+        ratioSum = float(sum([v["ratio"] for v in self.mixture.values()]))
         logging.debug("ratio sum: " + str(ratioSum))
         movingBoundary = 0.0
-        for res in self.runConfig["mixture"].values():
+        for res in self.mixture.values():
             res["sample_boundary_min"] = movingBoundary
             movingBoundary += res["ratio"] / ratioSum
             res["sample_boundary_max"] = movingBoundary
-        logging.debug("Sampling boundaries: {0}".format(",".join([str((r["res_name"], r["sample_boundary_min"],r["sample_boundary_max"])) for r in self.runConfig["mixture"].values()])))
+        logging.debug("Sampling boundaries: {0}".format(",".join([str((r["res_name"], r["sample_boundary_min"],r["sample_boundary_max"])) for r in self.mixture.values()])))
  
     def sampleMixture(self):
-        if len(self.runConfig["mixture"]) == 1:
-            return self.runConfig["mixture"].values()[0]
+        if len(self.mixture) == 1:
+            return self.mixture.values()[0]
         else:
             randomNumber = random.uniform(0.0,1.0)
-            for res in self.runConfig["mixture"].values():
+            for res in self.mixture.values():
                 if res["sample_boundary_min"] <= randomNumber <= res["sample_boundary_max"]:
                     return res
         
@@ -259,8 +270,8 @@ class Deposition(object):
         nextMolecule = pmx.Model(nextMol["pdb_file"])
         nextMolecule.nm2a()
         
-        self.runConfig["mixture"][nextMol["res_name"]].setdefault("count", 0)
-        self.runConfig["mixture"][nextMol["res_name"]]["count"] += 1
+        self.mixture[nextMol["res_name"]].setdefault("count", 0)
+        self.mixture[nextMol["res_name"]]["count"] += 1
         
         with open(nextMol["itp_file"]) as fh:
             cbpITPString = fh.read()
@@ -288,7 +299,7 @@ class Deposition(object):
         # Decrease the molecule number
         self.moleculeNumber -= 1
         # Decrease the mixture counts
-        self.runConfig["mixture"][residue.resname]["count"] -= 1
+        self.mixture[residue.resname]["count"] -= 1
 
     def removeResidue(self, residue):
         self.removeResidueWithID(residue.id)
@@ -301,17 +312,21 @@ class Deposition(object):
         for res in self.model.residues:
             # ignore the substrate residue
             if res.resname != self.runConfig["substrate"]["res_name"]: 
-                self.runConfig["mixture"][res.resname].setdefault("count", 0)
-                self.runConfig["mixture"][res.resname]["count"] += 1
+                self.mixture[res.resname].setdefault("count", 0)
+                self.mixture[res.resname]["count"] += 1
         # now add in count of zero for any residues ont already in the model
-        for res in self.runConfig["mixture"].values():
+        for res in self.mixture.values():
             if not res.has_key("count"):
                 res["count"] = 0
 
 def recursiveCorrectPaths(node, runConfigFileDir):
     for key, value in node.items():
-        if isinstance(value, (list, dict)):
+        print key
+        if isinstance(value, dict):
             recursiveCorrectPaths(value, runConfigFileDir)
+        elif isinstance(value, list):
+            for item in value:
+                recursiveCorrectPaths(item, runConfigFileDir) 
         elif "file" in key:
             node[key] = join(runConfigFileDir, value)
 
@@ -370,7 +385,7 @@ def runDeposition(runConfigFile):
         # write updated model to run directory
         deposition.writeInitConfiguration()
         
-        actualMixture = ",".join([" {0}:{1}".format(r["res_name"], r["count"]) for r in deposition.runConfig["mixture"].values()])
+        actualMixture = ",".join([" {0}:{1}".format(r["res_name"], r["count"]) for r in deposition.mixture.values()])
         # Do first Run
         logging.info("Running with {0} molecules".format(actualMixture))
         deposition.runSystem()
@@ -403,7 +418,6 @@ def parseCommandLine():
     if args.debug :
         VERBOSITY = logging.DEBUG
         DEBUG = True
-    print VERBOSITY
     logging.basicConfig(level=VERBOSITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
 
     runDeposition(args.input)

@@ -10,22 +10,30 @@ escape_tolerance: 20.0 #angstrom
 run_time: 0.5 #ps
 time_step: 0.004 #ps
 drift_velocity: 0.8 #nm/ps
-mixture:
-    CBP:
-      res_name: CBP
-      pdb_file: templates/CBP.pdb
-      itp_file: templates/CBP.itp
-      ratio: 1
-    IPR:
-      res_name: IPR
-      pdb_file: templates/IPR.pdb      
-      itp_file: templates/IPR.itp
-      ratio: 1
-    IPS:
-      res_name: IPS
-      pdb_file: templates/IPS.pdb      
-      itp_file: templates/IPS.itp
-      ratio: 1
+deposition_steps:
+    - description: "Initial deposition of a full mixture of CBP"
+      first_sim_id: 0
+      last_sim_id:  1
+      mixture:
+        CBP:
+          res_name: CBP
+          pdb_file: templates/CBP.pdb
+          itp_file: templates/CBP.itp
+          ratio: 1
+    - description: "Second deposition of amixture of IPR and IPS"
+      first_sim_id: 1
+      last_sim_id:  2
+      mixture:
+        IPR:
+          res_name: IPR
+          pdb_file: templates/IPR.pdb
+          itp_file: templates/IPR.itp
+          ratio: 1
+        IPS:
+          res_name: IPS
+          pdb_file: templates/IPS.pdb
+          itp_file: templates/IPS.itp
+          ratio: 1
 substrate: 
       res_name: GRP
       pdb_file: templates/GRP.pdb
