@@ -12,6 +12,8 @@ time_step: 0.004 #ps
 drift_velocity: 0.08 #nm/ps
 deposition_steps:
   - description: 'Initial Deposition'
+      first_sim_id: 0
+      last_sim_id:  1000
     mixture:
         CBP:
           res_name: CBP

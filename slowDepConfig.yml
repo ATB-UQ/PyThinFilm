@@ -1,5 +1,5 @@
 starting_deposition_number: 0
-final_deposition_number: 1000
+final_deposition_number: 1200
 work_directory: /mddata/uqmstroe/phaseTransitionData/slowRun
 temperature: 300
 run_with_mpi: True
@@ -11,7 +11,9 @@ run_time: 50.0 #ps
 time_step: 0.004 #ps
 drift_velocity: 0.08 #nm/ps
 deposition_steps:
-  - description: 'Initial Deposition'
+  - description: 'Initial Deposition of a 1000 CBP/IPR-IPS (42:1:1 ratio) (~10nm high) molecules'
+    first_sim_id: 0
+    first_sim_id: 1000
     mixture:
         CBP:
           res_name: CBP
@@ -27,6 +29,15 @@ deposition_steps:
           res_name: IPS
           pdb_file: templates/IPS.pdb      
           itp_file: templates/IPS.itp
+          ratio: 1
+  - description: 'Deposition of a second layer of 200 XXX (~2nm high) molecules'
+    first_sim_id: 1001
+    first_sim_id: 1200
+    mixture:
+        QFXR:
+          res_name: QFXR
+          pdb_file: templates/QFXR.pdb
+          itp_file: templates/QFXR.itp
           ratio: 1
 substrate: 
       res_name: GRP
