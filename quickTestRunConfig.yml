@@ -7,7 +7,7 @@ max_cores: 8
 insert_distance: 20.0 #angstrom 
 contact_tolerance: 4.0 #angstrom 
 escape_tolerance: 20.0 #angstrom 
-run_time: 8.0 #ps
+run_time: 0.5 #ps
 time_step: 0.004 #ps
 drift_velocity: 0.8 #nm/ps
 mixture:
