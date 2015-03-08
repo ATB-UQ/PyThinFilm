@@ -1,19 +1,19 @@
 starting_deposition_number: 0
 final_deposition_number: 1200
 work_directory: /mddata/uqmstroe/phaseTransitionData/slowRun
-temperature: 300
 run_with_mpi: True
 max_cores: 20
 insert_distance: 40.0 #angstrom 
 contact_tolerance: 4.0 #angstrom 
 escape_tolerance: 20.0 #angstrom 
-run_time: 50.0 #ps
 time_step: 0.004 #ps
 drift_velocity: 0.08 #nm/ps
 deposition_steps:
   - description: 'Initial Deposition of a 1000 CBP/IPR-IPS (42:1:1 ratio) (~10nm high) molecules'
     first_sim_id: 0
     first_sim_id: 1000
+    run_time: 50.0 #ps
+    temperature: 300
     mixture:
         CBP:
           res_name: CBP

@@ -156,7 +156,7 @@ class Deposition(object):
         self.updateModel(configurationPath)
     
     def runTPBConf(self, inserts):
-        inserts["run_time"] = self.runConfig["run_time"]
+        inserts["run_time"] = self.deposition_step["run_time"]
         self.run(RERUN_SETUP_TEMPLATE, inserts)
     
     def runGPP(self, inserts):
@@ -180,7 +180,7 @@ class Deposition(object):
         
         with open(join(self.rundir, basename(MDP_FILE)[:-4]),"w") as fh:
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
-            fh.write(mdpTemplate.render(resList=resList, substrate=self.runConfig["substrate"], resLength=len(resList), numberOfSteps=int(self.runConfig["run_time"]/self.runConfig["time_step"]), temperature=self.runConfig["temperature"]))
+            fh.write(mdpTemplate.render(resList=resList, substrate=self.runConfig["substrate"], resLength=len(resList), numberOfSteps=int(self.deposition_step["run_time"]/self.runConfig["time_step"]), temperature=self.deposition_step["temperature"]))
         
         
     
@@ -254,7 +254,7 @@ class Deposition(object):
     def genInitialVelocitiesLastResidue(self):
         
         for atom in self.model.residues[-1].atoms:
-            sigma = math.sqrt(K_B*self.runConfig["temperature"]/atom.m)
+            sigma = math.sqrt(K_B*self.deposition_step["temperature"]/atom.m)
             atom.v[0] = random.gauss(0.0, sigma)
             atom.v[1] = random.gauss(0.0, sigma)
             atom.v[2] = -abs(random.gauss(self.runConfig["drift_velocity"], sigma))

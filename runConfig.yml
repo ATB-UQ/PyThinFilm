@@ -1,19 +1,19 @@
 starting_deposition_number: 974
 final_deposition_number: 1000
 work_directory: deposit1000
-temperature: 300
 run_with_mpi: True
 max_cores: 16
 insert_distance: 20.0 #angstrom 
 contact_tolerance: 4.0 #angstrom 
 escape_tolerance: 20.0 #angstrom 
-run_time: 8.0 #ps
 time_step: 0.004 #ps
 drift_velocity: 0.08 #nm/ps
 deposition_steps:
   - description: 'Initial Deposition'
       first_sim_id: 0
       last_sim_id:  1000
+      run_time: 8.0 #ps
+      temperature: 300
     mixture:
         CBP:
           res_name: CBP
