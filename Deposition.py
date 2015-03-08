@@ -249,7 +249,7 @@ class Deposition(object):
         if DEBUG :
             highest_atom_height = max([a.x[2] for a in res.atoms])
             logging.debug("Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
-        return net_z_velocity >= 0.001 and any([a.x[2] > maxLayerHeight + self.runConfig["escape_tolerance"] for a in res.atoms])
+        return net_z_velocity > 0. and any([a.x[2] > maxLayerHeight + self.runConfig["escape_tolerance"] for a in res.atoms])
     
     def genInitialVelocitiesLastResidue(self):
         
