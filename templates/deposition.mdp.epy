@@ -1,4 +1,4 @@
-title                    = heating to 300K
+title                    = Vacuum Deposition
 
 ; run control
 integrator               = md                    ; md integrator

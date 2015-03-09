@@ -25,10 +25,12 @@ IN_STRUCT_FILE = "init.gro"
 TOPOLOGY_FILE = "topo.top"
 
 TOP_FILE = "templates/{0}.epy".format(TOPOLOGY_FILE)
-MDP_FILE = "templates/run.mdp.epy"
+MDP_TEMPLATE = "templates/deposition.mdp.epy"
+MDP_FILE = ".".join( basename(MDP_TEMPLATE).split('.')[0:2] )
 
-GPP_TEMPLATE = "{GMX_PATH}grompp_d -f run.mdp -c {struct} -p topo.top -o md.tpr".format(**{"struct":IN_STRUCT_FILE,
-                                                                                                "GMX_PATH":"{GMX_PATH}"})
+GPP_TEMPLATE = "{GMX_PATH}grompp_d -f {mdp_base_file} -c {struct} -p topo.top -o md.tpr".format(**{"struct":IN_STRUCT_FILE,
+                                                                                           "mdp_base_file": basename(MDP_FILE),
+                                                                                           "GMX_PATH":"{GMX_PATH}"})
 
 MPI_ADDITION = "mpirun -np {0} --bind-to-none "
 
@@ -166,13 +168,13 @@ class Deposition(object):
         with open(TOP_FILE) as fh:
             topTemplate = jinja2.Template(fh.read())
             
-        with open(MDP_FILE) as fh:
+        with open(MDP_TEMPLATE) as fh:
             mdpTemplate = jinja2.Template(fh.read())
         
         with open(join(self.rundir, basename(TOP_FILE)[:-4]),"w") as fh:
             fh.write(topTemplate.render(resMixture=self.mixture, substrate=self.runConfig["substrate"], resnameClusters=cluster(map( lambda x:x.resname, self.model.residues))))
         
-        with open(join(self.rundir, basename(MDP_FILE)[:-4]),"w") as fh:
+        with open(join(self.rundir, MDP_FILE),"w") as fh:
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
             fh.write(mdpTemplate.render(resList=resList, substrate=self.runConfig["substrate"], resLength=len(resList), numberOfSteps=int(self.deposition_step["run_time"]/self.runConfig["time_step"]), temperature=self.deposition_step["temperature"]))
         
