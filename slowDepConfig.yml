@@ -2,7 +2,7 @@ starting_deposition_number: 0
 final_deposition_number: 1202
 work_directory: /mddata/uqmstroe/phaseTransitionData/slowRun
 run_with_mpi: True
-max_cores: 20
+max_cores: 16
 insert_distance: 40.0 #angstrom 
 contact_tolerance: 4.0 #angstrom 
 escape_tolerance: 20.0 #angstrom 
@@ -11,7 +11,7 @@ drift_velocity: 0.08 #nm/ps
 deposition_steps:
   - description: 'Initial Deposition of a 1000 CBP/IPR-IPS (42:1:1 ratio) (~10nm high) molecules'
     first_sim_id: 0
-    first_sim_id: 1000
+    last_sim_id: 1000
     run_time: 50.0 #ps
     temperature: 300
     mixture:
@@ -32,7 +32,9 @@ deposition_steps:
           ratio: 1
   - description: 'Deposition of a second layer of 200 XXX (~2nm high) molecules'
     first_sim_id: 1002
-    first_sim_id: 1202
+    last_sim_id: 1202
+    run_time: 10.0 #ps
+    temperature: 300
     mixture:
         BCP:
           res_name: BCP
