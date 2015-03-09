@@ -379,7 +379,7 @@ def cluster(resnameList):
             current_resname = ""
     return clusterList
 
-def runDeposition(runConfigFile, starting_deposition_number=None):
+def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=False, remove_leaving_layer=False):
     
     deposition = Deposition(runConfigFile, starting_deposition_number=starting_deposition_number)
     
@@ -409,7 +409,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None):
         deposition.runSystem()
         
         while not deposition.hasResidueReachedLayer(-1): # -1 means last residue
-            if deposition.hasResidueBounced(-1): # -1 means last residue
+            if remove_bounce and deposition.hasResidueBounced(-1): # -1 means last residue
                 logging.warning('It seems like the last inserted molecule has bounced off the surface.')
                 deposition.removeResidueWithID(-1) #-1 means last residue
                 break
@@ -417,11 +417,12 @@ def runDeposition(runConfigFile, starting_deposition_number=None):
                 logging.info("Rerunning with {0} molecules due to last inserted  molecule not reaching layer".format(actualMixture))
                 deposition.runSystem(rerun=True)
 
-        # Iterate over the residues and remove the ones that left the layer
-        for residue in deposition.model.residues[1:]: # Dont't try to make sure the substrate is not leaving the layer !
-            residue_id = residue.id
-            if deposition.hasResidueLeftLayer(residue_id):
-                deposition.removeResidueWithID(residue_id)
+        if remove_leaving_layer :
+            # Iterate over the residues and remove the ones that left the layer
+            for residue in deposition.model.residues[1:]: # Dont't try to make sure the substrate is not leaving the layer !
+                residue_id = residue.id
+                if deposition.hasResidueLeftLayer(residue_id):
+                    deposition.removeResidueWithID(residue_id)
         
         logging.info("Finished deposition of {0} molecules".format(actualMixture))
     
@@ -432,6 +433,8 @@ def parseCommandLine():
     parser.add_argument('-i', '--input')
     parser.add_argument('--debug', dest='debug', action='store_true')
     parser.add_argument('--start', help='{int} Provide a starting deposition number different from the one in the YAML file. Used to restart a deposition. This number corresponds to the last successful deposition. Use 0 to start from scratch.')
+    parser.add_argument('--remove-mol-bouncing', dest='remove_bounce',        action='store_true')
+    parser.add_argument('--remove-mol-leaving',  dest='remove_leaving_layer', action='store_true')
     args = parser.parse_args()
 
     if args.debug :
@@ -439,7 +442,7 @@ def parseCommandLine():
         DEBUG = True
     logging.basicConfig(level=VERBOSITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
 
-    runDeposition(args.input, starting_deposition_number=int(args.start) if args.start else None)
+    runDeposition(args.input, starting_deposition_number=int(args.start) if args.start else None, remove_bounce=args.remove_bounce, remove_leaving_layer=args.remove_leaving_layer)
     
 if __name__=="__main__":
     parseCommandLine()
