@@ -1,7 +1,10 @@
 SHELL=/bin/bash
 
 deposition-test:
-	python Deposition.py -i quickTestRunConfig.yml --debug
+	python Deposition.py -i quickTestRunConfig.yml --debug --start 0
+
+qsub-deposition-test :
+	#qsub
 
 movie1:
 	python batchedMovieGenerator.py -i slowDepConfig.yml -b 1:10

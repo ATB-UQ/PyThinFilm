@@ -21,8 +21,8 @@ deposition_steps:
         itp_file: templates/CBP.itp
         ratio: 1
   - description: "Second deposition of a mixture of IPR and IPS"
-    first_sim_id: 3
-    last_sim_id:  3
+    first_sim_id: 2
+    last_sim_id:  2
     run_time: 1.5 #ps
     temperature: 300 #K
     mixture:
@@ -35,6 +35,17 @@ deposition_steps:
         res_name: IPS
         pdb_file: templates/IPS.pdb
         itp_file: templates/IPS.itp
+        ratio: 1
+  - description: "Final deposition of a mixture of a single CBP molecule"
+    first_sim_id: 3
+    last_sim_id:  3
+    run_time: 1.5 #ps
+    temperature: 300 #K
+    mixture:
+      BCP:
+        res_name: BCP
+        pdb_file: templates/BCP.pdb
+        itp_file: templates/BCP.itp
         ratio: 1
 substrate: 
       res_name: GRP
