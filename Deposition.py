@@ -75,39 +75,33 @@ class Deposition(object):
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
        
-        self.mixture = None
-        self.sampling_mixture = None
-        if self.moleculeNumber != 0 :
-            self.updateDepositionStep()
-            self.countResiduesFromModel()
+        self.mixture = {}
+        self.sampling_mixture = {}
+
+        self.initDepositionSteps()
  
         self.log = "out.log"
         self.err = "out.err"
 
-    def updateDepositionStep(self):
+    def initDepositionSteps(self):
         # Get the list of all the deposition steps
         self.deposition_steps = self.runConfig['deposition_steps']
+        self.initMixtureAndResidueCounts()
+
+    def updateDepositionStep(self):
         # Filter the one that apply to this particular Deposition run
-        self.deposition_steps = [ x for x in self.deposition_steps if x["first_sim_id"] <= self.moleculeNumber <= x["last_sim_id"] ]
+        self.current_deposition_steps = [ x for x in self.deposition_steps if x["first_sim_id"] <= self.moleculeNumber <= x["last_sim_id"] ]
         # Just to be sure, prevent overlapping deposition step simulation boundaries
-        if len(self.deposition_steps) > 1 :
+        if len(self.current_deposition_steps) > 1 :
             raise Exception("Overlapping deposition steps definitions. Aborting.")
-        elif len(self.deposition_steps) == 0 :
+        elif len(self.current_deposition_steps) == 0 :
             raise Exception("No deposition step defined for deposition molecule number {0}. Aborting.".format(self.moleculeNumber))
 
-        self.deposition_step = self.deposition_steps[0]
-        # Set the sampling mixture
+        self.deposition_step = self.current_deposition_steps[0]
+        # Set the sampling mixture to the next current step mixture
         self.sampling_mixture = self.deposition_step['mixture']
         # Then, update the sampling boundaries with the (maybe new) mixture
         self.setMixtureSamplingBoundaries()
-        # Finally, add the potential new residue to the actual system mixture
-        if self.mixture :
-            # Set the default count to 0 for "new" residues
-            new_mixture = self.deposition_step['mixture']
-            map(lambda x: x.setdefault("count", 0), new_mixture.values() )
-            self.mixture = dict(new_mixture.items() + self.mixture.items()) # Update the mixture dictionnary
-        else :
-            self.mixture = self.deposition_step['mixture']
         
     def updateModel(self, configurationPath):
         logging.info("Updating model with new configuration")
@@ -324,18 +318,21 @@ class Deposition(object):
         updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
         self.model.write(updatedPDBPath, "{0} deposited molecules".format(self.moleculeNumber), 0)
 
-    def countResiduesFromModel(self):
+    def initMixtureAndResidueCounts(self):
+        # Set the count to zero for all the residues in the different mixtures from the different deposition steps
+        for mixture in map(lambda x: x['mixture'], self.deposition_steps ) :
+            for res in mixture.values():
+                resname = res["res_name"]
+                self.mixture[resname] = res
+                self.mixture[resname]["count"]= 0
+
+        # Then, update count for residues already in the model
         for res in self.model.residues:
             # ignore the substrate residue
             if res.resname != self.runConfig["substrate"]["res_name"]: 
-                self.mixture[res.resname].setdefault("count", 0)
                 self.mixture[res.resname]["count"] += 1
-# Why is this needed ?
-        # now add in count of zero for any residues not already in the model
-        for res in self.mixture.values():
-            if not res.has_key("count"):
-                res["count"] = 0
-# End Why
+        # Log the mixture
+        logging.debug('Initial mixture is: {mixture}'.format(mixture=self.mixture))
 
 def recursiveCorrectPaths(node, runConfigFileDir):
     for key, value in node.items():
@@ -396,7 +393,8 @@ def runDeposition(runConfigFile, starting_deposition_number=None):
         
         # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
         nextMolecule = deposition.getNextMolecule()
-        deposition.model.insert_residue(deposition.moleculeNumber, nextMolecule.residues[0], " ")
+        last_residue = len(deposition.model.residues)
+        deposition.model.insert_residue(last_residue, nextMolecule.residues[0], " ")
         deposition.genInitialVelocitiesLastResidue()
      
         # create run directory and run setup make file
@@ -425,7 +423,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None):
             if deposition.hasResidueLeftLayer(residue_id):
                 deposition.removeResidueWithID(residue_id)
         
-    logging.info("Finished deposition of {0} molecules".format(actualMixture))
+        logging.info("Finished deposition of {0} molecules".format(actualMixture))
     
 
 def parseCommandLine():
@@ -433,7 +431,7 @@ def parseCommandLine():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
     parser.add_argument('--debug', dest='debug', action='store_true')
-    parser.add_argument('--start', help='{int} Provide a starting deposition number different from the one in the YAML file. Usedd to restart a deposition.')
+    parser.add_argument('--start', help='{int} Provide a starting deposition number different from the one in the YAML file. Used to restart a deposition. This number corresponds to the last successful deposition. Use 0 to start from scratch.')
     args = parser.parse_args()
 
     if args.debug :
