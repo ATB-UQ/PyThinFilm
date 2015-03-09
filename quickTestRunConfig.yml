@@ -1,5 +1,5 @@
 starting_deposition_number: 0
-final_deposition_number: 2
+final_deposition_number: 3
 work_directory: testing
 run_with_mpi: False
 max_cores: 8
@@ -21,8 +21,8 @@ deposition_steps:
         itp_file: templates/CBP.itp
         ratio: 1
   - description: "Second deposition of a mixture of IPR and IPS"
-    first_sim_id: 2
-    last_sim_id:  2
+    first_sim_id: 3
+    last_sim_id:  3
     run_time: 1.5 #ps
     temperature: 300 #K
     mixture:

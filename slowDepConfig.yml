@@ -1,5 +1,5 @@
 starting_deposition_number: 0
-final_deposition_number: 1200
+final_deposition_number: 1202
 work_directory: /mddata/uqmstroe/phaseTransitionData/slowRun
 run_with_mpi: True
 max_cores: 20
@@ -31,13 +31,13 @@ deposition_steps:
           itp_file: templates/IPS.itp
           ratio: 1
   - description: 'Deposition of a second layer of 200 XXX (~2nm high) molecules'
-    first_sim_id: 1001
-    first_sim_id: 1200
+    first_sim_id: 1002
+    first_sim_id: 1202
     mixture:
-        QFXR:
-          res_name: QFXR
-          pdb_file: templates/QFXR.pdb
-          itp_file: templates/QFXR.itp
+        BCP:
+          res_name: BCP
+          pdb_file: templates/BCP.pdb
+          itp_file: templates/BCP.itp
           ratio: 1
 substrate: 
       res_name: GRP
