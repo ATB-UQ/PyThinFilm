@@ -22,9 +22,12 @@ GMX_PATH = "/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
 OUT_STRUCT_FILE = "end.gro"
 IN_STRUCT_FILE = "init.gro"
 
+BASENAME_REMOVE_SUFFIX = lambda path: ".".join( basename(path) .split('.')[0:2])
+
 TOPOLOGY_FILE = "topo.top"
 
-TOP_FILE = "templates/{0}.epy".format(TOPOLOGY_FILE)
+TOP_TEMPLATE = "templates/{0}.epy".format(TOPOLOGY_FILE)
+TOP_FILE = BASENAME_REMOVE_SUFFIX(TOP_TEMPLATE)
 TEMPLATE_ALLOWED_TYPES = ['deposition', 'annealing']
 
 GPP_TEMPLATE = "{GMX_PATH}grompp_d -f {MDP_FILE} -c {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE,
@@ -104,11 +107,19 @@ class Deposition(object):
         if not self.template_type in TEMPLATE_ALLOWED_TYPES :
             raise Exception('Unknown template type: {template_type}. Allowed types are: {allowed_types}'.format(template_type=self.template_type, allowed_types=TEMPLATE_ALLOWED_TYPES) )
         self.mdp_template_file = self.deposition_step['template']['template_file']
-        self.mdp_file = ".".join( basename(self.mdp_template_file).split('.')[0:2] )
-        # Set the sampling mixture to the next current step mixture
-        self.sampling_mixture = self.deposition_step['mixture']
-        # Then, update the sampling boundaries with the (maybe new) mixture
-        self.setMixtureSamplingBoundaries()
+        self.mdp_file = BASENAME_REMOVE_SUFFIX(self.mdp_template_file)
+
+        # For depositon steps only, update the sampling mixture
+        if self.isDepositionRun():
+            # Set the sampling mixture to the next current step mixture
+            self.sampling_mixture = self.deposition_step['mixture']
+            # Then, update the sampling boundaries with the (maybe new) mixture
+            self.setMixtureSamplingBoundaries()
+
+    def isDepositionRun(self):
+        return self.template_type == 'deposition'
+    def isAnnealingRun(self):
+        return self.template_type == 'annealing'
         
     def updateModel(self, configurationPath):
         logging.info("Updating model with new configuration")
@@ -171,13 +182,13 @@ class Deposition(object):
         if not os.path.exists(self.rundir):
             os.mkdir(self.rundir)
         
-        with open(TOP_FILE) as fh:
+        with open(TOP_TEMPLATE) as fh:
             topTemplate = jinja2.Template(fh.read())
             
         with open(self.mdp_template_file) as fh:
             mdpTemplate = jinja2.Template(fh.read())
         
-        with open(join(self.rundir, basename(TOP_FILE)[:-4]),"w") as fh:
+        with open(join(self.rundir, TOP_FILE), "w") as fh:
             fh.write(topTemplate.render(resMixture=self.mixture, substrate=self.runConfig["substrate"], resnameClusters=cluster(map( lambda x:x.resname, self.model.residues))))
         
         with open(join(self.rundir, self.mdp_file),"w") as fh:
@@ -328,7 +339,7 @@ class Deposition(object):
 
     def initMixtureAndResidueCounts(self):
         # Set the count to zero for all the residues in the different mixtures from the different deposition steps
-        for mixture in map(lambda x: x['mixture'], self.deposition_steps ) :
+        for mixture in [ x['mixture'] for x in self.deposition_steps if 'mixture' in x ] :
             for res in mixture.values():
                 resname = res["res_name"]
                 self.mixture[resname] = res
@@ -391,7 +402,6 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
     
     deposition = Deposition(runConfigFile, starting_deposition_number=starting_deposition_number)
     
-    logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(deposition.runConfig["drift_velocity"]))
     while deposition.moleculeNumber < deposition.runConfig["final_deposition_number"]:
         # Increment deposition molecule number
         deposition.moleculeNumber += 1
@@ -399,16 +409,21 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
         # Update the deposition step in case we enter a new deposition phase
         deposition.updateDepositionStep()
         
-        # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
-        nextMolecule = deposition.getNextMolecule()
-        last_residue = len(deposition.model.residues)
-        deposition.model.insert_residue(last_residue, nextMolecule.residues[0], " ")
-        deposition.genInitialVelocitiesLastResidue()
+        # Depending on run type ...
+        if deposition.isDepositionRun():
+            logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(deposition.runConfig["drift_velocity"]))
+            # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
+            nextMolecule = deposition.getNextMolecule()
+            last_residue = len(deposition.model.residues)
+            deposition.model.insert_residue(last_residue, nextMolecule.residues[0], " ")
+            deposition.genInitialVelocitiesLastResidue()
+        elif deposition.isAnnealingRun():
+            logging.info("Running annealing run with parameters:")
      
         # create run directory and run setup make file
         deposition.runSetup()
         
-        # write updated model to run directory
+        # Write updated model to run directory
         deposition.writeInitConfiguration()
         
         actualMixture = ",".join([" {0}:{1}".format(r["res_name"], r["count"]) for r in deposition.mixture.values()])
@@ -416,23 +431,24 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
         logging.info("Running with {0} molecules".format(actualMixture))
         deposition.runSystem()
         
-        while not deposition.hasResidueReachedLayer(-1): # -1 means last residue
-            if remove_bounce and deposition.hasResidueBounced(-1): # -1 means last residue
-                logging.warning('It seems like the last inserted molecule has bounced off the surface.')
-                deposition.removeResidueWithID(-1) #-1 means last residue
-                break
-            else:
-                logging.info("Rerunning with {0} molecules due to last inserted  molecule not reaching layer".format(actualMixture))
-                deposition.runSystem(rerun=True)
-
-        if remove_leaving_layer :
-            # Iterate over the residues and remove the ones that left the layer
-            for residue in deposition.model.residues[1:]: # Dont't try to make sure the substrate is not leaving the layer !
-                residue_id = residue.id
-                if deposition.hasResidueLeftLayer(residue_id):
-                    deposition.removeResidueWithID(residue_id)
-        
-        logging.info("Finished deposition of {0} molecules".format(actualMixture))
+        if deposition.isDepositionRun():
+            while not deposition.hasResidueReachedLayer(-1): # -1 means last residue
+                if remove_bounce and deposition.hasResidueBounced(-1): # -1 means last residue
+                    logging.warning('It seems like the last inserted molecule has bounced off the surface.')
+                    deposition.removeResidueWithID(-1) #-1 means last residue
+                    break
+                else:
+                    logging.info("Rerunning with {0} molecules due to last inserted  molecule not reaching layer".format(actualMixture))
+                    deposition.runSystem(rerun=True)
+    
+            if remove_leaving_layer :
+                # Iterate over the residues and remove the ones that left the layer
+                for residue in deposition.model.residues[1:]: # Dont't try to make sure the substrate is not leaving the layer !
+                    residue_id = residue.id
+                    if deposition.hasResidueLeftLayer(residue_id):
+                        deposition.removeResidueWithID(residue_id)
+            
+            logging.info("Finished deposition of {0} molecules".format(actualMixture))
     
 
 def parseCommandLine():
