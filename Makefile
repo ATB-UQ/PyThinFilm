@@ -6,6 +6,9 @@ deposition-test:
 qsub-deposition-test :
 	#qsub
 
+gitlab-ci-test:
+	python Deposition.py -i gitlab-ci-test.yml --start 0
+
 movie1:
 	python batchedMovieGenerator.py -i slowDepConfig.yml -b 1:10
 	python MovieGenerator.py -i slowDepConfig.yml -b 1:10 -c
