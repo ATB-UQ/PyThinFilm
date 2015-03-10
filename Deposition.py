@@ -199,7 +199,7 @@ class Deposition(object):
         
         with open(join(self.rundir, self.mdp_file),"w") as fh:
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
-            fh.write(mdpTemplate.render(resList=resList, substrate=self.runConfig["substrate"], resLength=len(resList), numberOfSteps=int(self.deposition_step["run_time"]/self.runConfig["time_step"]), temperature=self.deposition_step["temperature"]))
+            fh.write(mdpTemplate.render(resList=resList, substrate=self.runConfig["substrate"], resLength=len(resList), timeStep=self.runConfig["time_step"], numberOfSteps=int(self.deposition_step["run_time"]/self.runConfig["time_step"]), temperature=self.deposition_step["temperature"]))
         
         
     

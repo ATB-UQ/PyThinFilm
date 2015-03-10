@@ -3,7 +3,7 @@ title                    = Annealing Run
 ; run control
 integrator               = md                    ; md integrator
 tinit                    = 0                     ; [ps] starting time for run
-dt                       = 0.004                 ; [ps] time step for integration
+dt                       = {{timeStep}}                 ; [ps] time step for integration
 nsteps                   = {{numberOfSteps}}                ; maximum number of steps to integrate, dt*nsteps = x ps
 
 ; center of mass motion removal
