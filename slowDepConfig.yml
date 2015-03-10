@@ -55,6 +55,14 @@ deposition_steps:
           pdb_file: templates/BCP.pdb
           itp_file: templates/BCP.itp
           ratio: 1
+  - description: "Do ten 1 ns annealing runs at 300K"
+    template: 
+      type: annealing
+      file: templates/annealing.mdp.epy
+    first_sim_id: 1203
+    last_sim_id:  1213
+    run_time: 1000 #ps
+    temperature: 300 #K
 substrate: 
       res_name: GRP
       pdb_file: templates/GRP.pdb
