@@ -7,4 +7,4 @@
 
 module load openmpi-1.6.3-x86_64
 
-python Deposition.py -i slowDepConfig.yml --debug --start 1002
+python Deposition.py -i slowDepConfig.yml --start 1202
