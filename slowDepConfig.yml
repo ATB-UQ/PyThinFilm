@@ -10,8 +10,11 @@ time_step: 0.004 #ps
 drift_velocity: 0.08 #nm/ps
 deposition_steps:
   - description: 'Initial Deposition of a 1000 CBP/IPR-IPS (42:1:1 ratio) (~10nm high) molecules'
+    template: 
+      type: deposition
+      file: templates/deposition.mdp.epy
     first_sim_id: 0
-    last_sim_id: 1000
+    last_sim_id: 999
     run_time: 50.0 #ps
     temperature: 300
     mixture:
@@ -30,7 +33,18 @@ deposition_steps:
           pdb_file: templates/IPS.pdb      
           itp_file: templates/IPS.itp
           ratio: 1
+  - description: "Do two 5 ns annealing runs at 300K"
+    template: 
+      type: annealing
+      file: templates/annealing.mdp.epy
+    first_sim_id: 1000
+    last_sim_id:  1001
+    run_time: 5000 #ps
+    temperature: 300 #K
   - description: 'Deposition of a second layer of 200 XXX (~2nm high) molecules'
+    template: 
+      type: deposition
+      file: templates/deposition.mdp.epy
     first_sim_id: 1002
     last_sim_id: 1202
     run_time: 10.0 #ps

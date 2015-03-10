@@ -1,7 +1,7 @@
 SHELL=/bin/bash
 
 deposition-test:
-	python Deposition.py -i quickTestRunConfig.yml --debug --start 0
+	python Deposition.py -i quickTestRunConfig.yml --start 0
 
 qsub-deposition-test :
 	#qsub

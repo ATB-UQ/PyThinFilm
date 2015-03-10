@@ -58,7 +58,7 @@ class Deposition(object):
     def __init__(self, runConfigFile, starting_deposition_number=None):
         
         self.runConfig = yaml.load(open(runConfigFile))
-        # Convert "*_file" paths in runConfig to be absolute
+        # Convert "*file" paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, dirname(abspath(runConfigFile)))
         
         # Read starting_deposition_number from YAML file unless provided by command line
@@ -106,7 +106,7 @@ class Deposition(object):
         self.template_type = self.deposition_step['template']['type']
         if not self.template_type in TEMPLATE_ALLOWED_TYPES :
             raise Exception('Unknown template type: {template_type}. Allowed types are: {allowed_types}'.format(template_type=self.template_type, allowed_types=TEMPLATE_ALLOWED_TYPES) )
-        self.mdp_template_file = self.deposition_step['template']['template_file']
+        self.mdp_template_file = self.deposition_step['template']['file']
         self.mdp_file = BASENAME_REMOVE_SUFFIX(self.mdp_template_file)
 
         # For depositon steps only, update the sampling mixture
@@ -120,10 +120,16 @@ class Deposition(object):
         return self.template_type == 'deposition'
     def isAnnealingRun(self):
         return self.template_type == 'annealing'
+
+    def runParameters(self):
+        parameters_dict =  { \
+                'temperature':    "{0} K".format(self.deposition_step["temperature"]),
+                'run_time':       "{0} ps".format(self.deposition_step["run_time"]),
+                'drift_velocity': "{0} nm/ps".format(self.runConfig["drift_velocity"]),
+        }
+        return parameters_dict
         
     def updateModel(self, configurationPath):
-        logging.info("Updating model with new configuration")
-        #self.model.updateGRO(configurationPath)
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
         
@@ -205,8 +211,8 @@ class Deposition(object):
         logFile = open(join(self.rundir, self.log),"a")
         errFile = open(join(self.rundir, self.err),"a")
         try:
-            logging.debug("Running from: '{0}'".format(self.rundir))
-            logging.debug("Running command: '{0}'".format(argString))
+            logging.debug("    Running from: '{0}'".format(self.rundir))
+            logging.debug("    Running command: '{0}'".format(argString))
             subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile).wait()
         except:
             print "Subprocess terminated with error: \n{0}\n\n{1}".format(argString, format_exc())
@@ -230,7 +236,7 @@ class Deposition(object):
 
     def maxLayerHeight(self, excluded_res):
         maxLayerHeight = max([a.x[2] for a in self.model.atoms if a not in excluded_res.atoms])
-        logging.debug("Max layer height {0}".format(maxLayerHeight))
+        logging.debug("    Max layer height {0}".format(maxLayerHeight))
         return maxLayerHeight
 
     def hasResidueReachedLayer(self, residue_ID):
@@ -261,7 +267,7 @@ class Deposition(object):
         net_z_velocity = sum( map( lambda x: x.v[2], res.atoms) ) / len(res.atoms)
         if DEBUG :
             highest_atom_height = max([a.x[2] for a in res.atoms])
-            logging.debug("Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
+            logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
         return net_z_velocity > 0. and any([a.x[2] > maxLayerHeight + self.runConfig["escape_tolerance"] for a in res.atoms])
     
     def genInitialVelocitiesLastResidue(self):
@@ -276,13 +282,11 @@ class Deposition(object):
     # e.g. A 1:9 ratio of res1 to res2 is given by: [0.0, 0.1] -> res1, [0.1, 1.0] -> res2
     def setMixtureSamplingBoundaries(self):
         ratioSum = float(sum([v["ratio"] for v in self.sampling_mixture.values()]))
-        logging.debug("Ratio sum: " + str(ratioSum))
         movingBoundary = 0.0
         for res in self.sampling_mixture.values():
             res["sample_boundary_min"] = movingBoundary
             movingBoundary += res["ratio"] / ratioSum
             res["sample_boundary_max"] = movingBoundary
-        logging.debug("Sampling boundaries: {0}".format(",".join([str((r["res_name"], r["sample_boundary_min"],r["sample_boundary_max"])) for r in self.sampling_mixture.values()])))
  
     def sampleMixture(self):
         if len(self.sampling_mixture) == 1:
@@ -301,6 +305,7 @@ class Deposition(object):
         
         self.mixture[nextMol["res_name"]].setdefault("count", 0)
         self.mixture[nextMol["res_name"]]["count"] += 1
+        logging.info("    Inserting molecule: {0}".format(nextMol["res_name"]) )
         
         with open(nextMol["itp_file"]) as fh:
             cbpITPString = fh.read()
@@ -411,14 +416,14 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
         
         # Depending on run type ...
         if deposition.isDepositionRun():
-            logging.info("Running deposition with drift velocity of {0:.3f} nm/ps".format(deposition.runConfig["drift_velocity"]))
+            logging.info("[DEPOSITION] Running deposition run with parameters: {parameters_dict}".format(parameters_dict=deposition.runParameters()))
             # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
             nextMolecule = deposition.getNextMolecule()
             last_residue = len(deposition.model.residues)
             deposition.model.insert_residue(last_residue, nextMolecule.residues[0], " ")
             deposition.genInitialVelocitiesLastResidue()
         elif deposition.isAnnealingRun():
-            logging.info("Running annealing run with parameters:")
+            logging.info("[ANNEALING] Running annealing run with parameters: {parameters_dict}".format(parameters_dict=deposition.runParameters()))
      
         # create run directory and run setup make file
         deposition.runSetup()
@@ -428,7 +433,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
         
         actualMixture = ",".join([" {0}:{1}".format(r["res_name"], r["count"]) for r in deposition.mixture.values()])
         # Do first Run
-        logging.info("Running with {0} molecules".format(actualMixture))
+        logging.info("    Current mixture is: {0}".format(actualMixture))
         deposition.runSystem()
         
         if deposition.isDepositionRun():
@@ -438,7 +443,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
                     deposition.removeResidueWithID(-1) #-1 means last residue
                     break
                 else:
-                    logging.info("Rerunning with {0} molecules due to last inserted  molecule not reaching layer".format(actualMixture))
+                    logging.info("    Rerunning due to last inserted  molecule not reaching layer".format(actualMixture))
                     deposition.runSystem(rerun=True)
     
             if remove_leaving_layer :
@@ -447,8 +452,8 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
                     residue_id = residue.id
                     if deposition.hasResidueLeftLayer(residue_id):
                         deposition.removeResidueWithID(residue_id)
-            
-            logging.info("Finished deposition of {0} molecules".format(actualMixture))
+
+    logging.info("Finished deposition of {0} molecules".format(deposition.runConfig["final_deposition_number"]))
     
 
 def parseCommandLine():

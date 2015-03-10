@@ -1,5 +1,5 @@
 starting_deposition_number: 0
-final_deposition_number: 4
+final_deposition_number: 5
 work_directory: testing
 run_with_mpi: False
 max_cores: 8
@@ -12,7 +12,7 @@ deposition_steps:
   - description: "Initial deposition of a full mixture of CBP"
     template: 
       type: deposition
-      template_file: templates/deposition.mdp.epy
+      file: templates/deposition.mdp.epy
     first_sim_id: 1
     last_sim_id:  1
     run_time: 0.5 #ps
@@ -26,7 +26,7 @@ deposition_steps:
   - description: "Second deposition of a mixture of IPR and IPS"
     template: 
       type: deposition
-      template_file: templates/deposition.mdp.epy
+      file: templates/deposition.mdp.epy
     first_sim_id: 2
     last_sim_id:  2
     run_time: 1.5 #ps
@@ -45,7 +45,7 @@ deposition_steps:
   - description: "Final deposition of a mixture of a single CBP molecule"
     template: 
       type: deposition
-      template_file: templates/deposition.mdp.epy
+      file: templates/deposition.mdp.epy
     first_sim_id: 3
     last_sim_id:  3
     run_time: 1.5 #ps
@@ -56,13 +56,13 @@ deposition_steps:
         pdb_file: templates/BCP.pdb
         itp_file: templates/BCP.itp
         ratio: 1
-  - description: "Final annealing"
+  - description: "Do two 0.5ps annealing runs"
     template: 
       type: annealing
-      template_file: templates/annealing.mdp.epy
+      file: templates/annealing.mdp.epy
     first_sim_id: 4
-    last_sim_id:  4
-    run_time: 15.0 #ps
+    last_sim_id:  5
+    run_time: 0.5 #ps
     temperature: 500 #K
 substrate: 
       res_name: GRP

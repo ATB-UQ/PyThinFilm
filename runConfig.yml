@@ -10,10 +10,13 @@ time_step: 0.004 #ps
 drift_velocity: 0.08 #nm/ps
 deposition_steps:
   - description: 'Initial Deposition'
-      first_sim_id: 0
-      last_sim_id:  1000
-      run_time: 8.0 #ps
-      temperature: 300
+    template: 
+      type: deposition
+      file: templates/deposition.mdp.epy
+    first_sim_id: 0
+    last_sim_id:  1000
+    run_time: 8.0 #ps
+    temperature: 300
     mixture:
         CBP:
           res_name: CBP
