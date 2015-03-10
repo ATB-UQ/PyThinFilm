@@ -25,12 +25,11 @@ IN_STRUCT_FILE = "init.gro"
 TOPOLOGY_FILE = "topo.top"
 
 TOP_FILE = "templates/{0}.epy".format(TOPOLOGY_FILE)
-MDP_TEMPLATE = "templates/deposition.mdp.epy"
-MDP_FILE = ".".join( basename(MDP_TEMPLATE).split('.')[0:2] )
+TEMPLATE_ALLOWED_TYPES = ['deposition', 'annealing']
 
-GPP_TEMPLATE = "{GMX_PATH}grompp_d -f {mdp_base_file} -c {struct} -p topo.top -o md.tpr".format(**{"struct":IN_STRUCT_FILE,
-                                                                                           "mdp_base_file": basename(MDP_FILE),
-                                                                                           "GMX_PATH":"{GMX_PATH}"})
+GPP_TEMPLATE = "{GMX_PATH}grompp_d -f {MDP_FILE} -c {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE,
+                                                                                           MDP_FILE="{MDP_FILE}",
+                                                                                           GMX_PATH="{GMX_PATH}")
 
 MPI_ADDITION = "mpirun -np {0} --bind-to-none "
 
@@ -40,11 +39,11 @@ MDRUN_MPI = "mdrun_mpi_d"
 RERUN_FLAG = "-cpi md.cpt -append"
 
 
-MDRUN_TEMPLATE = "{mpiRun}{GMX_PATH}{mdrun} -pd -s md.tpr -deffnm md -c {struct} {reRunFlag}".format(**{"struct":OUT_STRUCT_FILE,
-                                                                                                             "mdrun":       "{mdrun}",
-                                                                                                             "GMX_PATH":    "{GMX_PATH}",
-                                                                                                             "reRunFlag":   "{reRunFlag}",
-                                                                                                             "mpiRun":      "{mpiRun}"}) 
+MDRUN_TEMPLATE = "{mpiRun}{GMX_PATH}{mdrun} -pd -s md.tpr -deffnm md -c {struct} {reRunFlag}".format(struct=OUT_STRUCT_FILE,
+                                                                                                     mdrun="{mdrun}",
+                                                                                                     GMX_PATH="{GMX_PATH}",
+                                                                                                     reRunFlag="{reRunFlag}",
+                                                                                                     mpiRun="{mpiRun}") 
 
 RERUN_SETUP_TEMPLATE = "{GMX_PATH}tpbconv_d -s md.tpr -extend {run_time} -o md.tpr" 
 
@@ -100,6 +99,12 @@ class Deposition(object):
             raise Exception("No deposition step defined for deposition molecule number {0}. Aborting.".format(self.moleculeNumber))
 
         self.deposition_step = self.current_deposition_steps[0]
+        # Update the MDP template
+        self.template_type = self.deposition_step['template']['type']
+        if not self.template_type in TEMPLATE_ALLOWED_TYPES :
+            raise Exception('Unknown template type: {template_type}. Allowed types are: {allowed_types}'.format(template_type=self.template_type, allowed_types=TEMPLATE_ALLOWED_TYPES) )
+        self.mdp_template_file = self.deposition_step['template']['template_file']
+        self.mdp_file = ".".join( basename(self.mdp_template_file).split('.')[0:2] )
         # Set the sampling mixture to the next current step mixture
         self.sampling_mixture = self.deposition_step['mixture']
         # Then, update the sampling boundaries with the (maybe new) mixture
@@ -123,10 +128,11 @@ class Deposition(object):
             mpiRun = ""
             
         inserts = {"GMX_PATH":   GMX_PATH,
-                    "moleculeNumber": self.moleculeNumber,
-                    "reRunFlag": reRunFlag,
-                    "mpiRun":   mpiRun,
-                    "mdrun":    mdrun}
+                   "MDP_FILE": self.mdp_file,
+                   "moleculeNumber": self.moleculeNumber,
+                   "reRunFlag": reRunFlag,
+                   "mpiRun":   mpiRun,
+                   "mdrun":    mdrun}
         
         if rerun:
             # run rerun setup script
@@ -168,13 +174,13 @@ class Deposition(object):
         with open(TOP_FILE) as fh:
             topTemplate = jinja2.Template(fh.read())
             
-        with open(MDP_TEMPLATE) as fh:
+        with open(self.mdp_template_file) as fh:
             mdpTemplate = jinja2.Template(fh.read())
         
         with open(join(self.rundir, basename(TOP_FILE)[:-4]),"w") as fh:
             fh.write(topTemplate.render(resMixture=self.mixture, substrate=self.runConfig["substrate"], resnameClusters=cluster(map( lambda x:x.resname, self.model.residues))))
         
-        with open(join(self.rundir, MDP_FILE),"w") as fh:
+        with open(join(self.rundir, self.mdp_file),"w") as fh:
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
             fh.write(mdpTemplate.render(resList=resList, substrate=self.runConfig["substrate"], resLength=len(resList), numberOfSteps=int(self.deposition_step["run_time"]/self.runConfig["time_step"]), temperature=self.deposition_step["temperature"]))
         

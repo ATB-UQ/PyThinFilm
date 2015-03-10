@@ -56,12 +56,12 @@ deposition_steps:
         pdb_file: templates/BCP.pdb
         itp_file: templates/BCP.itp
         ratio: 1
-  - description: "Final deposition of a mixture of a single CBP molecule"
+  - description: "Final annealing"
     template: 
       type: annealing
       template_file: templates/annealing.mdp.epy
-    first_sim_id: 3
-    last_sim_id:  3
+    first_sim_id: 4
+    last_sim_id:  4
     run_time: 1.5 #ps
     temperature: 300 #K
     mixture:
