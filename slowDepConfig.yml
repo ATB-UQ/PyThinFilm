@@ -8,6 +8,7 @@ contact_tolerance: 4.0 #angstrom
 escape_tolerance: 20.0 #angstrom 
 time_step: 0.004 #ps
 drift_velocity: 0.08 #nm/ps
+gmx_path: /home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/
 deposition_steps:
   - description: 'Initial Deposition of a 1000 CBP/IPR-IPS (42:1:1 ratio) (~10nm high) molecules'
     template: 

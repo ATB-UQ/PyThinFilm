@@ -17,8 +17,6 @@ TEMPLATE_DIR = join(PROJECT_DIR, "templates")
 
 DEBUG = False
 
-GMX_PATH = "/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/bin/"
-
 OUT_STRUCT_FILE = "end.gro"
 IN_STRUCT_FILE = "init.gro"
 
@@ -144,7 +142,7 @@ class Deposition(object):
             mdrun = MDRUN
             mpiRun = ""
             
-        inserts = {"GMX_PATH":   GMX_PATH,
+        inserts = {"GMX_PATH":   self.runConfig['gmx_path'],
                    "MDP_FILE": self.mdp_file,
                    "moleculeNumber": self.moleculeNumber,
                    "reRunFlag": reRunFlag,
