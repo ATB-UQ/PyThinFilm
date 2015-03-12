@@ -1,6 +1,6 @@
 import subprocess
 import os
-from os.path import join, basename, dirname, abspath
+from os.path import join, basename, dirname, abspath, exists
 from traceback import format_exc
 import pmx
 import random
@@ -67,7 +67,12 @@ class Deposition(object):
         if not os.path.exists(self.rootdir):    
             os.makedirs(self.rootdir)
         
-        self.rundir = join(self.rootdir, str(self.moleculeNumber))
+        # By default, try restarting form the current branch
+        self.rundir = self.get_rundir()
+        # Otherwise restart from the master '' branch
+        if not exists(self.rundir):
+            self.rundir = join(self.rootdir, str(self.moleculeNumber))
+        print self.rundir
         
         if self.moleculeNumber == 0:
             configurationPath = self.runConfig["substrate"]["pdb_file"]
@@ -84,6 +89,9 @@ class Deposition(object):
  
         self.log = "out.log"
         self.err = "out.err"
+
+    def get_rundir(self):
+        return join(self.rootdir, str(self.moleculeNumber) + str(self.runConfig['development']['branch']))
 
     def initDepositionSteps(self):
         # Get the list of all the deposition steps
@@ -181,7 +189,7 @@ class Deposition(object):
         self.run(GPP_TEMPLATE, inserts)
         
     def runSetup(self):
-        self.rundir = join(self.rootdir, str(self.moleculeNumber))
+        self.rundir = self.get_rundir()
         
         if not os.path.exists(self.rundir):
             os.mkdir(self.rundir)
