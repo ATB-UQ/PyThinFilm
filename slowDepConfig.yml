@@ -1,5 +1,5 @@
 starting_deposition_number: 0
-final_deposition_number: 1212
+final_deposition_number: 2001
 work_directory: /mddata/uqmstroe/phaseTransitionData/slowRun
 run_with_mpi: True
 max_cores: 16
@@ -42,12 +42,12 @@ deposition_steps:
     last_sim_id:  1001
     run_time: 5000 #ps
     temperature: 300 #K
-  - description: 'Deposition of a second layer of 200 XXX (~2nm high) molecules'
+  - description: 'Deposition of a second layer of 1000 BCP (~10nm high) molecules'
     template: 
       type: deposition
       file: templates/deposition.mdp.epy
     first_sim_id: 1002
-    last_sim_id: 1202
+    last_sim_id: 2001
     run_time: 10.0 #ps
     temperature: 300
     mixture:
@@ -56,22 +56,6 @@ deposition_steps:
           pdb_file: templates/BCP.pdb
           itp_file: templates/BCP.itp
           ratio: 1
-  - description: "Do three 1 ns annealing runs at 300K"
-    template: 
-      type: annealing
-      file: templates/annealing.mdp.epy
-    first_sim_id: 1203
-    last_sim_id:  1205
-    run_time: 1000 #ps
-    temperature: 300 #K
-  - description: "Do seven 1 ns annealing runs at 500K"
-    template: 
-      type: annealing
-      file: templates/annealing.mdp.epy
-    first_sim_id: 1206
-    last_sim_id:  1212
-    run_time: 1000 #ps
-    temperature: 400 #K
 substrate: 
       res_name: GRP
       pdb_file: templates/GRP.pdb
@@ -79,4 +63,4 @@ substrate:
 movies:
     n_cores: 8
 development:
-    branch: 'A'
+    branch: ''
