@@ -62,6 +62,7 @@ class Deposition(object):
         # Read starting_deposition_number from YAML file unless provided by command line
         self.run_ID = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
         self.rootdir = os.path.abspath(self.runConfig["work_directory"])
+        self.disambiguate_run_config()
         
         # Create the 'work_directory' if it doesn't exist
         if not os.path.exists(self.rootdir):    
@@ -101,6 +102,9 @@ class Deposition(object):
         self.deposition_steps = self.runConfig['deposition_steps']
         self.last_run_ID = self.runConfig["final_deposition_number"]
         self.initMixtureAndResidueCounts()
+
+    def disambiguate_run_config(self):
+        self.gmx_path = self.runConfig['gmx_path'] if self.runConfig['gmx_path'] else ""
 
     def updateDepositionStep(self):
         # Filter the one that apply to this particular Deposition run
@@ -156,7 +160,7 @@ class Deposition(object):
             mdrun = MDRUN
             mpiRun = ""
             
-        inserts = {"GMX_PATH":   self.runConfig['gmx_path'],
+        inserts = {"GMX_PATH":   self.gmx_path,
                    "MDP_FILE": self.mdp_file,
                    "run_ID": self.run_ID,
                    "reRunFlag": reRunFlag,
