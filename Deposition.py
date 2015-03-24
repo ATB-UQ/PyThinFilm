@@ -96,6 +96,7 @@ class Deposition(object):
     def initDepositionSteps(self):
         # Get the list of all the deposition steps
         self.deposition_steps = self.runConfig['deposition_steps']
+        self.last_deposition_ID = self.runConfig["final_deposition_number"]
         self.initMixtureAndResidueCounts()
 
     def updateDepositionStep(self):
@@ -129,10 +130,12 @@ class Deposition(object):
 
     def runParameters(self):
         parameters_dict =  { \
+                'run_ID': "{0}/{1}".format(self.moleculeNumber, self.last_deposition_ID),
                 'temperature':    "{0} K".format(self.deposition_step["temperature"]),
                 'run_time':       "{0} ps".format(self.deposition_step["run_time"]),
-                'drift_velocity': "{0} nm/ps".format(self.runConfig["drift_velocity"]),
         }
+        if self.isDepositionRun():
+            parameters_dict['drift_velocity'] = "{0} nm/ps".format(self.runConfig["drift_velocity"])
         return parameters_dict
         
     def updateModel(self, configurationPath):
@@ -413,7 +416,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
     
     deposition = Deposition(runConfigFile, starting_deposition_number=starting_deposition_number)
     
-    while deposition.moleculeNumber < deposition.runConfig["final_deposition_number"]:
+    while deposition.moleculeNumber < deposition.last_deposition_ID:
         # Increment deposition molecule number
         deposition.moleculeNumber += 1
 
@@ -449,7 +452,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
                     deposition.removeResidueWithID(-1) #-1 means last residue
                     break
                 else:
-                    logging.info("    Rerunning due to last inserted  molecule not reaching layer".format(actualMixture))
+                    logging.info("    Rerunning with same parameters ({parameters_dict}) due to last inserted  molecule not reaching layer".format(parameters_dict=deposition.runParameters()))
                     deposition.runSystem(rerun=True)
     
             if remove_leaving_layer :
@@ -459,7 +462,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
                     if deposition.hasResidueLeftLayer(residue_id):
                         deposition.removeResidueWithID(residue_id)
 
-    logging.info("Finished deposition of {0} molecules".format(deposition.runConfig["final_deposition_number"]))
+    logging.info("Finished deposition of {0} molecules".format(deposition.last_deposition_ID))
     
 
 def parseCommandLine():
