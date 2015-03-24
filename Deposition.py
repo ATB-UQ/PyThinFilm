@@ -60,7 +60,7 @@ class Deposition(object):
         recursiveCorrectPaths(self.runConfig, dirname(abspath(runConfigFile)))
         
         # Read starting_deposition_number from YAML file unless provided by command line
-        self.moleculeNumber = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
+        self.run_ID = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
         self.rootdir = os.path.abspath(self.runConfig["work_directory"])
         
         # Create the 'work_directory' if it doesn't exist
@@ -71,10 +71,10 @@ class Deposition(object):
         self.rundir = self.get_rundir()
         # Otherwise restart from the master '' branch
         if not exists(self.rundir):
-            self.rundir = join(self.rootdir, str(self.moleculeNumber))
+            self.rundir = join(self.rootdir, str(self.run_ID))
         print self.rundir
         
-        if self.moleculeNumber == 0:
+        if self.run_ID == 0:
             configurationPath = self.runConfig["substrate"]["pdb_file"]
         else:
             configurationPath = join(self.rundir, OUT_STRUCT_FILE)
@@ -90,23 +90,26 @@ class Deposition(object):
         self.log = "out.log"
         self.err = "out.err"
 
+    def molecule_number(self):
+        return len(self.model.residues)
+
     def get_rundir(self):
-        return join(self.rootdir, str(self.moleculeNumber) + str(self.runConfig['development']['branch']))
+        return join(self.rootdir, str(self.run_ID) + str(self.runConfig['development']['branch']))
 
     def initDepositionSteps(self):
         # Get the list of all the deposition steps
         self.deposition_steps = self.runConfig['deposition_steps']
-        self.last_deposition_ID = self.runConfig["final_deposition_number"]
+        self.last_run_ID = self.runConfig["final_deposition_number"]
         self.initMixtureAndResidueCounts()
 
     def updateDepositionStep(self):
         # Filter the one that apply to this particular Deposition run
-        self.current_deposition_steps = [ x for x in self.deposition_steps if x["first_sim_id"] <= self.moleculeNumber <= x["last_sim_id"] ]
+        self.current_deposition_steps = [ x for x in self.deposition_steps if x["first_sim_id"] <= self.run_ID <= x["last_sim_id"] ]
         # Just to be sure, prevent overlapping deposition step simulation boundaries
         if len(self.current_deposition_steps) > 1 :
             raise Exception("Overlapping deposition steps definitions. Aborting.")
         elif len(self.current_deposition_steps) == 0 :
-            raise Exception("No deposition step defined for deposition molecule number {0}. Aborting.".format(self.moleculeNumber))
+            raise Exception("No deposition step defined for deposition molecule number {0}. Aborting.".format(self.run_ID))
 
         self.deposition_step = self.current_deposition_steps[0]
         # Update the MDP template
@@ -130,7 +133,7 @@ class Deposition(object):
 
     def runParameters(self):
         parameters_dict =  { \
-                'run_ID': "{0}/{1}".format(self.moleculeNumber, self.last_deposition_ID),
+                'run_ID': "{0}/{1}".format(self.run_ID, self.last_run_ID),
                 'temperature':    "{0} K".format(self.deposition_step["temperature"]),
                 'run_time':       "{0} ps".format(self.deposition_step["run_time"]),
         }
@@ -147,7 +150,7 @@ class Deposition(object):
         reRunFlag = RERUN_FLAG if rerun else ""
         
         if self.runConfig["run_with_mpi"]:
-            mpiRun = MPI_ADDITION.format(self.runConfig["max_cores"]) if self.moleculeNumber > self.runConfig["max_cores"] else MPI_ADDITION.format(self.moleculeNumber)
+            mpiRun = MPI_ADDITION.format(self.runConfig["max_cores"]) if self.molecule_number() > self.runConfig["max_cores"] else MPI_ADDITION.format(self.molecule_number())
             mdrun = MDRUN_MPI
         else:
             mdrun = MDRUN
@@ -155,7 +158,7 @@ class Deposition(object):
             
         inserts = {"GMX_PATH":   self.runConfig['gmx_path'],
                    "MDP_FILE": self.mdp_file,
-                   "moleculeNumber": self.moleculeNumber,
+                   "run_ID": self.run_ID,
                    "reRunFlag": reRunFlag,
                    "mpiRun":   mpiRun,
                    "mdrun":    mdrun}
@@ -174,7 +177,7 @@ class Deposition(object):
         
         if not os.path.exists(configurationPath):
             logging.error("MD run did not produce expected output file")
-            errorLog = open(join(self.rootdir, str(self.moleculeNumber), self.err)).readlines()
+            errorLog = open(join(self.rootdir, str(self.run_ID), self.err)).readlines()
             for i, l in enumerate(errorLog):
                 if "fatal error" in l.lower():
                     logging.error("Error from GROMACS:\n{0}\n".format("".join(errorLog[i:i+7])))
@@ -339,8 +342,8 @@ class Deposition(object):
         residue = self.model.residues[residue_ID]
         self.model.remove_residue(residue)
         logging.debug("Removing residue: {0}".format(residue.resname))
-        # Decrease the molecule number
-        self.moleculeNumber -= 1
+        # Decrease the run ID by one
+        self.run_ID -= 1
         # Decrease the mixture counts
         self.mixture[residue.resname]["count"] -= 1
 
@@ -349,7 +352,7 @@ class Deposition(object):
 
     def writeInitConfiguration(self):
         updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
-        self.model.write(updatedPDBPath, "{0} deposited molecules".format(self.moleculeNumber), 0)
+        self.model.write(updatedPDBPath, "{0} deposited molecules".format(self.run_ID), 0)
 
     def initMixtureAndResidueCounts(self):
         # Set the count to zero for all the residues in the different mixtures from the different deposition steps
@@ -416,9 +419,9 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
     
     deposition = Deposition(runConfigFile, starting_deposition_number=starting_deposition_number)
     
-    while deposition.moleculeNumber < deposition.last_deposition_ID:
-        # Increment deposition molecule number
-        deposition.moleculeNumber += 1
+    while deposition.run_ID < deposition.last_run_ID:
+        # Increment run ID
+        deposition.run_ID += 1
 
         # Update the deposition step in case we enter a new deposition phase
         deposition.updateDepositionStep()
@@ -462,7 +465,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
                     if deposition.hasResidueLeftLayer(residue_id):
                         deposition.removeResidueWithID(residue_id)
 
-    logging.info("Finished deposition of {0} molecules".format(deposition.last_deposition_ID))
+    logging.info("Finished deposition of {0} molecules".format(deposition.last_run_ID))
     
 
 def parseCommandLine():
