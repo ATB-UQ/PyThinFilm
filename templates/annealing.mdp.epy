@@ -68,8 +68,8 @@ gen_vel                  = no                   ; generate velocities according 
 ; bonds
 constraints              = all-bonds                      ; convert all bonds to constraints
 constraint-algorithm     = lincs
-lincs-order              = 4
-lincs-iter               = 1
+lincs-order              = {{lincs_order}}
+lincs-iter               = {{lincs_iterations}}
 lincs-warnangle          = 30
 continuation             = no            ; no = apply constraints to the start configuration
 freezegrps               = {{substrate["res_name"]}}
