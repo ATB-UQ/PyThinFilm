@@ -1,0 +1,86 @@
+starting_deposition_number: 0
+final_deposition_number: 2200
+work_directory: "/short/m72/mzs564/MD-PhaseTransition/CBP-10nm-CBP-10nm-450K-slow"
+run_with_mpi: True
+max_cores: 32
+insert_distance: 40.0 #angstrom 
+contact_tolerance: 4.0 #angstrom 
+escape_tolerance: 20.0 #angstrom 
+time_step: 0.002 #ps
+drift_velocity: 0.08 #nm/ps
+gmx_path: ""
+deposition_steps:
+  - description: 'Initial Deposition of a 1000 CBP/IPR-IPS (42:1:1 ratio) (~10nm high) molecules'
+    template: 
+      type: deposition
+      file: templates/deposition.mdp.epy
+    first_sim_id: 0
+    last_sim_id: 999
+    run_time: 50.0 #ps
+    temperature: 300
+    mixture:
+        CBP:
+          res_name: CBP
+          pdb_file: templates/CBP.pdb
+          itp_file: templates/CBP.itp
+          ratio: 42
+        IPR:
+          res_name: IPR
+          pdb_file: templates/IPR.pdb      
+          itp_file: templates/IPR.itp
+          ratio: 1
+        IPS:
+          res_name: IPS
+          pdb_file: templates/IPS.pdb      
+          itp_file: templates/IPS.itp
+          ratio: 1
+  - description: "Do two 5 ns annealing runs at 300K"
+    template: 
+      type: annealing
+      file: templates/annealing.mdp.epy
+    first_sim_id: 1000
+    last_sim_id:  1001
+    run_time: 5000 #ps
+    temperature: 300 #K
+  - description: 'Deposition of a second layer of 1000 BCP (~10nm high) molecules'
+    template: 
+      type: deposition
+      file: templates/deposition.mdp.epy
+    first_sim_id: 1002
+    last_sim_id: 2001
+    run_time: 10.0 #ps
+    temperature: 300
+    mixture:
+        BCP:
+          res_name: BCP
+          pdb_file: templates/BCP.pdb
+          itp_file: templates/BCP.itp
+          ratio: 1
+  - description: "Do 20x 250 ps annealing runs at 300K"
+    template: 
+      type: annealing
+      file: templates/annealing.mdp.epy
+    first_sim_id: 2039
+    last_sim_id:  2050
+    run_time: 250 #ps
+    temperature: 450 #K
+    lincs_order: 20
+    lincs_iterations: 10
+  - description: "Do 20x 250 ps annealing runs at 300K"
+    template: 
+      type: annealing
+      file: templates/annealing.mdp.epy
+    first_sim_id: 2191
+    last_sim_id:  2200
+    run_time: 250 #ps
+    temperature: 450 #K
+    lincs_order: 25
+    lincs_iterations: 12
+substrate: 
+      res_name: GRM
+      pdb_file: templates/GRM.pdb
+      itp_file: templates/GRM.itp
+movies:
+    n_cores: 8
+development:
+    branch: ''
