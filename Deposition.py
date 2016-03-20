@@ -52,7 +52,7 @@ RERUN_SETUP_TEMPLATE = "{GMX_PATH}tpbconv_d -s md.tpr -extend {run_time} -o md.t
 K_B = 0.00831451 #kJ / (mol K)
 
 DEFAULT_PARAMETERS = {"lincs_order": 4,
-		      "lincs_iterations":1}
+              "lincs_iterations":1}
 
 class Deposition(object):
     
@@ -68,7 +68,7 @@ class Deposition(object):
         self.disambiguate_run_config()
         
         # Create the 'work_directory' if it doesn't exist
-        if not os.path.exists(self.rootdir):    
+        if not os.path.exists(self.rootdir):
             os.makedirs(self.rootdir)
         
         # By default, try restarting form the current branch
@@ -219,18 +219,16 @@ class Deposition(object):
         with open(join(self.rundir, self.mdp_file),"w") as fh:
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
             fh.write(mdpTemplate.render(resList=resList, 
-					substrate=self.runConfig["substrate"], 
-					resLength=len(resList), 
-					timeStep=self.runConfig["time_step"], 
-					numberOfSteps=int(self.deposition_step["run_time"]/self.runConfig["time_step"]), 
-					temperature=self.deposition_step["temperature"],
-					lincs_order=self.deposition_step["lincs_order"] if "lincs_order" in self.deposition_step else DEFAULT_PARAMETERS["lincs_order"],
-					lincs_iterations= self.deposition_step["lincs_iterations"] if "lincs_iterations" in self.deposition_step else DEFAULT_PARAMETERS["lincs_iterations"],
-					)
-			)
-        
-        
-    
+                    substrate=self.runConfig["substrate"], 
+                    resLength=len(resList), 
+                    timeStep=self.runConfig["time_step"], 
+                    numberOfSteps=int(self.deposition_step["run_time"]/self.runConfig["time_step"]), 
+                    temperature=self.deposition_step["temperature"],
+                    lincs_order=self.deposition_step["lincs_order"] if "lincs_order" in self.deposition_step else DEFAULT_PARAMETERS["lincs_order"],
+                    lincs_iterations= self.deposition_step["lincs_iterations"] if "lincs_iterations" in self.deposition_step else DEFAULT_PARAMETERS["lincs_iterations"],
+                    )
+            )
+
     def run(self, argString, inserts):
         
         argString = argString.format(**inserts)
@@ -247,10 +245,7 @@ class Deposition(object):
         finally: 
             logFile.close()
             errFile.close()
-        
-        
-        
-    
+
     def getInsertHeight(self):
         return  self.maxZHeight() + self.runConfig["insert_distance"]
     
