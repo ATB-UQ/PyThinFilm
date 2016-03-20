@@ -1,5 +1,5 @@
 starting_deposition_number: 0
-final_deposition_number: 2200
+final_deposition_number: 2800
 work_directory: "/short/m72/mzs564/MD-PhaseTransition/CBP-10nm-CBP-10nm-450K-slow"
 run_with_mpi: True
 max_cores: 32
@@ -56,22 +56,13 @@ deposition_steps:
           pdb_file: templates/BCP.pdb
           itp_file: templates/BCP.itp
           ratio: 1
-  - description: "Do 20x 250 ps annealing runs at 300K"
+  - description: "Do 800x 250 ps annealing runs at 450K"
     template: 
       type: annealing
       file: templates/annealing.mdp.epy
-    first_sim_id: 2039
-    last_sim_id:  2050
-    run_time: 250 #ps
-    temperature: 450 #K
-    lincs_order: 20
-    lincs_iterations: 10
-  - description: "Do 20x 250 ps annealing runs at 300K"
-    template: 
-      type: annealing
-      file: templates/annealing.mdp.epy
-    first_sim_id: 2191
-    last_sim_id:  2200
+    first_sim_id: 2002
+    last_sim_id:  2800
+    n_per_batch: 10
     run_time: 250 #ps
     temperature: 450 #K
     lincs_order: 25
