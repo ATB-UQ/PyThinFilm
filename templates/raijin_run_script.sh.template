@@ -5,7 +5,8 @@
 #PBS -l walltime=48:00:00
 #PBS -l mem=32Gb
 #PBS -l wd
-
+#PBS -j oe
+#PBS -o {stdout_file}
 
 module load python
 module load gromacs/4.0.7
