@@ -7,6 +7,8 @@ import logging
 import glob
 from copy import deepcopy
 
+
+ROOT_PATH = dirname(__file__)
 CLUSTER_TEMPLATE_NAME = "{name}_run_script.sh.template"
 
 LOG_FILE = "stdout.log"
@@ -15,11 +17,18 @@ BATCH_RUN_DIR_NAME = "from_{start}_to_{end}"
 BATCH_RUN_SCRIPT_NAME = "deposition_batch_{start}_{end}.sh"
 BATCH_RUN_CONFIG_NAME = "config.yml"
 PBS_GET_ALL_MY_JOB_NAMES = 'if [ -n "$(qselect -u $USER)" ] ; then qselect -u $USER | xargs qstat -f | grep Job_Name ; fi'
-
+QSUB = "qsub"
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
 
 if not exists(BATCH_RUNS_DIR):
     os.makedirs(BATCH_RUNS_DIR)
+
+def is_int(x):
+    try:
+        int(x)
+        return True
+    except:
+        return False
 
 def run(args, cwd_opt=None):
     return subprocess.Popen(args, cwd=cwd_opt).wait()
@@ -34,7 +43,7 @@ def setup_batch_config(config_file, last_run_dir):
     last_run = int(basename(last_run_dir))
     last_deposition_steps = get_last_deposition_step(config)
     other_deposition_steps = [ds for ds in config["deposition_steps"] if ds != last_deposition_steps]
-    last_deposition_steps["first_sim_id"] = last_run + 1
+    last_deposition_steps["first_sim_id"] = last_run
     last_deposition_steps["last_sim_id"] = last_run + last_deposition_steps["n_per_batch"]
     last_deposition_steps["description"] = "Batch run from {0} to {1} of: {2}".format(last_deposition_steps["first_sim_id"], last_deposition_steps["last_sim_id"], last_deposition_steps["description"])
 
@@ -64,7 +73,7 @@ def populate_run_script_template(template_name, batch_config_file, start, end):
     return run_script_file
 
 def submit_to_queue(run_script):
-    run(["qsub", run_script], cwd_opt=dirname(abspath(run_script)))
+    run([QSUB, join(ROOT_PATH, run_script)])
 
 def job_in_queue(run_script):
     return
@@ -82,7 +91,7 @@ def is_being_processed(config):
     last_deposition_steps = get_last_deposition_step(config)
     logging.info("Last deposition step in master config: {0}".format(last_deposition_steps["description"]))
     # check whether last_run_dir is within the scope of the last deposition step
-    last_deposition_being_processed = last_deposition_steps["first_sim_id"] <= int(basename(last_run_dir)) < last_deposition_steps["last_sim_id"]
+    last_deposition_being_processed = last_deposition_steps["first_sim_id"] < int(basename(last_run_dir)) < last_deposition_steps["last_sim_id"]
     if not last_deposition_being_processed:
         if int(basename(last_run_dir)) + 1 == last_deposition_steps["first_sim_id"]:
             # can initialise last deposition step
@@ -93,7 +102,8 @@ def is_being_processed(config):
     return True
 
 def get_last_run_dir(config):
-    run_dirs = [join(config["work_directory"], f) for f in os.listdir(config["work_directory"]) if isdir(join(config["work_directory"], f))]
+    run_dirs = [join(config["work_directory"], f) for f in os.listdir(config["work_directory"]) \
+                    if isdir(join(config["work_directory"], f)) and is_int(f)]
     return sorted(run_dirs)[-1] if run_dirs else None
 
 def get_last_batch_run_dir():

@@ -1,8 +1,8 @@
 #!/bin/bash
 #PBS -P m72
-#PBS -q normal
-#PBS -l ncpus=32
-#PBS -l walltime=48:00:00
+#PBS -q express
+#PBS -l ncpus=16
+#PBS -l walltime=2:00:00
 #PBS -l mem=32Gb
 #PBS -l wd
 #PBS -j oe
