@@ -7,7 +7,6 @@ import logging
 import glob
 from copy import deepcopy
 
-
 ROOT_PATH = dirname(__file__)
 CLUSTER_TEMPLATE_NAME = "{name}_run_script.sh.template"
 
@@ -46,6 +45,7 @@ def setup_batch_config(config_file, last_run_dir):
     last_deposition_steps["first_sim_id"] = last_run
     last_deposition_steps["last_sim_id"] = last_run + last_deposition_steps["n_per_batch"]
     last_deposition_steps["description"] = "Batch run from {0} to {1} of: {2}".format(last_deposition_steps["first_sim_id"], last_deposition_steps["last_sim_id"], last_deposition_steps["description"])
+    last_deposition_steps["template"]["file"] = join(ROOT_PATH, last_deposition_steps["template"]["file"])
 
     batch_config = deepcopy(config)
     batch_config["deposition_steps"] = [last_deposition_steps] + other_deposition_steps
