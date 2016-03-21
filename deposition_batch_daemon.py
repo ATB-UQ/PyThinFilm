@@ -33,13 +33,13 @@ def setup_batch_config(config_file, last_run_dir):
     config = yaml.load(open(config_file))
     last_run = int(basename(last_run_dir))
     last_deposition_steps = get_last_deposition_step(config)
-
+    other_deposition_steps = [ds for ds in config["deposition_steps"] if ds != last_deposition_steps]
     last_deposition_steps["first_sim_id"] = last_run + 1
     last_deposition_steps["last_sim_id"] = last_run + last_deposition_steps["n_per_batch"]
     last_deposition_steps["description"] = "Batch run from {0} to {1} of: {2}".format(last_deposition_steps["first_sim_id"], last_deposition_steps["last_sim_id"], last_deposition_steps["description"])
 
     batch_config = deepcopy(config)
-    batch_config["deposition_steps"] = [last_deposition_steps]
+    batch_config["deposition_steps"] = [last_deposition_steps] + other_deposition_steps
 
     batch_run_dir = get_batch_run_dir(last_deposition_steps["first_sim_id"], last_deposition_steps["last_sim_id"])
     if exists(batch_run_dir):
