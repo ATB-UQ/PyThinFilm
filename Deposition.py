@@ -55,42 +55,42 @@ DEFAULT_PARAMETERS = {"lincs_order": 4,
               "lincs_iterations":1}
 
 class Deposition(object):
-    
+
     def __init__(self, runConfigFile, starting_deposition_number=None):
         print "runConfigFile: " + str(runConfigFile) 
         self.runConfig = yaml.load(open(runConfigFile))
         # Convert "*file" paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, dirname(abspath(runConfigFile)))
-        
+
         # Read starting_deposition_number from YAML file unless provided by command line
         self.run_ID = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
         self.rootdir = os.path.abspath(self.runConfig["work_directory"])
         self.disambiguate_run_config()
-        
+
         # Create the 'work_directory' if it doesn't exist
         if not os.path.exists(self.rootdir):
             os.makedirs(self.rootdir)
-        
+
         # By default, try restarting form the current branch
         self.rundir = self.get_rundir()
         # Otherwise restart from the master '' branch
         if not exists(self.rundir):
             self.rundir = join(self.rootdir, str(self.run_ID))
         print self.rundir
-        
+
         if self.run_ID == 0:
             configurationPath = self.runConfig["substrate"]["pdb_file"]
         else:
             configurationPath = join(self.rundir, OUT_STRUCT_FILE)
-        
+
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
-       
+
         self.mixture = {}
         self.sampling_mixture = {}
 
         self.initDepositionSteps()
- 
+
         self.log = "out.log"
         self.err = "out.err"
 
@@ -147,41 +147,41 @@ class Deposition(object):
         if self.isDepositionRun():
             parameters_dict['drift_velocity'] = "{0} nm/ps".format(self.runConfig["drift_velocity"])
         return parameters_dict
-        
+
     def updateModel(self, configurationPath):
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
-        
+
     def runSystem(self, rerun=False):
-        
+
         reRunFlag = RERUN_FLAG if rerun else ""
-        
+
         if self.runConfig["run_with_mpi"]:
             mpiRun = MPI_ADDITION.format(self.runConfig["max_cores"]) if self.molecule_number() > self.runConfig["max_cores"] else MPI_ADDITION.format(self.molecule_number())
             mdrun = MDRUN_MPI
         else:
             mdrun = MDRUN
             mpiRun = ""
-            
+
         inserts = {"GMX_PATH":   self.gmx_path,
                    "MDP_FILE": self.mdp_file,
                    "run_ID": self.run_ID,
                    "reRunFlag": reRunFlag,
                    "mpiRun":   mpiRun,
                    "mdrun":    mdrun}
-        
+
         if rerun:
             # run rerun setup script
             self.runTPBConf(inserts)
         else:
             # run grompp 
             self.runGPP(inserts)
-        
+
         # run the md
         self.run(MDRUN_TEMPLATE, inserts)
-        
+
         configurationPath = join(self.rundir, OUT_STRUCT_FILE) 
-        
+
         if not os.path.exists(configurationPath):
             logging.error("MD run did not produce expected output file")
             errorLog = open(join(self.rootdir, str(self.run_ID), self.err)).readlines()
@@ -189,33 +189,33 @@ class Deposition(object):
                 if "fatal error" in l.lower():
                     logging.error("Error from GROMACS:\n{0}\n".format("".join(errorLog[i:i+7])))
                     break
-        
+
         # now update model after run
         self.updateModel(configurationPath)
-    
+
     def runTPBConf(self, inserts):
         inserts["run_time"] = self.deposition_step["run_time"]
         self.run(RERUN_SETUP_TEMPLATE, inserts)
-    
+
     def runGPP(self, inserts):
-        
+
         self.run(GPP_TEMPLATE, inserts)
-        
+
     def runSetup(self):
         self.rundir = self.get_rundir()
-        
+
         if not os.path.exists(self.rundir):
             os.mkdir(self.rundir)
-        
+
         with open(TOP_TEMPLATE) as fh:
             topTemplate = jinja2.Template(fh.read())
-            
+
         with open(self.mdp_template_file) as fh:
             mdpTemplate = jinja2.Template(fh.read())
-        
+
         with open(join(self.rundir, TOP_FILE), "w") as fh:
             fh.write(topTemplate.render(resMixture=self.mixture, substrate=self.runConfig["substrate"], resnameClusters=cluster(map( lambda x:x.resname, self.model.residues))))
-        
+
         with open(join(self.rundir, self.mdp_file),"w") as fh:
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
             fh.write(mdpTemplate.render(resList=resList, 
@@ -230,10 +230,10 @@ class Deposition(object):
             )
 
     def run(self, argString, inserts):
-        
+
         argString = argString.format(**inserts)
         argList = argString.split()
-        
+
         logFile = open(join(self.rundir, self.log),"a")
         errFile = open(join(self.rundir, self.err),"a")
         try:
@@ -248,10 +248,10 @@ class Deposition(object):
 
     def getInsertHeight(self):
         return  self.maxZHeight() + self.runConfig["insert_distance"]
-    
+
     def maxZHeight(self):
         return max([a.x[2] for a in self.model.atoms])
-        
+
     def getRandomPosXY(self):
         x, y = map(lambda x:[v*10 for v in x], self.model.box[:2])
         # take the 0th and 1st element from x and y respectively as these must be rectangular boxes
@@ -292,9 +292,9 @@ class Deposition(object):
             highest_atom_height = max([a.x[2] for a in res.atoms])
             logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
         return net_z_velocity > 0. and any([a.x[2] > maxLayerHeight + self.runConfig["escape_tolerance"] for a in res.atoms])
-    
+
     def genInitialVelocitiesLastResidue(self):
-        
+
         for atom in self.model.residues[-1].atoms:
             sigma = math.sqrt(K_B*self.deposition_step["temperature"]/atom.m)
             atom.v[0] = random.gauss(0.0, sigma)
@@ -310,7 +310,7 @@ class Deposition(object):
             res["sample_boundary_min"] = movingBoundary
             movingBoundary += res["ratio"] / ratioSum
             res["sample_boundary_max"] = movingBoundary
- 
+
     def sampleMixture(self):
         if len(self.sampling_mixture) == 1:
             return self.sampling_mixture.values()[0]
@@ -319,28 +319,28 @@ class Deposition(object):
             for res in self.sampling_mixture.values():
                 if res["sample_boundary_min"] <= randomNumber <= res["sample_boundary_max"]:
                     return res
-        
-        
+
+
     def getNextMolecule(self):
         nextMol = self.sampleMixture()
         nextMolecule = pmx.Model(nextMol["pdb_file"])
         nextMolecule.nm2a()
-        
+
         self.mixture[nextMol["res_name"]].setdefault("count", 0)
         self.mixture[nextMol["res_name"]]["count"] += 1
         logging.info("    Inserting molecule: {0}".format(nextMol["res_name"]) )
-        
+
         with open(nextMol["itp_file"]) as fh:
             cbpITPString = fh.read()
         massDict = getMassDict(cbpITPString)
-        
+
         # set masses to 1.0 to avoid warning
         for atom in nextMolecule.atoms:
             atom.m = massDict[atom.name]
-        
+
         insertHeight = self.getInsertHeight()
         xPos, yPos = self.getRandomPosXY()
-            
+
         nextMolecule.translate([xPos, yPos, insertHeight])
         nextMolecule.random_rotation()
 
@@ -427,16 +427,16 @@ def cluster(resnameList):
     return clusterList
 
 def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=False, remove_leaving_layer=False):
-    
+
     deposition = Deposition(runConfigFile, starting_deposition_number=starting_deposition_number)
-    
+
     while deposition.run_ID < deposition.last_run_ID:
         # Increment run ID
         deposition.run_ID += 1
 
         # Update the deposition step in case we enter a new deposition phase
         deposition.updateDepositionStep()
-        
+
         # Depending on run type ...
         if deposition.isDepositionRun():
             logging.info("[DEPOSITION] Running deposition run with parameters: {parameters_dict}".format(parameters_dict=deposition.runParameters()))
@@ -447,18 +447,18 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
             deposition.genInitialVelocitiesLastResidue()
         elif deposition.isAnnealingRun():
             logging.info("[ANNEALING] Running annealing run with parameters: {parameters_dict}".format(parameters_dict=deposition.runParameters()))
-     
+
         # create run directory and run setup make file
         deposition.runSetup()
-        
+
         # Write updated model to run directory
         deposition.writeInitConfiguration()
-        
+
         actualMixture = ",".join([" {0}:{1}".format(r["res_name"], r["count"]) for r in deposition.mixture.values()])
         # Do first Run
         logging.info("    Current mixture is: {0}".format(actualMixture))
         deposition.runSystem()
-        
+
         if deposition.isDepositionRun():
             while not deposition.hasResidueReachedLayer(-1): # -1 means last residue
                 if remove_bounce and deposition.hasResidueBounced(-1): # -1 means last residue
@@ -468,7 +468,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
                 else:
                     logging.info("    Rerunning with same parameters ({parameters_dict}) due to last inserted  molecule not reaching layer".format(parameters_dict=deposition.runParameters()))
                     deposition.runSystem(rerun=True)
-    
+
             if remove_leaving_layer :
                 # Iterate over the residues and remove the ones that left the layer
                 for residue in deposition.model.residues[1:]: # Dont't try to make sure the substrate is not leaving the layer !
@@ -477,7 +477,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
                         deposition.removeResidueWithID(residue_id)
 
     logging.info("Finished deposition of {0} molecules".format(deposition.last_run_ID))
-    
+
 
 def parseCommandLine():
     global DEBUG, VERBOSITY
@@ -495,6 +495,6 @@ def parseCommandLine():
     logging.basicConfig(level=VERBOSITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
 
     runDeposition(args.input, starting_deposition_number=int(args.start) if args.start else None, remove_bounce=args.remove_bounce, remove_leaving_layer=args.remove_leaving_layer)
-    
+
 if __name__=="__main__":
     parseCommandLine()
