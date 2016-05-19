@@ -7,7 +7,6 @@ import random
 import logging
 import math
 import yaml
-import sys
 import jinja2
 import argparse
 
