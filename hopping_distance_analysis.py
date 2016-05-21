@@ -1,12 +1,12 @@
 import cPickle
 from os.path import exists
 import numpy as np
+from numpy import histogram
 import matplotlib.pyplot as plt
 from itertools import product, combinations
 import mpl_toolkits.mplot3d
 from scipy.spatial.distance import pdist, squareform
 from graph_tool.all import Graph, graph_draw
-from graph_tool.topology import shortest_path
 from graph_tool.search import bfs_iterator
 import pmx
 
@@ -89,14 +89,14 @@ def get_coms(model):
         coms[i] = molecule.com(vector_only=True)
     return coms
 
-def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None):
+def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None, cutoff_distance=None):
 
     #xmin = min(xs); xmax = max(xs)
     #ymin = min(ys); ymax = max(ys)
 
     fig = plt.figure()
     ax = mpl_toolkits.mplot3d.Axes3D(fig)
-    ax.scatter(xs, ys, zs)
+    ax.scatter(xs, ys, zs, alpha=0.3)
     if box:
         box = [box[0][0], box[1][1], box[2][2]]
         unit_box_corner_vectors = list(product([0,1], repeat=3))
@@ -106,13 +106,18 @@ def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None):
                 box_corner_2 = np.array(box)*unit_box_corner_vectors[j]
                 pts = np.array([box_corner_1, box_corner_2])
                 x, y, z = pts.T
-                ax.plot(x, y, z, marker="s", color="r")
+                ax.plot(x, y, z, color="r")
     if distance_cutoff_graph:
         points = np.array([xs, ys, zs]).T
         for e in distance_cutoff_graph.edges():
             point_indexes = [distance_cutoff_graph.vertex_index[e.source()], distance_cutoff_graph.vertex_index[e.target()]]
-            x, y, z = np.array([points[i] for i in point_indexes]).T
-            ax.plot(x, y, z, color="k")
+            edge_points = [points[i] for i in point_indexes]
+            linestyle = "--" if cutoff_distance and distance(*edge_points) > cutoff_distance else "-"
+            x, y, z = np.array(edge_points).T
+            ax.plot(x, y, z, color="b", linewidth=2, linestyle=linestyle)
+    ax.set_xlabel("x (nm)")
+    ax.set_ylabel("y (nm)")
+    ax.set_zlabel("z (nm)")
     plt.show()
 
 def plot_pbc(pbc_points, box):
@@ -155,28 +160,42 @@ def generate_distance_cutoff_graph(points, pbc_distances, distance_cutoff, max_d
         g.set_filters(g.edge_properties["connected"], g.vertex_properties["connected"], )
     return g
 
-def draw_edges_in_3D(pbc_points, distance_cutoff_graph, box):
+def draw_edges_in_3D(pbc_points, distance_cutoff_graph, box, cutoff_distance=None):
     xs, ys, zs = pbc_points.T
-    scatter_3d(xs, ys, zs, box=box, distance_cutoff_graph=distance_cutoff_graph)
+    scatter_3d(xs, ys, zs, box=box, distance_cutoff_graph=distance_cutoff_graph, cutoff_distance=cutoff_distance)
+
+
+def plot_distance_histogram(distances):
+    his, bins = histogram(distances, bins = 30)
+    centers = (bins[:-1]+bins[1:])/2
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(centers, his)
+    ax.set_xlabel("Distance (nm)")
+    ax.set_ylabel("Occurrence")
+    plt.show()
+
 
 def main():
+    cutoff_distance = 1.2
     models = load_models()
     for model in models.values():
         print model
         filter_model(model, ["IPR", "IPS"])
         points = get_coms(model)#np.array([[0,0,0]])
         print "N Points: {0}".format(len(points))
-        points, pbc_point_distances = get_explicit_pbc_distances(points, model.box, )
-        #pbc_point_distances = get_implicit_pbc_distances(points, model.box, )
+        #points, pbc_point_distances = get_explicit_pbc_distances(points, model.box, )
+        pbc_point_distances = get_implicit_pbc_distances(points, model.box, )
 
+        #plot_distance_histogram(squareform(pbc_point_distances))
         #plot_coms()
         #plot_pbc(pbc_points, model.box)
         # the maximum distance to consider must be less than the smallest box dimension to avoid particles seeing themselves
         max_distance = np.min(np.array(model.box)[np.nonzero(model.box)])
 
-        distance_cutoff_graph = generate_distance_cutoff_graph(points, pbc_point_distances, 2, max_distance, implicit_pbc=False)
-        graph_draw(distance_cutoff_graph, vertex_text=distance_cutoff_graph.vertex_index)
-        draw_edges_in_3D(points, distance_cutoff_graph, model.box)
+        distance_cutoff_graph = generate_distance_cutoff_graph(points, pbc_point_distances, cutoff_distance, max_distance, implicit_pbc=True)
+        #graph_draw(distance_cutoff_graph, vertex_text=distance_cutoff_graph.vertex_index)
+        draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance)
 
 if __name__=="__main__":
     g = Graph(directed=False)
