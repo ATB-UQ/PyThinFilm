@@ -1,39 +1,62 @@
-import pmx
 import cPickle
 from os.path import exists
 import numpy as np
 import matplotlib.pyplot as plt
+from itertools import product, combinations
 import mpl_toolkits.mplot3d
+from scipy.spatial.distance import pdist, squareform
+from graph_tool.all import Graph, graph_draw
+from graph_tool.topology import shortest_path
+from graph_tool.search import bfs_iterator
+import pmx
 
-MODEL_PATH_TEMPLATE = "/mddata2/uqmstroe/OLED_data/{0}wpc_end.gro"
+MODEL_PATH_TEMPLATE = "{0}wpc_end.gro"
 MODEL_CACHE_TEMPLATE = "cached_modles.pickle"
 USE_CACHE = False
-WPC = (2, )#6, 15, 30)
+WPC = (6,)#(2, 6, 15, 30)
 
-BOX_IMAGE_SIGNS = 
-#print BOX_IMAGE_SIGNS
+DIMENSIONS = 3
+N_IMAGES = DIMENSIONS**2
 
-def get_box_image_vectors(box):
-    return [
-        vec([box_dim * sign for (sign, box_dim) in zip(signs, box)])
-        for signs in BOX_IMAGE_SIGNS
-    ]
 def pbc_translations(x, y, z):
-    images = list(product([1, 0, -1], repeat=3))
+    # generate all unity periodic image translations, sorted such that the identity transformation [0,0,0] is first
+    images = sorted(product([1, 0, -1], repeat=DIMENSIONS), key=lambda x:np.sum(np.abs(x)))
+    return np.array([x,y,z]) * np.array(images)
+
+def xy_pbc_translations(x, y, z):
+    images = sorted([t for t in product([1, 0, -1], repeat=DIMENSIONS) if t[2] == 0], key=lambda x:np.sum(np.abs(x)))
     return np.array([x,y,z]) * np.array(images)
 
 def distance(a, b):
     return np.linalg.norm(np.array(a)-np.array(b))
 
-def pbc_distances(points, box_x, box_y, box_z):
-    distances = []
-    for translation in pbc_translations(box_x, box_y, box_z):
-        dists.append(np.sqrt((x+translation[0]-center[0])**2 + (y+translation[1]-center[1])**2))
-    return any([dist <= RADIUS for dist in dists])
+def get_pbc_points(points, box_x, box_y, box_z):
+    pbc_points = np.empty((N_IMAGES, points.shape[0], DIMENSIONS))
+    for i, translation in enumerate(xy_pbc_translations(box_x, box_y, box_z)):
+        pbc_points[i] = points + translation
+    return np.reshape(pbc_points, (points.shape[0]*N_IMAGES, DIMENSIONS)) # flatten to 1D array of (x,y,z) elements
+
+def get_explicit_pbc_distances(points, box):
+    box_x, box_y, box_z = box[0][0], box[1][1], box[2][2]
+    pbc_points = get_pbc_points(points, box_x, box_y, box_z)
+    distances = pdist(pbc_points)
+    distances = squareform(distances)
+    return pbc_points, distances
+
+def get_implicit_pbc_distances(points, box):
+    distances = np.empty((points.shape[0], points.shape[0]))
+    for i,j in product(range(points.shape[0]), repeat=2):
+        distances[i][j] = min_pbc_distance(points[i], points[j], box)
+    return distances
+
+def min_pbc_distance(point1, point2, box):
+    box_x, box_y, box_z = box[0][0], box[1][1], box[2][2]
+    pbc_points = get_pbc_points(np.array([point1, point2]), box_x, box_y, box_z)
+    return np.min(pdist(pbc_points))
 
 def load_model(model_path):
     model = pmx.Model(model_path)
-    model.nm2a()
+    #model.nm2a()
     return model
 
 def load_models():
@@ -53,12 +76,6 @@ def load_models():
             cPickle.dump(models, fh, protocol=cPickle.HIGHEST_PROTOCOL)
     return models
 
-def maxZHeight(model):
-        return max([a.x[2] for a in model.atoms])
-
-def molecule_number(model):
-        return len(model.residues)
-
 def filter_model(model, keep_molecules):
     keeping = []
     for molecule in model.residues:
@@ -72,7 +89,7 @@ def get_coms(model):
         coms[i] = molecule.com(vector_only=True)
     return coms
 
-def scatter_3d(xs, ys, zs):
+def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None):
 
     #xmin = min(xs); xmax = max(xs)
     #ymin = min(ys); ymax = max(ys)
@@ -80,21 +97,93 @@ def scatter_3d(xs, ys, zs):
     fig = plt.figure()
     ax = mpl_toolkits.mplot3d.Axes3D(fig)
     ax.scatter(xs, ys, zs)
+    if box:
+        box = [box[0][0], box[1][1], box[2][2]]
+        unit_box_corner_vectors = list(product([0,1], repeat=3))
+        for i,j in combinations(range(len(unit_box_corner_vectors)), 2):
+            if distance(unit_box_corner_vectors[i], unit_box_corner_vectors[j]) == 1:
+                box_corner_1 = np.array(box)*unit_box_corner_vectors[i]
+                box_corner_2 = np.array(box)*unit_box_corner_vectors[j]
+                pts = np.array([box_corner_1, box_corner_2])
+                x, y, z = pts.T
+                ax.plot(x, y, z, marker="s", color="r")
+    if distance_cutoff_graph:
+        points = np.array([xs, ys, zs]).T
+        for e in distance_cutoff_graph.edges():
+            point_indexes = [distance_cutoff_graph.vertex_index[e.source()], distance_cutoff_graph.vertex_index[e.target()]]
+            x, y, z = np.array([points[i] for i in point_indexes]).T
+            ax.plot(x, y, z, color="k")
     plt.show()
+
+def plot_pbc(pbc_points, box):
+    xs, ys, zs = pbc_points.T
+    scatter_3d(xs, ys, zs, box=box)
+
+def plot_coms():
+    models = load_models()
+    for model in models.values():
+        print model
+        filter_model(model, ["IPR", "IPS"])
+        coms = get_coms(model)
+        #coms = np.array([(0,0,0)])
+        xs, ys, zs = zip(*coms)
+        scatter_3d(xs, ys, zs, box=model.box)
+
+def generate_distance_cutoff_graph(points, pbc_distances, distance_cutoff, max_distance, implicit_pbc=True):
+    n_pts = points.shape[0]
+    g = Graph(directed=False)
+    g.add_vertex(n_pts)
+
+    g.vertex_properties["connected"] = g.new_vertex_property("bool")
+    g.edge_properties["connected"] = g.new_edge_property("bool")
+    for v in g.vertices():
+        g.vertex_properties.connected[v] = False
+
+    for i, j in combinations(range(n_pts), 2):
+        if pbc_distances[i][j] < distance_cutoff:
+            e = g.add_edge(g.vertex(i), g.vertex(j))
+            g.edge_properties.connected[e] = False
+    if not implicit_pbc:
+        print "Filtering graph based on shortest box dimension"
+        for i in range(n_pts/N_IMAGES):
+            g.vertex_properties.connected[g.vertex(i)] = True
+            for e in bfs_iterator(g, g.vertex(i)):
+                if pbc_distances[i][g.vertex_index[e.target()]] < max_distance and g.vertex_properties.connected[e.source()]:
+                    g.vertex_properties.connected[e.target()] = True
+                    g.edge_properties.connected[e] = True
+
+        g.set_filters(g.edge_properties["connected"], g.vertex_properties["connected"], )
+    return g
+
+def draw_edges_in_3D(pbc_points, distance_cutoff_graph, box):
+    xs, ys, zs = pbc_points.T
+    scatter_3d(xs, ys, zs, box=box, distance_cutoff_graph=distance_cutoff_graph)
 
 def main():
     models = load_models()
     for model in models.values():
         print model
         filter_model(model, ["IPR", "IPS"])
-        coms = get_coms(model)
-        print coms[0]
-        xs, ys, zs = zip(*coms)
-        pbc_distance_matrix = pbc_distances(coms, model.box[0][0], model.box[1][1], model.box[2][2])
-        scatter_3d(xs, ys, zs)
-        for molecule in model.residues:
-            for atom in molecule.atoms:
-                print atom
+        points = get_coms(model)#np.array([[0,0,0]])
+        print "N Points: {0}".format(len(points))
+        points, pbc_point_distances = get_explicit_pbc_distances(points, model.box, )
+        #pbc_point_distances = get_implicit_pbc_distances(points, model.box, )
+
+        #plot_coms()
+        #plot_pbc(pbc_points, model.box)
+        # the maximum distance to consider must be less than the smallest box dimension to avoid particles seeing themselves
+        max_distance = np.min(np.array(model.box)[np.nonzero(model.box)])
+
+        distance_cutoff_graph = generate_distance_cutoff_graph(points, pbc_point_distances, 2, max_distance, implicit_pbc=False)
+        graph_draw(distance_cutoff_graph, vertex_text=distance_cutoff_graph.vertex_index)
+        draw_edges_in_3D(points, distance_cutoff_graph, model.box)
 
 if __name__=="__main__":
+    g = Graph(directed=False)
+    g.add_vertex(2)
+    g.add_edge(g.vertex(0), g.vertex(1))
+    for v in bfs_iterator(g, g.vertex(0)):
+        print v
+    #graph_draw(g, vertex_text=g.vertex_index)
+    #print shortest_path(g, g.vertex(0), g.vertex(0))
     main()
