@@ -8,12 +8,13 @@ import mpl_toolkits.mplot3d
 from scipy.spatial.distance import pdist, squareform
 from graph_tool.all import Graph, graph_draw
 from graph_tool.search import bfs_iterator
+from graph_tool.stats import vertex_average, vertex_hist
 import pmx
 
 MODEL_PATH_TEMPLATE = "{0}wpc_end.gro"
 MODEL_CACHE_TEMPLATE = "cached_modles.pickle"
 USE_CACHE = False
-WPC = (6,)#(2, 6, 15, 30)
+WPC = (2, 6, 15, 30)
 
 DIMENSIONS = 3
 N_IMAGES = DIMENSIONS**2
@@ -175,10 +176,20 @@ def plot_distance_histogram(distances):
     ax.set_ylabel("Occurrence")
     plt.show()
 
+def plot_vertex_degree_histogram(distance_cutoff_graph):
+    his, bins = vertex_hist(distance_cutoff_graph, "total")
+    centers = (bins[:-1]+bins[1:])/2
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(centers, his)
+    ax.set_xlabel("Vertex degree")
+    ax.set_ylabel("Occurrence")
+    plt.show()
 
 def main():
-    cutoff_distance = 1.2
+    cutoff_distance = 2
     models = load_models()
+    average_vertex_degree = {}
     for model in models.values():
         print model
         filter_model(model, ["IPR", "IPS"])
@@ -195,7 +206,10 @@ def main():
 
         distance_cutoff_graph = generate_distance_cutoff_graph(points, pbc_point_distances, cutoff_distance, max_distance, implicit_pbc=True)
         #graph_draw(distance_cutoff_graph, vertex_text=distance_cutoff_graph.vertex_index)
-        draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance)
+        #draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance)
+        #plot_vertex_degree_histogram(distance_cutoff_graph)
+        average_vertex_degree[str(model)] = vertex_average(distance_cutoff_graph, "total")
+    print "\n".join(["{0}: average number of neighbours within {1}nm = {2}".format(k, cutoff_distance, "{0:.2f} +/- {1:.2f}".format(*v)) for k,v in sorted(average_vertex_degree.items(), key=lambda x:int(x[0].split()[7]))])
 
 if __name__=="__main__":
     g = Graph(directed=False)
