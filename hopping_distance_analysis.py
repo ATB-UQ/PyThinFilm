@@ -6,19 +6,24 @@ import matplotlib.pyplot as plt
 from itertools import product, combinations
 import mpl_toolkits.mplot3d
 from scipy.spatial.distance import pdist, squareform
-from graph_tool.all import Graph, graph_draw
+from graph_tool import Graph
+from graph_tool.draw import graph_draw
 from graph_tool.search import bfs_iterator
 from graph_tool.stats import vertex_average, vertex_hist
+from graph_tool.topology import shortest_path, all_paths
 import pmx
 import pprint
+import yaml
+import traceback
 
 MODEL_PATH_TEMPLATE = "{0}wpc_end.gro"
 MODEL_CACHE_TEMPLATE = "cached_modles.pickle"
 USE_CACHE = False
-WPC = (15, )#(2, 6, 15, 30)
+WPC = (2, 6, 15)#, 30)
 
 DIMENSIONS = 3
 N_IMAGES = DIMENSIONS**2
+SMALL_NUMBER = 1e-12
 
 def pbc_translations(x, y, z):
     # generate all unity periodic image translations, sorted such that the identity transformation [0,0,0] is first
@@ -72,18 +77,22 @@ def pbc_distance(point1, point2, box_lengths):
     return np.sqrt(np.sum([v**2 for v in pbc_deltas]))
 
 def pbc_distance_fast(point1, point2, box_lengths, dims=[0,1,2]):
+    pbc_deltas = pbc_dim_deltas(point1, point2, box_lengths, dims)
+    return np.sqrt(np.sum(np.power(pbc_deltas, 2)))
 
-    pbc_deltas = np.zeros(DIMENSIONS)#point1-point2
+def pbc_dim_deltas(point1, point2, box_lengths, dims):
+    pbc_deltas = np.zeros(DIMENSIONS)
     for i in dims:
         pbc_deltas[i] = point1[i]-point2[i]
         box_dim = box_lengths[i]
         if np.abs(pbc_deltas[i]) > box_dim/2.:
             pbc_deltas[i] -= box_dim*round(pbc_deltas[i]/box_dim)
-    return np.sqrt(np.sum(np.power(pbc_deltas, 2)))
+    return pbc_deltas
 
 def load_model(model_path):
     model = pmx.Model(model_path)
     #model.nm2a()
+    print model
     return model
 
 def load_models():
@@ -116,7 +125,7 @@ def get_coms(model):
         coms[i] = molecule.com(vector_only=True)
     return coms
 
-def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None, cutoff_distance=None, max_distance_vertices=None):
+def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None, cutoff_distance=None, max_distance_vertices=None, output=None):
 
     #xmin = min(xs); xmax = max(xs)
     #ymin = min(ys); ymax = max(ys)
@@ -143,15 +152,19 @@ def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None, cutoff_distance
             x, y, z = np.array(edge_points).T
             ax.plot(x, y, z, color="b", linewidth=2, linestyle=linestyle)
     if max_distance_vertices:
-        point_indexes = [distance_cutoff_graph.vertex_index[max_distance_vertices[0]], distance_cutoff_graph.vertex_index[max_distance_vertices[1]]]
-        edge_points = [points[i] for i in point_indexes]
-        linestyle = "-"#"--" if cutoff_distance and distance(*edge_points) > np.min(box)/2.0 else "-"
-        x, y, z = np.array(edge_points).T
-        ax.plot(x, y, z, color="g", linewidth=3, linestyle=linestyle)
+        for vertex_pair in max_distance_vertices:
+            point_indexes = [distance_cutoff_graph.vertex_index[vertex_pair[0]], distance_cutoff_graph.vertex_index[vertex_pair[1]]]
+            edge_points = [points[i] for i in point_indexes]
+            linestyle = "-"#"--" if cutoff_distance and distance(*edge_points) > np.min(box)/2.0 else "-"
+            x, y, z = np.array(edge_points).T
+            ax.plot(x, y, z, color="g", linewidth=3, linestyle=linestyle)
     ax.set_xlabel("x (nm)")
     ax.set_ylabel("y (nm)")
     ax.set_zlabel("z (nm)")
-    plt.show()
+    if output:
+        plt.savefig(output)
+    else:
+        plt.show()
 
 def plot_pbc(pbc_points, box):
     xs, ys, zs = pbc_points.T
@@ -193,11 +206,52 @@ def generate_distance_cutoff_graph(points, pbc_distances, distance_cutoff, max_d
         g.set_filters(g.edge_properties["connected"], g.vertex_properties["connected"], )
     return g
 
-def draw_edges_in_3D(pbc_points, distance_cutoff_graph, box, cutoff_distance=None, max_distance_vertices=None):
+def draw_edges_in_3D(pbc_points, distance_cutoff_graph, box, cutoff_distance=None, max_distance_vertices=None, output=None):
     xs, ys, zs = pbc_points.T
-    scatter_3d(xs, ys, zs, box=box, distance_cutoff_graph=distance_cutoff_graph, cutoff_distance=cutoff_distance, max_distance_vertices=max_distance_vertices)
+    scatter_3d(xs, ys, zs, box=box, distance_cutoff_graph=distance_cutoff_graph, cutoff_distance=cutoff_distance, max_distance_vertices=max_distance_vertices, output=output)
 
-def calc_max_connected_distances(g, pbc_distances, plot=False, return_vertices=False):
+def pbc_path_distances(g, source, target, points, box_lengths, dims):
+    '''Calculate the through space distance in the dimensions provided by dim (x=0, y=1, z=2). Due to periodic images,
+    distance must be calculated from deltas between the nodes along a given path and not simply from the end-points.'''
+    if source == target:
+        return 0.0
+    _, path_edges = shortest_path(g, source, target)
+    path_deltas = np.empty((len(path_edges), 3))
+    for i, e in enumerate(path_edges):
+        path_deltas[i] = pbc_dim_deltas(points[g.vertex_index[e.source()]], points[g.vertex_index[e.target()]], box_lengths, dims)
+    # calculate cumulative path distances in x,y,z;
+    return total_distance_from_deltas(path_deltas)
+
+def total_distance_from_deltas(path_deltas):
+    distance_vector = np.sum(path_deltas)
+    return np.sqrt(np.sum(np.power(distance_vector, 2)))
+
+def calc_path_distances_from_path_indexes(path_indexes, points, box_lengths):
+    n_edges = len(path_indexes)-1
+    path_deltas = np.empty((n_edges, 3))
+    for i, vertex_index_i in enumerate(path_indexes):
+        j = i+1
+        if j > n_edges:
+            break
+        path_deltas[i] = pbc_dim_deltas(points[vertex_index_i], points[path_indexes[j]], box_lengths, [0,1,2])
+    # calculate cumulative path distances in x,y,z;
+    return total_distance_from_deltas(path_deltas)
+
+def is_pbc_circular(g, node_cluster, points, box_lengths):
+    print "Running is pbc circular"
+    for i in range(len(node_cluster)):
+        print "Checking paths for: {0}".format(i)
+        print len(list(all_paths(g, node_cluster[i], node_cluster[i])))
+        for path in all_paths(g, node_cluster[i], node_cluster[i]):
+            if len(set(path)) == len(path) - 1:
+                dist = calc_path_distances_from_path_indexes(path, points, box_lengths)
+                print "Calculate distance: {0}".format(dist)
+                if calc_path_distances_from_path_indexes(path, points, box_lengths) > SMALL_NUMBER:
+                    return True
+    return False
+
+def calc_max_connected_distances(g, points, box, dim=[0, 1, 2], plot=False, return_vertices=False):
+    box_lengths = box[0][0], box[1][1], box[2][2]
     # generate list of connected node clusters
     counted = [] # keep track of which nodes have already been considered
     connected_node_clusters = []
@@ -215,11 +269,21 @@ def calc_max_connected_distances(g, pbc_distances, plot=False, return_vertices=F
     max_distance_vertices = None
     all_connected_distances = []
     for node_cluster in connected_node_clusters:
-        cluster_distances = np.empty((len(node_cluster), len(node_cluster)))
+        # check if node_cluster is circular in pbc, if so, set all distances to inf
+        if len(node_cluster) > 1 and is_pbc_circular(g, node_cluster, points, box_lengths):
+            print "circular"
+            cluster_distances = np.Inf*np.ones((len(node_cluster), len(node_cluster)))
+            max_through_space_distance = np.Inf
+            max_distance_vertices = (node_cluster[0], node_cluster[1])
+            continue
+        cluster_distances = np.zeros((len(node_cluster), len(node_cluster)))
         for i,j in product(range(len(node_cluster)), repeat=2):
-            vertex_index_i = g.vertex_index[node_cluster[i]]
-            vertex_index_j = g.vertex_index[node_cluster[j]]
-            cluster_distances[i][j] = pbc_distances[vertex_index_i][vertex_index_j]
+            if i == j:
+                continue
+            if cluster_distances[j][i] != 0.0:
+                cluster_distances[i][j] = cluster_distances[j][i]
+                continue
+            cluster_distances[i][j] = pbc_path_distances(g, node_cluster[i], node_cluster[j], points, box_lengths, dim)
             if cluster_distances[i][j] > max_through_space_distance:
                 max_through_space_distance = cluster_distances[i][j]
                 max_distance_vertices = (node_cluster[i], node_cluster[j])
@@ -231,9 +295,10 @@ def calc_max_connected_distances(g, pbc_distances, plot=False, return_vertices=F
             all_connected_distances.extend(linear_cluster_distances)
     if plot:
         plot_distance_histogram(all_connected_distances)
-    stats = dict(max_through_space_distance=max_through_space_distance,
-                average_through_space_distance=np.mean(all_connected_distances),
-                std_through_space_distance=np.std(all_connected_distances)
+    stats = dict(max_through_space_distance=pretty_string(max_through_space_distance),
+                average_through_space_distance=pretty_string(np.mean(all_connected_distances)),
+                std_through_space_distance=pretty_string(np.std(all_connected_distances)),
+                median_through_space_distance=pretty_string(np.median(all_connected_distances))
                 )
     if return_vertices:
         return stats, max_distance_vertices
@@ -262,50 +327,67 @@ def vertex_degree_histogram(distance_cutoff_graph, show=True):
         plt.show()
     return his[0]
 
+def pretty_string(x):
+    return "{0:.2f}".format(float(x))
+
 def main():
-    cutoff_distance = 1.5
+    cutoff_distances = [1.75]#[1.25, 1.5, 1.75]#, 1.75]
     models = load_models()
     stats = {}
-    for model in models.values():
-        model_id = str(model)
-        stats[model_id] = {}
-        print model
-        filter_model(model, ["IPR", "IPS"])
-        points = get_coms(model)#np.array([[0,0,0]])
-        print "N Points: {0}".format(len(points))
-        stats[model_id]["N"] = len(points)
-        #points, pbc_point_distances = get_explicit_pbc_distances(points, model.box, )
+    for cutoff_distance in cutoff_distances:
+        for model in models.values():
+            print model
+            filter_model(model, ["IPR", "IPS"])
+            points = get_coms(model)#np.array([[0,0,0]])
+            model_id = "{0}nm_cutoff_{1}".format(cutoff_distance, len(points))
+            stats[model_id] = {}
+            print "N Points: {0}".format(len(points))
+            stats[model_id]["N"] = len(points)
+            #points, pbc_point_distances = get_explicit_pbc_distances(points, model.box, )
+            pbc_point_distances = get_implicit_pbc_distances(points, model.box, )
 
-        pbc_point_distances = get_implicit_pbc_distances(points, model.box, )
+            #plot_distance_histogram(squareform(pbc_point_distances))
+            #plot_coms()
+            #plot_pbc(pbc_points, model.box)
+            # the maximum distance to consider must be less than the smallest box dimension to avoid particles seeing themselves
+            max_distance = np.min(np.array(model.box)[np.nonzero(model.box)])
 
-        plot_distance_histogram(squareform(pbc_point_distances))
-        #plot_coms()
-        #plot_pbc(pbc_points, model.box)
-        # the maximum distance to consider must be less than the smallest box dimension to avoid particles seeing themselves
-        max_distance = np.min(np.array(model.box)[np.nonzero(model.box)])
-
-        distance_cutoff_graph = generate_distance_cutoff_graph(points, pbc_point_distances, cutoff_distance, max_distance, implicit_pbc=True)
-        #graph_draw(distance_cutoff_graph, vertex_text=distance_cutoff_graph.vertex_index)
-        #draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance)
-        N_without_edge = vertex_degree_histogram(distance_cutoff_graph, show=False)
-        stats[model_id]["average_vertex_degree"] = vertex_average(distance_cutoff_graph, "total")
-        stats[model_id]["n_without_neighbour"] = N_without_edge
-        stats[model_id]["perc_without_neighbour"] = 100.*N_without_edge/float(stats[model_id]["N"])
-        connected_distance_stats, max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, return_vertices=True)
-        stats[model_id].update(connected_distance_stats)
-        draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance, max_distance_vertices=max_distance_vertices)
-        stats[model_id].update({
-            "z-only": calc_max_connected_distances(distance_cutoff_graph, get_pbc_distances_for_dims(points, model.box, [2]), plot=True),
-            "xy-only": calc_max_connected_distances(distance_cutoff_graph, get_pbc_distances_for_dims(points, model.box, [0,1]), plot=True),
-            })
+            distance_cutoff_graph = generate_distance_cutoff_graph(points, pbc_point_distances, cutoff_distance, max_distance, implicit_pbc=True)
+            try:
+                graph_draw(distance_cutoff_graph, vertex_text=distance_cutoff_graph.vertex_index, output="images/{0}_connectivity_graph.pdf".format(model_id))
+            except:
+                print traceback.format_exc()
+            draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance, output="images/{0}_3d_connectivities.pdf".format(model_id))
+            N_without_edge = vertex_degree_histogram(distance_cutoff_graph, show=False)
+            mu_deg, sigma_deg = vertex_average(distance_cutoff_graph, "total")
+            stats[model_id]["average_vertex_degree"] = pretty_string(mu_deg)
+            stats[model_id]["std_vertex_degree"] = pretty_string(sigma_deg)
+            stats[model_id]["n_without_neighbour"] = pretty_string(N_without_edge)
+            stats[model_id]["perc_without_neighbour"] = pretty_string(100.*N_without_edge/float(stats[model_id]["N"]))
+            connected_distance_stats, max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, points, model.box, return_vertices=True)
+            z_connected_distance_stats, z_max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, points, model.box, dim=[2], return_vertices=True)
+            xy_connected_distance_stats, xy_max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, points, model.box, dim=[0, 1], return_vertices=True)
+            #draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance, max_distance_vertices=[max_distance_vertices, z_max_distance_vertices, xy_max_distance_vertices])
+            stats[model_id].update({
+                "3d": connected_distance_stats,
+                "vertical": z_connected_distance_stats,
+                "lateral": xy_connected_distance_stats,
+                })
     pprint.pprint(stats)
+    with open("path_stats.yml", "w") as fh:
+        yaml.dump(stats, fh)
 
 if __name__=="__main__":
     g = Graph(directed=False)
-    g.add_vertex(2)
+    g.add_vertex(4)
     g.add_edge(g.vertex(0), g.vertex(1))
-    for v in bfs_iterator(g, g.vertex(0)):
-        print v
+    g.add_edge(g.vertex(1), g.vertex(2))
+    g.add_edge(g.vertex(2), g.vertex(3))
+    g.add_edge(g.vertex(3), g.vertex(0))
+    #for path in all_paths(g, 0, 0):
+    #    print path
     #graph_draw(g, vertex_text=g.vertex_index)
     #print shortest_path(g, g.vertex(0), g.vertex(0))
+    #import cProfile
+    #cProfile.run("main()")
     main()
