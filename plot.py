@@ -5,6 +5,9 @@ if not os.environ.has_key("DISPLAY"):
     import matplotlib
     matplotlib.use("Agg")
 import pylab
+matplotlib.rc('font', family='serif')
+matplotlib.rc('font', serif='Times New Roman')
+matplotlib.rc('text', usetex='false')
 
 LINE_STYLES = ['-', '--', '-.', ':', '']
 
@@ -115,7 +118,6 @@ def plot(ax,
 
     [i.set_linewidth(axis_line_width) for i in ax.spines.itervalues()]
     ax.tick_params(which='major', length=tick_length, color="k", width=tick_width)
-
     handlers, labels = remove_label_duplicates(*ax.get_legend_handles_labels())
     ax.legend(handlers, labels, loc=legend_position, prop={'size': font_size-1}, numpoints=1, frameon=legend_frame)
 
