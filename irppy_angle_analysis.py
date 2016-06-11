@@ -1,12 +1,10 @@
 import pmx
 import os
-import pylab
 import pickle
 os.environ["GMX_DLL"]="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"
 from pmx.xtc import Trajectory
 import numpy as np
-from plot import create_figure, add_axis_to_figure, plot
-
+from plot import create_figure, add_axis_to_figure, plot, save_figure
 #DEPOSITED_GRO = {
 #    15: "/mddata2/uqmstroe/Claires_deposition_data/2wpc/999/end.gro",
 #    40: "/mddata2/uqmstroe/Claires_deposition_data/6wpc/300K5ns/end5ns300K.gro",
@@ -70,12 +68,13 @@ def plot_hist(values, n_bins=100):
     xs *= (180/np.pi)
     his, bins = np.histogram(values, bins = n_bins, normed=True)
     centers = (bins[:-1]+bins[1:])/2
-    fig = create_figure((5,4))
+    fig = create_figure((4,3))
     ax = add_axis_to_figure(fig)
     plot(ax, centers, his, color="k", label="IrPPY3", xlabel="C3 axis angle (deg)", ylabel="Probability", zorder=2, linewidth=1)
-    plot(ax, xs, expected_distribution, color="k", label="Random", zorder=1, linewidth=1, line_style="--", xlim=(0,180), legend_position="upper left")
+    plot(ax, xs, expected_distribution, color="k", label="Random", zorder=1, linewidth=1, line_style="--", xlim=(0,180), legend_position="upper left", legend_frame=False)
     fig.tight_layout()
-    pylab.show()
+    save_figure(fig, "./c3_angle_distribution", image_format="pdf")
+    fig.show()
 
 def load_frame_data(n_irppy):
     keep_every_ith = max([FRAME_COUNT[n_irppy]/N_FRAMES, 1])
