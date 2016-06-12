@@ -1,8 +1,7 @@
 from os.path import dirname
 import os
-
+import matplotlib
 if not os.environ.has_key("DISPLAY"):
-    import matplotlib
     matplotlib.use("Agg")
 import pylab
 matplotlib.rc('font', family='serif')
@@ -88,7 +87,7 @@ def plot(ax,
          tick_width=0.75,
          tick_length=4,
          font_weight="normal",
-         dashes=(None,None),
+         dashes=None,
          ):
 
     if line_color is None:
@@ -97,10 +96,12 @@ def plot(ax,
         fill_color = color
     if marker_outline_color is None:
         marker_outline_color = color
-
+    additional_args = {}
+    if dashes is not None:
+        additional_args["dashes"] = dashes
     ax.plot(xs, ys, marker=symbol, zorder=zorder, linestyle=line_style, color=get_nice_colours(line_color),
             markerfacecolor=get_nice_colours(fill_color), label=label, markersize=marker_size, linewidth=linewidth,
-            alpha=alpha, markeredgecolor=get_nice_colours(marker_outline_color), drawstyle=drawstyle, dashes=dashes)
+            alpha=alpha, markeredgecolor=get_nice_colours(marker_outline_color), drawstyle=drawstyle, **additional_args)
 
     if xlim:
         ax.set_xlim(xlim)

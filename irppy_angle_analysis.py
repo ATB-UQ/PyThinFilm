@@ -70,11 +70,10 @@ def plot_hist(values, n_bins=100):
     centers = (bins[:-1]+bins[1:])/2
     fig = create_figure((4,3))
     ax = add_axis_to_figure(fig)
-    plot(ax, centers, his, color="k", label="IrPPY3", xlabel="C3 axis angle (deg)", ylabel="Probability", zorder=2, linewidth=1)
-    plot(ax, xs, expected_distribution, color="k", label="Random", zorder=1, linewidth=1, line_style="--", xlim=(0,180), legend_position="upper left", legend_frame=False)
+    plot(ax, centers, his, color="k", label="Ir(ppy)3", xlabel="C3 axis (deg)", ylabel="Probability", zorder=2, linewidth=1)
+    plot(ax, xs, expected_distribution, color="k", label="Random", zorder=1, linewidth=1, dashes=(4,2), xlim=(0,180), legend_position="upper left", legend_frame=False)
     fig.tight_layout()
     save_figure(fig, "./c3_angle_distribution", image_format="pdf")
-    fig.show()
 
 def load_frame_data(n_irppy):
     keep_every_ith = max([FRAME_COUNT[n_irppy]/N_FRAMES, 1])
