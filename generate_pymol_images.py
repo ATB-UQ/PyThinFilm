@@ -9,7 +9,7 @@ from pymol.cgo import LINEWIDTH,  BEGIN, LINES, COLOR, VERTEX, END
 DPI = 300
 ANTIALIAS = 2
 RENDER_PROPERLY = True
-def draw_bounding_box(selection="(all)", padding=0.0, linewidth=1.0, r=1.0, g=0.0, b=0.0):
+def draw_bounding_box(selection="(all)", padding=0.0, linewidth=1.0, r=1.0, g=0.0, b=0.0, box_lengths=None):
         """                                                                  
         DESCRIPTION                                                          
                 Given selection, draw the bounding box around it.          
@@ -43,7 +43,7 @@ def draw_bounding_box(selection="(all)", padding=0.0, linewidth=1.0, r=1.0, g=0.
                 user can specify the width of the lines, the padding and also the color.                            
         """                                                                                                    
 
-        ([minX, minY, minZ],[maxX, maxY, maxZ]) = cmd.get_extent(selection)
+        ([minX, minY, minZ],[maxX, maxY, maxZ]) = cmd.get_extent(selection) if box_lengths is None else ([0,0,0], box_lengths)
         maxZ = 110
 
         print "Box dimensions (%.2f, %.2f, %.2f)" % (maxX-minX, maxY-minY, maxZ-minZ)
@@ -137,7 +137,6 @@ def load_model(model_name):
     cmd.delete("all")
     print "loading model"
     cmd.load("{0}.pdb".format(model_name))
-    draw_bounding_box()
     cmd.set("depth_cue",0)
     cmd.set("dash_gap", 0)
     cmd.set("dash_radius", 0.8)
@@ -148,9 +147,10 @@ def load_model(model_name):
 def init():
     pymol.finish_launching()
 
-def draw_connectivities(model_name, points, edges, cutoff_distance):
+def draw_connectivities(model_name, points, edges, cutoff_distance, box_lengths):
 
     load_model(model_name)
+    draw_bounding_box()
     print "creating com dummy atoms"
     for i, pos in enumerate(points):
         cmd.pseudoatom("com_{0}".format(i), pos=[p*10 for p in pos])
