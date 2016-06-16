@@ -1,10 +1,10 @@
 import cPickle
 from os.path import exists
 import numpy as np
-from numpy import histogram
+from numpy import histogram, meshgrid
 import matplotlib.pyplot as plt
 from itertools import product, combinations
-import mpl_toolkits.mplot3d
+from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial.distance import pdist, squareform
 from graph_tool import Graph
 from graph_tool.draw import graph_draw
@@ -17,14 +17,16 @@ import pprint
 import yaml
 import traceback
 
-MODEL_PATH_TEMPLATE = "{0}wpc_end.gro"
+MODEL_PATH_TEMPLATE = "whole_n{0}.gro"
 MODEL_CACHE_TEMPLATE = "cached_modles.pickle"
 USE_CACHE = False
-WPC = (2, 6, 15, 30)
+WPC = (15, 40, 108, 209)
 
 DIMENSIONS = 3
 N_IMAGES = DIMENSIONS**2
 SMALL_NUMBER = 1e-12
+
+Z_HEIGHT_TRUNCATION = 11
 
 def pbc_translations(x, y, z):
     # generate all unity periodic image translations, sorted such that the identity transformation [0,0,0] is first
@@ -133,14 +135,15 @@ def get_coms(model):
         coms[i] = molecule.com(vector_only=True)
     return coms
 
-def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None, cutoff_distance=None, max_distance_vertices=None, output=None):
+#TODO: finish
+def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None, cutoff_distance=None, max_distance_vertices=None, output=None, draw_graphene=False):
 
     #xmin = min(xs); xmax = max(xs)
     #ymin = min(ys); ymax = max(ys)
 
-    fig = plt.figure((6,12))
-    ax = mpl_toolkits.mplot3d.Axes3D(fig)
-    ax.scatter(xs, ys, zs, alpha=0.3)
+    fig = plt.figure(figsize=(5,5.2))
+    ax = fig.add_subplot(111, projection='3d')#mpl_toolkits.mplot3d.Axes3D(fig)
+    ax.scatter(xs, ys, zs, alpha=0.5)#, s=300)
     if box:
         box = [box[0][0], box[1][1], box[2][2]]
         unit_box_corner_vectors = list(product([0,1], repeat=3))
@@ -150,15 +153,16 @@ def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None, cutoff_distance
                 box_corner_2 = np.array(box)*unit_box_corner_vectors[j]
                 pts = np.array([box_corner_1, box_corner_2])
                 x, y, z = pts.T
-                ax.plot(x, y, z, color="r")
+                zorder = 5 if (any([i > 0 for i in x]) and any([i == 0 for i in y])) else -1
+                ax.plot(x, y, z, color="r", zorder=zorder)
     if distance_cutoff_graph:
         points = np.array([xs, ys, zs]).T
         for e in distance_cutoff_graph.edges():
             point_indexes = [distance_cutoff_graph.vertex_index[e.source()], distance_cutoff_graph.vertex_index[e.target()]]
             edge_points = [points[i] for i in point_indexes]
-            linestyle = "--" if cutoff_distance and distance(*edge_points) > np.min(box)/2.0 else "-"
+            linestyle = ":" if cutoff_distance and distance(*edge_points) > np.min(box)/2.0 else "-"
             x, y, z = np.array(edge_points).T
-            ax.plot(x, y, z, color="b", linewidth=2, linestyle=linestyle)
+            ax.plot(x, y, z, color="b", linewidth=1.5, linestyle=linestyle)
     if max_distance_vertices:
         for vertex_pair in max_distance_vertices:
             point_indexes = [distance_cutoff_graph.vertex_index[vertex_pair[0]], distance_cutoff_graph.vertex_index[vertex_pair[1]]]
@@ -166,16 +170,29 @@ def scatter_3d(xs, ys, zs, box=None, distance_cutoff_graph=None, cutoff_distance
             linestyle = "-"#"--" if cutoff_distance and distance(*edge_points) > np.min(box)/2.0 else "-"
             x, y, z = np.array(edge_points).T
             ax.plot(x, y, z, color="g", linewidth=3, linestyle=linestyle)
+    if draw_graphene:
+        nx, ny = (20, 20)
+        x = np.linspace(0, box[0], nx)
+        y = np.linspace(0, box[1], ny)
+        X, Y = np.meshgrid(x, y)
+        Z = np.zeros(X.shape)
+        ax.plot_wireframe(X, Y, Z, zorder=-1, alpha=0.5, color="#BEC8CC")
     ax.set_xlabel("x (nm)")
     ax.set_ylabel("y (nm)")
     ax.set_zlabel("z (nm)")
-    #min_val = 0.0
+    #print "\n".join(n for n in dir(ax) if "tick" in n)
+    ticks = range(0,10,2)
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+    padding = 0.2
     #max_val = np.max(np.concatenate([xs, ys, zs]))
-    #ax.set_xlim((min_val, max_val))
-    #ax.set_ylim((min_val, max_val))
-    #ax.set_zlim((min_val, max_val))
+    ax.set_xlim((-padding, box[0] + padding ))
+    ax.set_ylim((-padding, box[1] + padding))
+    ax.set_zlim((-padding, box[2] + padding))
+    fig.subplots_adjust(top=1, left=0, right=1, bottom=0)
+    ax.dist = 10.8
     if output:
-        plt.savefig(output)
+        fig.savefig(output)
     else:
         plt.show()
 
@@ -339,8 +356,23 @@ def vertex_degree_histogram(distance_cutoff_graph, show=True):
 def pretty_string(x):
     return "{0:.2f}".format(float(x))
 
+
+def get_edges_as_point_indexes(distance_cutoff_graph, exclude_pbc_image_crossing=False, points=None, cutoff_distance=None):
+    edges = []
+    for e in distance_cutoff_graph.edges():
+        es = distance_cutoff_graph.vertex_index[e.source()]
+        et = distance_cutoff_graph.vertex_index[e.target()]
+        if exclude_pbc_image_crossing and distance(points[es], points[et]) > cutoff_distance:
+            continue
+        edges.append([es, et])
+
+    return edges
+
 def main():
-    cutoff_distances = [1.25, 1.5, 1.75]
+    from generate_pymol_images import draw_connectivities, init, close
+    init()
+
+    cutoff_distances = [1.25]#, 1.5, 1.75]
     models = load_models()
     stats = {}
     for cutoff_distance in cutoff_distances:
@@ -361,28 +393,43 @@ def main():
 
             distance_cutoff_graph = generate_distance_cutoff_graph(points, pbc_point_distances, cutoff_distance, implicit_pbc=True)
             try:
-                graph_draw(distance_cutoff_graph, vertex_text=distance_cutoff_graph.vertex_index, output="images/{0}_connectivity_graph.pdf".format(model_id))
+                graph_draw(distance_cutoff_graph,
+                           #vertex_text=distance_cutoff_graph.vertex_index,
+                           output="images/{0}_connectivity_graph.pdf".format(model_id),
+                           vertex_fill_color="#1938FC",
+                           vertex_pen_width=0.2,
+                           output_size=(300,300),
+                           edge_pen_width=1.5,
+                           edge_color="#000000",
+                           vertex_size=8,
+                           )
             except:
                 print traceback.format_exc()
-            draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance, output="images/{0}_3d_connectivities.pdf".format(model_id))
-            N_without_edge = vertex_degree_histogram(distance_cutoff_graph, show=False)
-            mu_deg, sigma_deg = vertex_average(distance_cutoff_graph, "total")
-            stats[model_id]["average_vertex_degree"] = pretty_string(mu_deg)
-            stats[model_id]["std_vertex_degree"] = pretty_string(sigma_deg)
-            stats[model_id]["n_without_neighbour"] = pretty_string(N_without_edge)
-            stats[model_id]["perc_without_neighbour"] = pretty_string(100.*N_without_edge/float(stats[model_id]["N"]))
-            connected_distance_stats, max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, return_vertices=True)#, plot_connected_clusters=True)
-            xy_connected_distance_stats, xy_max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, dim=[0, 1], return_vertices=True)
-            z_connected_distance_stats, z_max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, dim=[2], return_vertices=True)
-            #draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance, max_distance_vertices=[max_distance_vertices, z_max_distance_vertices, xy_max_distance_vertices])
-            stats[model_id].update({
-                "3d": connected_distance_stats,
-                "vertical": z_connected_distance_stats,
-                "lateral": xy_connected_distance_stats,
-                })
+            box = model.box
+            box[2][2] = Z_HEIGHT_TRUNCATION
+            draw_edges_in_3D(points, distance_cutoff_graph, box, cutoff_distance=cutoff_distance, output="images/{0}_3d_connectivities.pdf".format(model_id))
+            edges = get_edges_as_point_indexes(distance_cutoff_graph, exclude_pbc_image_crossing=True, points=points, cutoff_distance=cutoff_distance)
+            draw_connectivities("whole_n{0}".format(len(points)), points, edges, cutoff_distance, box_lengths=10*np.array([box[0][0], box[1][1], box[2][2]]))
+
+            #N_without_edge = vertex_degree_histogram(distance_cutoff_graph, show=False)
+            #mu_deg, sigma_deg = vertex_average(distance_cutoff_graph, "total")
+            #stats[model_id]["average_vertex_degree"] = pretty_string(mu_deg)
+            #stats[model_id]["std_vertex_degree"] = pretty_string(sigma_deg)
+            #stats[model_id]["n_without_neighbour"] = pretty_string(N_without_edge)
+            #stats[model_id]["perc_without_neighbour"] = pretty_string(100.*N_without_edge/float(stats[model_id]["N"]))
+            #connected_distance_stats, max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, return_vertices=True)#, plot_connected_clusters=True)
+            #xy_connected_distance_stats, xy_max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, dim=[0, 1], return_vertices=True)
+            #z_connected_distance_stats, z_max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, dim=[2], return_vertices=True)
+            ##draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance, max_distance_vertices=[max_distance_vertices, z_max_distance_vertices, xy_max_distance_vertices])
+            #stats[model_id].update({
+            #    "3d": connected_distance_stats,
+            #    "vertical": z_connected_distance_stats,
+            #    "lateral": xy_connected_distance_stats,
+            #    })
     pprint.pprint(stats)
     with open("path_stats.yml", "w") as fh:
         yaml.dump(stats, fh)
+    close()
 
 if __name__=="__main__":
     g = Graph(directed=False)
@@ -395,6 +442,5 @@ if __name__=="__main__":
     #    print path
     #graph_draw(g, vertex_text=g.vertex_index)
     #print shortest_path(g, g.vertex(0), g.vertex(0))
-    import cProfile
-    cProfile.run("main()")
+
     main()

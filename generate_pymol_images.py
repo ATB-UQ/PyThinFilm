@@ -1,12 +1,13 @@
 import __main__
 from random import randint
+
 __main__.pymol_argv = [ 'pymol', '-qc'] # Quiet and no GUI
 
 import pymol
 from pymol import cmd
 from pymol.cgo import LINEWIDTH,  BEGIN, LINES, COLOR, VERTEX, END
 
-DPI = 300
+DPI = 600
 ANTIALIAS = 2
 RENDER_PROPERLY = True
 def draw_bounding_box(selection="(all)", padding=0.0, linewidth=1.0, r=1.0, g=0.0, b=0.0, box_lengths=None):
@@ -44,7 +45,6 @@ def draw_bounding_box(selection="(all)", padding=0.0, linewidth=1.0, r=1.0, g=0.
         """                                                                                                    
 
         ([minX, minY, minZ],[maxX, maxY, maxZ]) = cmd.get_extent(selection) if box_lengths is None else ([0,0,0], box_lengths)
-        maxZ = 110
 
         print "Box dimensions (%.2f, %.2f, %.2f)" % (maxX-minX, maxY-minY, maxZ-minZ)
 
@@ -114,18 +114,10 @@ def draw_bounding_box(selection="(all)", padding=0.0, linewidth=1.0, r=1.0, g=0.
 
 def save_png(model_name):
     print "saving png"
-    cmd.set_view( (\
-     0.822059155,    0.141536161,   -0.551531196,\
-     0.011512177,    0.964284837,    0.264617831,\
-     0.569285274,   -0.223881051,    0.791070879,\
-     0.000000000,    0.000000000, -486.167602539,\
-    47.096778870,   37.321388245,   54.275535583,\
-   219.350936890,  752.984191895,  -20.000000000 ))
     filename="{0}.png".format(model_name)
-
     if RENDER_PROPERLY:
         cmd.set("antialias", ANTIALIAS)
-        cmd.png(filename, ray=1, width=1200, height=900, dpi=DPI)
+        cmd.png(filename, ray=1, width=2400, height=1800, dpi=DPI)
     else:
         cmd.png(filename)
     # Get out!
@@ -141,8 +133,9 @@ def load_model(model_name):
     cmd.set("dash_gap", 0)
     cmd.set("dash_radius", 0.8)
     cmd.set("dash_color", "blue")
-    cmd.bg_color("white")
+    #cmd.bg_color("white")
     cmd.color("green", "name C*")
+    cmd.set("ray_opaque_background", 0)
 
 def init():
     pymol.finish_launching()
@@ -150,10 +143,12 @@ def init():
 def draw_connectivities(model_name, points, edges, cutoff_distance, box_lengths):
 
     load_model(model_name)
-    draw_bounding_box()
+    draw_bounding_box(box_lengths=box_lengths)
     print "creating com dummy atoms"
     for i, pos in enumerate(points):
-        cmd.pseudoatom("com_{0}".format(i), pos=[p*10 for p in pos])
+        pseudo_atom_name = "com_{0}".format(i)
+        cmd.pseudoatom(pseudo_atom_name, pos=[p*10 for p in pos])
+        cmd.hide("nonbonded", pseudo_atom_name)
     print "adding com distances"
     for i, e in enumerate(edges):
         distance_name = "distance_{0}".format(i)
@@ -161,6 +156,13 @@ def draw_connectivities(model_name, points, edges, cutoff_distance, box_lengths)
         cmd.hide("labels", distance_name)
     cmd.show("sticks", model_name)
     cmd.set("stick_transparency", 1)
+    cmd.set_view( (\
+     0.459229559,    0.209184960,   -0.863334477,\
+    -0.888164818,    0.090163931,   -0.450589985,\
+    -0.0,    0.973708749,    0.227197826,\
+    -0.000013376,   -0.000241756, -409.681274414,\
+    46.355365753,   37.701179504,   50.704589844,\
+   197.865356445,  621.506164551,   20.000000000 ))
     save_png("images/" + model_name + "_{0}".format(cutoff_distance))
 
 
