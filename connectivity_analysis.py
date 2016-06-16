@@ -395,6 +395,6 @@ if __name__=="__main__":
     #    print path
     #graph_draw(g, vertex_text=g.vertex_index)
     #print shortest_path(g, g.vertex(0), g.vertex(0))
-    #import cProfile
-    #cProfile.run("main()")
+    import cProfile
+    cProfile.run("main()")
     main()

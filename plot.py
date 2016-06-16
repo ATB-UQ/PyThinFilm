@@ -4,9 +4,9 @@ import matplotlib
 if not os.environ.has_key("DISPLAY"):
     matplotlib.use("Agg")
 import pylab
-matplotlib.rc('font', family='serif')
-matplotlib.rc('font', serif='Times New Roman')
-matplotlib.rc('text', usetex='false')
+#matplotlib.rc('font', family='serif')
+#matplotlib.rc('font', serif='Times New Roman')
+#matplotlib.rc('text', usetex='false')
 
 LINE_STYLES = ['-', '--', '-.', ':', '']
 
