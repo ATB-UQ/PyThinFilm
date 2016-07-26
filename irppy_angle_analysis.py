@@ -61,7 +61,7 @@ def angle(vector1, vector2):
 def angle_degrees(vector1, vector2):
     return angle(vector1, vector2) * 180. / np.pi
 
-def plot_hist(values, n_bins=100):
+def plot_irppy_hist(values, n_bins=100):
     n = len(values)
     xs = np.linspace(0, np.pi, 100)
     expected_distribution = 0.5*np.sin(xs)/(180/np.pi)
@@ -75,7 +75,7 @@ def plot_hist(values, n_bins=100):
     fig.tight_layout()
     save_figure(fig, "./c3_angle_distribution", image_format="pdf")
 
-def load_frame_data(n_irppy):
+def load_irppy_frame_data(n_irppy):
     keep_every_ith = max([FRAME_COUNT[n_irppy]/N_FRAMES, 1])
     cache_file = CACHE_TEMPLATE.format(n_irppy=n_irppy, keep_every_ith=keep_every_ith)
     if os.path.exists(cache_file):
@@ -98,13 +98,13 @@ def load_frame_data(n_irppy):
         pickle.dump(c3_axis_vs_z_angles, fh)
     return c3_axis_vs_z_angles
 
-def trajectory_analysis(n_irppy, plot=False):
-    c3_axis_vs_z_angles = load_frame_data(n_irppy)
+def irppy_trajectory_analysis(n_irppy, plot=False):
+    c3_axis_vs_z_angles = load_irppy_frame_data(n_irppy)
     if plot:
-        plot_hist(c3_axis_vs_z_angles)
+        plot_irppy_hist(c3_axis_vs_z_angles)
     return c3_axis_vs_z_angles
 
-def single_frame_analysis(n_irppy, plot=False):
+def irppy_single_frame_analysis(n_irppy, plot=False):
     model = load_model(DEPOSITED_GRO[n_irppy])
     print "Selecting irppy molecules"
     irppy_molecules = []
@@ -119,20 +119,20 @@ def single_frame_analysis(n_irppy, plot=False):
         z_axis = np.array([0.,0.,1.])
         c3_axis_vs_z_angles.append( angle_degrees(c3_axis, z_axis) )
     if plot:
-        plot_hist(c3_axis_vs_z_angles)
+        plot_irppy_hist(c3_axis_vs_z_angles)
     return c3_axis_vs_z_angles
 
-def single_frame_analysis_for_all():
+def irppy_single_frame_analysis_for_all():
     angles = []
     for n_irppy in (15, 40, 108, 209):
-        angles.extend(single_frame_analysis(n_irppy))
-    plot_hist(angles)
+        angles.extend(irppy_single_frame_analysis(n_irppy))
+    plot_irppy_hist(angles)
 
-def traj_analysis_for_all():
+def irppy_traj_analysis_for_all():
     angles = []
     for n_irppy in (15, 40, 108, 209):
-        angles.extend(trajectory_analysis(n_irppy))
-    plot_hist(angles)
+        angles.extend(irppy_trajectory_analysis(n_irppy))
+    plot_irppy_hist(angles)
 if __name__=="__main__":
-    #single_frame_analysis_for_all()
-    traj_analysis_for_all()
+    #irppy_single_frame_analysis_for_all()
+    irppy_traj_analysis_for_all()
