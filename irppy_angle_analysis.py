@@ -38,7 +38,7 @@ FRAME_COUNT = {
     209:10000,
     }
 
-N_FRAMES = 500
+N_FRAMES = 200
 
 CACHE_TEMPLATE = "{n_irppy}_{keep_every_ith}.pickle"
 def load_model(model_path):
@@ -93,6 +93,8 @@ def load_frame_data(n_irppy):
             #print irppy.id
             c3_axis = irppy_c3_axis(irppy.atoms)
             z_axis = np.array([0.,0.,1.])
+            #x_axis = np.array([1.,0.,0.])
+            #y_axis = np.array([0.,1.,0.])
             c3_axis_vs_z_angles.append( angle_degrees(c3_axis, z_axis) )
     with open(cache_file, "w") as fh:
         pickle.dump(c3_axis_vs_z_angles, fh)

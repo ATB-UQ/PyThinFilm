@@ -37,7 +37,7 @@ def plot(x, y, species, temperature, figure_name, show=True, ax=None, save=False
         fig = plt.figure()
         ax = fig.add_subplot(111)
         fig.hold(True)
-    ax.plot(x, y, TEMP_COLOURS[temperature] + SPECIES_LINE_STYLE[species], label="{0} {1}K".format(species.replace("_", " | "), temperature))
+    ax.plot(x, y, TEMP_COLOURS[temperature] + SPECIES_LINE_STYLE[species], label="{0} {1}K".format(species.replace("_", " | "), temperature), linewidth=1.5)
     if save or show:
         ax.set_xlim(0, 20)
         plt.ylabel('Number density (nm^-3)', fontweight="bold")
@@ -100,6 +100,11 @@ def density_analysis():
     plot_selected_densities(selections, n_divisions=50, name_prefix="emitter_1nm_bin_width")
     plot_selected_densities(selections, n_divisions=100, name_prefix="emitter_0.5nm_bin_width_")
 
+def density_analysis_450K():
+    selections = list(product(["450", "300"], ["CBP", "BCP"]))
+    plot_selected_densities(selections, n_divisions=100)
+    #plot_selected_densities(selections, n_divisions=50, ref_diff=True)
+
 def integral_density_analysis():
     selections = list(product(["450"], ["CBP", "BCP"]))
     ax = None
@@ -128,5 +133,6 @@ def find_perc(x, y, perc):
         if y > perc:
             return x
 
-density_analysis()
-integral_density_analysis()
+#density_analysis()
+density_analysis_450K()
+#integral_density_analysis()

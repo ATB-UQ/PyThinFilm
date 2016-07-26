@@ -35,14 +35,14 @@ def plot_to_axis(ax, deposited, random, hide_yaxis_label=False, title=None):
 
 def plot_all_on_single_fig():
     fig = create_figure((12,3))
-    ax = add_axis_to_figure(fig, subplot_layout=int("141"))
+    ax = add_axis_to_figure(fig, subplot_layout=int("221"))
     deposited = parse_xvg(DEPOSITED_DATA_PATH.format(15))
     random = parse_xvg(RANDOM_DATA_PATH.format(15), smooth_data=True)
     plot_to_axis(ax, deposited, random, title=TITLE_MAP[15])
     for i, n_irppy in enumerate((40, 108, 209)):
         deposited = parse_xvg(DEPOSITED_DATA_PATH.format(n_irppy))
         random = parse_xvg(RANDOM_DATA_PATH.format(n_irppy))
-        ax = add_axis_to_figure(fig, subplot_layout=int("14{0}".format(i+2)), sharey=ax)
+        ax = add_axis_to_figure(fig, subplot_layout=int("22{0}".format(i+2)), sharey=ax)
         plot_to_axis(ax, deposited, random, hide_yaxis_label=True, title=TITLE_MAP[n_irppy])
     fig.tight_layout()
     save_figure(fig, "./rdf_combined", image_format="pdf")
