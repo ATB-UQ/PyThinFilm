@@ -88,6 +88,7 @@ def plot(ax,
          tick_length=4,
          font_weight="normal",
          dashes=None,
+         text=None,
          ):
 
     if line_color is None:
@@ -121,6 +122,8 @@ def plot(ax,
     ax.tick_params(which='major', length=tick_length, color="k", width=tick_width)
     handlers, labels = remove_label_duplicates(*ax.get_legend_handles_labels())
     ax.legend(handlers, labels, loc=legend_position, prop={'size': font_size-1}, numpoints=1, frameon=legend_frame)
+    if text:
+        ax.text(0.8, 0.9, text, transform=ax.transAxes, fontsize=font_size, horizontalalignment="center", verticalalignment="center")
 
 
 def remove_label_duplicates(handlers, labels):

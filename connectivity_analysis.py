@@ -411,21 +411,21 @@ def main():
             edges = get_edges_as_point_indexes(distance_cutoff_graph, exclude_pbc_image_crossing=True, points=points, cutoff_distance=cutoff_distance)
             draw_connectivities("whole_n{0}".format(len(points)), points, edges, cutoff_distance, box_lengths=10*np.array([box[0][0], box[1][1], box[2][2]]))
 
-            #N_without_edge = vertex_degree_histogram(distance_cutoff_graph, show=False)
-            #mu_deg, sigma_deg = vertex_average(distance_cutoff_graph, "total")
-            #stats[model_id]["average_vertex_degree"] = pretty_string(mu_deg)
-            #stats[model_id]["std_vertex_degree"] = pretty_string(sigma_deg)
-            #stats[model_id]["n_without_neighbour"] = pretty_string(N_without_edge)
-            #stats[model_id]["perc_without_neighbour"] = pretty_string(100.*N_without_edge/float(stats[model_id]["N"]))
-            #connected_distance_stats, max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, return_vertices=True)#, plot_connected_clusters=True)
-            #xy_connected_distance_stats, xy_max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, dim=[0, 1], return_vertices=True)
-            #z_connected_distance_stats, z_max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, dim=[2], return_vertices=True)
-            ##draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance, max_distance_vertices=[max_distance_vertices, z_max_distance_vertices, xy_max_distance_vertices])
-            #stats[model_id].update({
-            #    "3d": connected_distance_stats,
-            #    "vertical": z_connected_distance_stats,
-            #    "lateral": xy_connected_distance_stats,
-            #    })
+            N_without_edge = vertex_degree_histogram(distance_cutoff_graph, show=False)
+            mu_deg, sigma_deg = vertex_average(distance_cutoff_graph, "total")
+            stats[model_id]["average_vertex_degree"] = pretty_string(mu_deg)
+            stats[model_id]["std_vertex_degree"] = pretty_string(sigma_deg)
+            stats[model_id]["n_without_neighbour"] = pretty_string(N_without_edge)
+            stats[model_id]["perc_without_neighbour"] = pretty_string(100.*N_without_edge/float(stats[model_id]["N"]))
+            connected_distance_stats, max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, return_vertices=True)#, plot_connected_clusters=True)
+            xy_connected_distance_stats, xy_max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, dim=[0, 1], return_vertices=True)
+            z_connected_distance_stats, z_max_distance_vertices = calc_max_connected_distances(distance_cutoff_graph, pbc_point_distances, points, model.box, cutoff_distance, dim=[2], return_vertices=True)
+            #draw_edges_in_3D(points, distance_cutoff_graph, model.box, cutoff_distance=cutoff_distance, max_distance_vertices=[max_distance_vertices, z_max_distance_vertices, xy_max_distance_vertices])
+            stats[model_id].update({
+                "3d": connected_distance_stats,
+                "vertical": z_connected_distance_stats,
+                "lateral": xy_connected_distance_stats,
+                })
     pprint.pprint(stats)
     with open("path_stats.yml", "w") as fh:
         yaml.dump(stats, fh)

@@ -28,24 +28,29 @@ def plot_single_rdf(deposited, random, name):
     fig.tight_layout()
     save_figure(fig, "./rdf_{0}".format(name), image_format="pdf")
 
-def plot_to_axis(ax, deposited, random, hide_yaxis_label=False, title=None):
+def plot_to_axis(ax, deposited, random, hide_yaxis_label=False, hide_xaxis_label=False, title=None):
     ylabel = None if hide_yaxis_label else "g(r)"
-    plot(ax, deposited[0], deposited[1], color="k", label="Ir(ppy)3", xlabel="r (nm)", ylabel=ylabel, zorder=2, linewidth=1, title=title, legend_frame=False)
-    plot(ax,  random[0], random[1], color="k", label="Random", zorder=1, linewidth=1, xlim=(0,4), legend_position="upper right", dashes=(4,2), legend_frame=False)
+    xlabel = None if hide_xaxis_label else "r (nm)"
+    #plot(ax, deposited[0], deposited[1], color="k", label="Ir(ppy)3", xlabel="r (nm)", ylabel=ylabel, zorder=2, linewidth=1, title=title, legend_frame=False)
+    #plot(ax,  random[0], random[1], color="k", label="Random", zorder=1, linewidth=1, xlim=(0,4), legend_position="upper right", dashes=(4,2), legend_frame=False)
+    plot(ax, deposited[0], deposited[1], color="k", xlabel=xlabel, ylabel=ylabel, zorder=2, linewidth=1, text=title, legend_frame=False)
+    plot(ax,  random[0], random[1], color="k", zorder=1, linewidth=1, xlim=(0,4), legend_position="upper right", dashes=(4,2), legend_frame=False)
 
 def plot_all_on_single_fig():
-    fig = create_figure((12,3))
+    fig = create_figure((6,5))
     ax = add_axis_to_figure(fig, subplot_layout=int("221"))
     deposited = parse_xvg(DEPOSITED_DATA_PATH.format(15))
     random = parse_xvg(RANDOM_DATA_PATH.format(15), smooth_data=True)
-    plot_to_axis(ax, deposited, random, title=TITLE_MAP[15])
+    plot_to_axis(ax, deposited, random, title=TITLE_MAP[15], hide_xaxis_label=True)
     for i, n_irppy in enumerate((40, 108, 209)):
         deposited = parse_xvg(DEPOSITED_DATA_PATH.format(n_irppy))
         random = parse_xvg(RANDOM_DATA_PATH.format(n_irppy))
         ax = add_axis_to_figure(fig, subplot_layout=int("22{0}".format(i+2)), sharey=ax)
-        plot_to_axis(ax, deposited, random, hide_yaxis_label=True, title=TITLE_MAP[n_irppy])
+        hide_y_label = i in [0, 2]
+        hide_x_label = i in [0]
+        plot_to_axis(ax, deposited, random, hide_yaxis_label=hide_y_label, hide_xaxis_label=hide_x_label, title=TITLE_MAP[n_irppy])
     fig.tight_layout()
-    save_figure(fig, "./rdf_combined", image_format="pdf")
+    save_figure(fig, "./rdf_combined", image_format="eps")
 
 def parse_xvg(data_path, smooth_data=False):
     with open(data_path) as fh:
