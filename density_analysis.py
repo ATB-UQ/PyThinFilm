@@ -18,7 +18,7 @@ EOF
 '''
 SYSTEM_IDS = {"CBP":3, "IPS": 4, "IPR": 5, "BCP": 6, "IPS_IPR": 7}
 
-END_DATA_PATH = "/mddata2/uqmstroe/MD-PhaseTransition/CBP-10nm-CBP-10nm-{0}K-slow/2200"
+END_DATA_PATH = "/mddata2/uqmstroe/MD-PhaseTransition/CBP-10nm-CBP-10nm-{0}K-slow/2440"
 INIT_DATA_PATH = "/mddata2/uqmstroe/MD-PhaseTransition/CBP-10nm-CBP-10nm-{0}K-slow/2090"
 
 TEMP_COLOURS = {"300":"k", "350":"b", "400":"g", "450":"r"}
@@ -133,6 +133,6 @@ def find_perc(x, y, perc):
         if y > perc:
             return x
 
-#density_analysis()
-density_analysis_450K()
+density_analysis()
+#density_analysis_450K()
 #integral_density_analysis()
