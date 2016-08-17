@@ -19,13 +19,13 @@ from plot import create_figure, add_axis_to_figure, plot, save_figure
 #    108: "/mddata2/uqmstroe/Claires_deposition_data/midRatio15wpc/eq300K/300K5ns/md.xtc",
 #    209: "/mddata2/uqmstroe/Claires_deposition_data/highRatio/300K5ns/md.xtc",
 #    }
-DATA_PATH = "/mddata2/uqmstroe/OLED_data/deposition_runs/"
+DATA_PATH = "deposition_runs/"
 DEPOSITED_GRO = {
-    0: os.path.join(DATA_PATH, "cbp_only/cbp.gro"),
-    15: os.path.join(DATA_PATH, "ip_15n/n15_cbp.gro"),
-    40: os.path.join(DATA_PATH, "ip_40n/n40_cbp.gro"),
-    108:os.path.join(DATA_PATH, "ip_108n/n108_cbp.gro"),
-    209:os.path.join(DATA_PATH, "ip_209n/n209_cbp.gro"),
+    0: os.path.join(DATA_PATH, "cbp.gro"),
+    15: os.path.join(DATA_PATH, "n15_cbp.gro"),
+    40: os.path.join(DATA_PATH, "n40_cbp.gro"),
+    108:os.path.join(DATA_PATH, "n108_cbp.gro"),
+    209:os.path.join(DATA_PATH, "n209_cbp.gro"),
     }
 DEPOSITED_TRAJ = {
     0: os.path.join(DATA_PATH, "cbp_only/cbp.xtc"),
@@ -43,8 +43,8 @@ FRAME_COUNT = {
     209:10000,
     }
 
-N_FRAMES = 3
-IMAGE_FORMAT = "pdf"
+N_FRAMES = 200
+IMAGE_FORMAT = "eps"
 N_BINS = 100
 REFERENCE_AXIS = np.array([0.,0.,1.])
 CACHE_TEMPLATE = "{n_irppy}_{keep_every_ith}.pickle"
@@ -86,24 +86,26 @@ def angle_degrees(vector1, vector2, zero_to_90=False):
 def angles_between_0_and_90(x):
     return -np.abs((x-90)) + 90
 
-def uniform_random_distribution(zero_to_90):
+def uniform_random_distribution(zero_to_90, xs=None):
     end_point = np.pi / 2. if zero_to_90 else np.pi
     amplitude = 1.0 if zero_to_90 else 0.5
-    xs = np.linspace(0, end_point, 1000)
+    xs = np.linspace(0, end_point, 1000) if xs is None else xs
     expected_distribution = amplitude * np.sin(xs) / (180 / np.pi)
-    xs *= (180/np.pi)
-    return xs, expected_distribution
+    return np.rad2deg(xs), expected_distribution
 
-def plot_hist(values, n_bins=N_BINS, label="Ir(ppy)3", xlabel="C3 axis (deg)", zero_to_90=False):
+def plot_hist(values, n_bins=N_BINS, label="Ir(ppy)3", xlabel="C3 axis (deg)", zero_to_90=False, ax=None):
     xs, expected_distribution = uniform_random_distribution(zero_to_90)
     his, bins = np.histogram(values, bins = n_bins, normed=True)
     centers = (bins[:-1]+bins[1:])/2
-    fig = create_figure((4,3))
-    ax = add_axis_to_figure(fig)
-    plot(ax, centers, his, color="k", xlabel=xlabel, ylabel="Probability", zorder=2, linewidth=1)
-    plot(ax, xs, expected_distribution, color="k",zorder=1, linewidth=1, dashes=(4,2), xlim=(0,90), legend_position="upper left", legend_frame=False)
-    fig.tight_layout()
-    save_figure(fig, "./{0}_angle_distribution".format(label), image_format=IMAGE_FORMAT)
+    xlim = (0,90) if zero_to_90 else (0,180)
+    if ax is None:
+        fig = create_figure((4,3))
+        ax = add_axis_to_figure(fig)
+    plot(ax, centers, his, color="k", xlabel=xlabel, ylabel="probability", zorder=2, linewidth=1)
+    plot(ax, xs, expected_distribution, color="k",zorder=1, linewidth=1, dashes=(4,2), xlim=xlim, legend_position="upper left", legend_frame=False)
+    if ax is None:
+        fig.tight_layout()
+        save_figure(fig, "./{0}_angle_distribution".format(label), image_format=IMAGE_FORMAT)
 
 def load_frame_data(n_irppy, molecular_axis_definition=irppy_c3_axis, molecules_to_include=None, zero_to_90=False, com_z_include=None, use_cache=True):
     keep_every_ith = max([FRAME_COUNT[n_irppy]/N_FRAMES, 1])
@@ -160,22 +162,24 @@ def single_frame_analysis(n_irppy, plot=False, molecules_to_include=None, molecu
         plot_hist(molecular_axis_vs_reference_angles)
     return molecular_axis_vs_reference_angles
 
-def single_frame_analysis_for_all(species):
+def single_frame_analysis_for_all(species, ax=None):
     angles = []
     for n_irppy in (15, 40, 108, 209):
         angles.extend(single_frame_analysis(n_irppy), molecules_to_include=species)
-    plot_hist(angles)
+    plot_hist(angles, ax=ax)
 
-def traj_analysis_for_all():
+def irppy_traj_analysis_for_all(ax=None):
     angles = []
     for n_irppy in (15, 40, 108, 209):
-        angles.extend(trajectory_analysis(n_irppy, molecular_axis_definition=irppy_c3_axis, molecules_to_include=["IPR", "IPS"]))
-    plot_hist(angles)
+        angles.extend(trajectory_analysis(n_irppy, molecular_axis_definition=irppy_c3_axis, molecules_to_include=["IPR", "IPS"], zero_to_90=False))
+    plot_hist(angles, ax=ax)
+
+def calc_difference_area(xs, expected, observed):
+    absolute_difference = abs(np.array(observed) - np.array(expected))
+    return np.trapz(absolute_difference, xs)
 
 def cbp_single_frame_analysis():
     angles = single_frame_analysis(0, molecules_to_include=["CBP"], molecular_axis_definition=cbp_long_axis, com_z_include=[4, 8], inverse_selection=False, zero_to_90=True)
-    print np.mean(angles)
-    print np.rad2deg(1)
     plot_hist(angles, label="CBP", xlabel="CBP long axis (deg)", zero_to_90=True)
 
 def cbp_traj_analysis():
@@ -233,17 +237,67 @@ def cbp_orientation_along_z(n_irppy):
         window_pos.append(left_window_pos)
     fig = create_figure((4,3))
     ax = add_axis_to_figure(fig)
-    plot(ax, window_pos, mean_angles_along_z-np.rad2deg(1), color="k", xlabel="z-axis (nm)", ylim=(-5,35), xlim=(min_z, max_z), ylabel="orientational order (deg)", zorder=2, linewidth=1, legend_frame=False)
+    plot(ax, window_pos, (mean_angles_along_z-np.rad2deg(1))/(90-np.rad2deg(1)), color="k", xlabel="z-axis (nm)", ylim=None, xlim=(min_z, max_z+window_size/2.), ylabel="orientational order (deg)", zorder=2, linewidth=1, legend_frame=False)
     fig.tight_layout()
-    save_figure(fig, "./mean_angle_vs_z_distance_n_irppy{0}_ws{1}_wd{2}".format(n_irppy, window_size, window_delta+window_delta), image_format=IMAGE_FORMAT)
+    save_figure(fig, "./mean_angle_vs_z_distance_n_irppy{0}_ws{1}_wd{2}".format(n_irppy, window_size, window_delta), image_format=IMAGE_FORMAT)
+    return window_pos, (mean_angles_along_z-np.rad2deg(1))/(90-np.rad2deg(1)), min_z, max_z+window_size/2.
 
-def cbp_orientation_for_all():
-    for n_irppy in (0, 40):#, 15, 40, 108, 209):
-        cbp_orientation_along_z(n_irppy)
+def mean_cbp_orientation_along_z(n_irppy):
+    window_size = 0.5
+    window_delta = 0.1
+    min_z = 0
+    max_z = 10.5
+    model = load_model(DEPOSITED_GRO[n_irppy])
+    print "Selecting molecules"
+    all_cbp_molecules = []
+    for molecule in model.residues:
+        if molecule.resname == "CBP":
+            all_cbp_molecules.append(molecule)
+    print "{0} molecules found".format(len(all_cbp_molecules))
+    mean_angles_along_z = []
+    window_pos = []
+    for left_window_pos in np.arange(min_z, max_z, window_delta):
+        molecules = [molecule for molecule in all_cbp_molecules if left_window_pos < molecule.com(vector_only=True)[2] < left_window_pos+window_size]
+        molecular_axis_vs_reference_angles = []
+        print left_window_pos
+        if not molecules:
+            continue
+        for mol in molecules:
+            molecular_axis = cbp_long_axis(mol.atoms)
+            molecular_axis_vs_reference_angles.append( angle_degrees(molecular_axis, REFERENCE_AXIS, zero_to_90=True) )
+        mean_angles_along_z.append(np.mean(molecular_axis_vs_reference_angles))
+        window_pos.append(left_window_pos)
+    fig = create_figure((4,3))
+    ax = add_axis_to_figure(fig)
+    plot(ax, window_pos, mean_angles_along_z, color="k", xlabel="z-axis (nm)", ylim=None, xlim=(min_z, max_z+window_size/2.), ylabel="orientational order (deg)", zorder=2, linewidth=1, legend_frame=False)
+    fig.tight_layout()
+    save_figure(fig, "./mean_angle_vs_z_distance_n_irppy{0}_ws{1}_wd{2}".format(n_irppy, window_size, window_delta), image_format=IMAGE_FORMAT)
+    return window_pos, mean_angles_along_z, min_z, max_z+window_size/2.
 
+
+def cbp_orientation_for_all(ax_external=None):
+    if ax_external is None:
+        fig = create_figure((4,3))
+        ax = add_axis_to_figure(fig)
+    else:
+        ax = ax_external
+    dashes = [None, (1.5,2.5)]#(3.5,1.5)]
+    line_widths = [1, 1.5]
+    line_styles = ["-", "-"]
+    for i, n_irppy in enumerate([0, 40]):#, 15, 40, 108, 209):
+        window_pos, mean_angles_along_z, min_z, max_z = cbp_orientation_along_z(n_irppy)
+        plot(ax, window_pos, mean_angles_along_z, color="k", xlabel="z-axis (nm)", ylim=None, xlim=(min_z, max_z), ylabel="orientation order", zorder=2, linewidth=line_widths[i], legend_frame=False, line_style=line_styles[i], dashes=dashes[i])
+    #plot(ax, [window_pos[0], window_pos[-1]], [np.rad2deg(1), np.rad2deg(1)], zorder=2, linewidth=1, legend_frame=False, dashes=(3.5,1.5))
+    if ax_external is None:
+        fig.tight_layout()
+        save_figure(fig, "./mean_angle_vs_z_distance_n_irppy", image_format=IMAGE_FORMAT)
 if __name__=="__main__":
+    fig = create_figure((4,6))
     #irppy_single_frame_analysis_for_all()
-    #irppy_traj_analysis_for_all()
+    irppy_traj_analysis_for_all(add_axis_to_figure(fig, subplot_layout=212))
     #cbp_single_frame_analysis()
     #cbp_traj_analysis()
+    cbp_orientation_for_all(add_axis_to_figure(fig, subplot_layout=211))
     cbp_orientation_for_all()
+    fig.tight_layout()
+    save_figure(fig, "./angle_distribution_analysis", image_format=IMAGE_FORMAT)
