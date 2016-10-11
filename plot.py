@@ -4,8 +4,8 @@ import matplotlib
 if not os.environ.has_key("DISPLAY"):
     matplotlib.use("Agg")
 import pylab
-matplotlib.rc('font', family='serif')
-matplotlib.rc('font', serif='Times New Roman')
+#matplotlib.rc('font', family='serif')
+matplotlib.rc('font', serif='Arial')
 matplotlib.rc('text', usetex='false')
 
 LINE_STYLES = ['-', '--', '-.', ':', '']
@@ -89,7 +89,7 @@ def plot(ax,
          font_weight="normal",
          dashes=None,
          text=None,
-         text_location=(0.8, 0.9),
+         text_location=(0.82, 0.9),
          ):
 
     if line_color is None:

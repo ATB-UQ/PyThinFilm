@@ -93,17 +93,19 @@ def uniform_random_distribution(zero_to_90, xs=None):
     expected_distribution = amplitude * np.sin(xs) / (180 / np.pi)
     return np.rad2deg(xs), expected_distribution
 
-def plot_hist(values, n_bins=N_BINS, label="Ir(ppy)3", xlabel="C3 axis (deg)", zero_to_90=False, ax=None):
+def plot_hist(values, n_bins=N_BINS, label="Ir(ppy)3", xlabel="C$_3$ axis (deg)", zero_to_90=False, external_ax=None):
     xs, expected_distribution = uniform_random_distribution(zero_to_90)
     his, bins = np.histogram(values, bins = n_bins, normed=True)
     centers = (bins[:-1]+bins[1:])/2
     xlim = (0,90) if zero_to_90 else (0,180)
-    if ax is None:
+    if external_ax is None:
         fig = create_figure((4,3))
         ax = add_axis_to_figure(fig)
-    plot(ax, centers, his, color="k", xlabel=xlabel, ylabel="probability", zorder=2, linewidth=1)
-    plot(ax, xs, expected_distribution, color="k",zorder=1, linewidth=1, dashes=(4,2), xlim=xlim, legend_position="upper left", legend_frame=False)
-    if ax is None:
+    else:
+        ax=external_ax
+    plot(ax, centers, his, color="b", xlabel=xlabel, ylabel="probability", zorder=2, linewidth=1.5)
+    plot(ax, xs, expected_distribution, color="k",zorder=1, linewidth=1.5, dashes=(4,2), xlim=xlim, legend_position="upper left", legend_frame=False)
+    if external_ax is None:
         fig.tight_layout()
         save_figure(fig, "./{0}_angle_distribution".format(label), image_format=IMAGE_FORMAT)
 
@@ -172,7 +174,7 @@ def irppy_traj_analysis_for_all(ax=None):
     angles = []
     for n_irppy in (15, 40, 108, 209):
         angles.extend(trajectory_analysis(n_irppy, molecular_axis_definition=irppy_c3_axis, molecules_to_include=["IPR", "IPS"], zero_to_90=False))
-    plot_hist(angles, ax=ax)
+    plot_hist(angles, external_ax=ax)
 
 def calc_difference_area(xs, expected, observed):
     absolute_difference = abs(np.array(observed) - np.array(expected))
@@ -282,22 +284,24 @@ def cbp_orientation_for_all(ax_external=None):
     else:
         ax = ax_external
     dashes = [None, (1.5,2.5)]#(3.5,1.5)]
-    line_widths = [1, 1.5]
+    line_widths = [1.5, 1.75]
     line_styles = ["-", "-"]
+    color = ["b", "k"]
     for i, n_irppy in enumerate([0, 40]):#, 15, 40, 108, 209):
         window_pos, mean_angles_along_z, min_z, max_z = cbp_orientation_along_z(n_irppy)
-        plot(ax, window_pos, mean_angles_along_z, color="k", xlabel="z-axis (nm)", ylim=None, xlim=(min_z, max_z), ylabel="orientation order", zorder=2, linewidth=line_widths[i], legend_frame=False, line_style=line_styles[i], dashes=dashes[i])
+        plot(ax, window_pos, mean_angles_along_z, color=color[i], xlabel="z-axis (nm)", ylim=None, xlim=(min_z, max_z), ylabel="orientation order", zorder=i, linewidth=line_widths[i], legend_frame=False, line_style=line_styles[i], dashes=dashes[i])
     #plot(ax, [window_pos[0], window_pos[-1]], [np.rad2deg(1), np.rad2deg(1)], zorder=2, linewidth=1, legend_frame=False, dashes=(3.5,1.5))
     if ax_external is None:
         fig.tight_layout()
         save_figure(fig, "./mean_angle_vs_z_distance_n_irppy", image_format=IMAGE_FORMAT)
 if __name__=="__main__":
-    fig = create_figure((4,6))
+    #fig = create_figure((4,6))
     #irppy_single_frame_analysis_for_all()
-    irppy_traj_analysis_for_all(add_axis_to_figure(fig, subplot_layout=212))
+    #irppy_traj_analysis_for_all(add_axis_to_figure(fig, subplot_layout=212))
+    #irppy_traj_analysis_for_all()
     #cbp_single_frame_analysis()
     #cbp_traj_analysis()
-    cbp_orientation_for_all(add_axis_to_figure(fig, subplot_layout=211))
+    #cbp_orientation_for_all(add_axis_to_figure(fig, subplot_layout=211))
     cbp_orientation_for_all()
-    fig.tight_layout()
-    save_figure(fig, "./angle_distribution_analysis", image_format=IMAGE_FORMAT)
+    #fig.tight_layout()
+    #save_figure(fig, "./angle_distribution_analysis", image_format=IMAGE_FORMAT)

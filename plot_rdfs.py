@@ -21,19 +21,19 @@ def smooth(x,window_len=20,window_type='flat'):
     y=np.convolve(w/w.sum(),s,mode='same')
     return y[window_len:-window_len+1]
 
-def plot_single_rdf(deposited, random, name):
+def plot_single_rdf(deposited, random, n_irppy):
     fig = create_figure((4,3))
     ax = add_axis_to_figure(fig)
-    plot_to_axis(ax, deposited, random)
+    plot_to_axis(ax, deposited, random, title=TITLE_MAP[n_irppy])
     fig.tight_layout()
-    save_figure(fig, "./rdf_{0}".format(name), image_format="pdf")
+    save_figure(fig, "./rdf_{0}".format(TITLE_MAP[n_irppy].replace(" ", "_")), image_format="eps")
 
 def plot_to_axis(ax, deposited, random, hide_yaxis_label=False, hide_xaxis_label=False, title=None):
     ylabel = None if hide_yaxis_label else "g(r)"
     xlabel = None if hide_xaxis_label else "r (nm)"
     #plot(ax, deposited[0], deposited[1], color="k", label="Ir(ppy)3", xlabel="r (nm)", ylabel=ylabel, zorder=2, linewidth=1, title=title, legend_frame=False)
     #plot(ax,  random[0], random[1], color="k", label="Random", zorder=1, linewidth=1, xlim=(0,4), legend_position="upper right", dashes=(4,2), legend_frame=False)
-    plot(ax, deposited[0], deposited[1], color="k", xlabel=xlabel, ylabel=ylabel, zorder=2, linewidth=1, text=title, legend_frame=False)
+    plot(ax, deposited[0], deposited[1], color="b", xlabel=xlabel, ylabel=ylabel, zorder=2, linewidth=1.5, text=title, legend_frame=False)
     plot(ax,  random[0], random[1], color="k", zorder=1, linewidth=1, xlim=(0,4), legend_position="upper right", dashes=(4,2), legend_frame=False)
 
 def plot_all_on_single_fig():
@@ -68,8 +68,8 @@ def plot_all():
     for n_irppy in (15, 40, 108, 209):
         deposited = parse_xvg(DEPOSITED_DATA_PATH.format(n_irppy))
         random = parse_xvg(RANDOM_DATA_PATH.format(n_irppy), smooth_data=True)
-        plot_single_rdf(deposited, random, "irppy_n{0}".format(n_irppy))
+        plot_single_rdf(deposited, random, n_irppy)
 
 if __name__=="__main__":
-    plot_all_on_single_fig()
+    #plot_all_on_single_fig()
     plot_all()

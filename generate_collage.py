@@ -27,7 +27,7 @@ def figure_collage(png_files):
         wtp, cutoff = name_map[image_words[1]], image_words[2]
         if n in show_title:
             axarr[indices_for_fig(n)].set_title(
-                '{0} (nm) cutoff'.format(cutoff),
+                '{0} (nm) cut-off'.format(cutoff),
                 fontsize=fontsize,
             )
         axarr[indices_for_fig(n)].set_axis_off()
@@ -40,6 +40,6 @@ def figure_collage(png_files):
     fig.subplots_adjust(wspace=.05, hspace=.05, right=.99, left=0.09, top=0.97, bottom=0.01)
 
     #p.show()
-    fig.savefig('collage.png', dpi=600)
+    fig.savefig('collage.jpeg', dpi=600)
 
 figure_collage(glob.glob("images/whole_*.png"))

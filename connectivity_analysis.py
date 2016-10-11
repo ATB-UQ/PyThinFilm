@@ -372,7 +372,7 @@ def main():
     from generate_pymol_images import draw_connectivities, init, close
     init()
 
-    cutoff_distances = [1.25, 1.5, 1.75, 2.0]
+    cutoff_distances = np.linspace(0.7,1,3)# [1.25, 1.5, 1.75, 2.0]
     models = load_models()
     stats = {}
     for cutoff_distance in cutoff_distances:
@@ -392,22 +392,22 @@ def main():
             #plot_pbc(pbc_points, model.box)
 
             distance_cutoff_graph = generate_distance_cutoff_graph(points, pbc_point_distances, cutoff_distance, implicit_pbc=True)
-            try:
-                graph_draw(distance_cutoff_graph,
-                           #vertex_text=distance_cutoff_graph.vertex_index,
-                           output="images/{0}_connectivity_graph.pdf".format(model_id),
-                           vertex_fill_color="#1938FC",
-                           vertex_pen_width=0.2,
-                           output_size=(300,300),
-                           edge_pen_width=1.5,
-                           edge_color="#000000",
-                           vertex_size=8,
-                           )
-            except:
-                print traceback.format_exc()
+            #try:
+            #    graph_draw(distance_cutoff_graph,
+            #               #vertex_text=distance_cutoff_graph.vertex_index,
+            #               output="images/{0}_connectivity_graph.pdf".format(model_id),
+            #               vertex_fill_color="#1938FC",
+            #               vertex_pen_width=0.2,
+            #               output_size=(300,300),
+            #               edge_pen_width=1.5,
+            #               edge_color="#000000",
+            #               vertex_size=8,
+            #               )
+            #except:
+            #    print traceback.format_exc()
             box = model.box
             box[2][2] = Z_HEIGHT_TRUNCATION
-            draw_edges_in_3D(points, distance_cutoff_graph, box, cutoff_distance=cutoff_distance, output="images/{0}_3d_connectivities.pdf".format(model_id))
+            #draw_edges_in_3D(points, distance_cutoff_graph, box, cutoff_distance=cutoff_distance, output="images/{0}_3d_connectivities.pdf".format(model_id))
             edges = get_edges_as_point_indexes(distance_cutoff_graph, exclude_pbc_image_crossing=True, points=points, cutoff_distance=cutoff_distance)
             draw_connectivities("whole_n{0}".format(len(points)), points, edges, cutoff_distance, box_lengths=10*np.array([box[0][0], box[1][1], box[2][2]]))
 
