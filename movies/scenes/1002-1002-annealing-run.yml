@@ -1,0 +1,16 @@
+title: "Final Annealing Scene"
+first_sim_id: 1002
+last_sim_id: 1002
+pymol_commands:
+  - "hide everything, resname CBP"
+  - "set_view (
+     0.999591231,    0.008691136,   -0.027078303,
+    -0.028439594,    0.305404186,   -0.951797545,
+    -0.000002648,    0.952176929,    0.305527419,
+    -0.000220023,   -0.000236452, -431.764923096,
+    52.496288300,   41.442955017,   56.507049561,
+    27.739440918,  835.789489746,  -20.000000000 )"
+  - "show spheres, resname IPR or resname IPS"
+  - "util.cbao resname IPR"
+frame_averaging: 1
+frame_skipping: 41

@@ -1,13 +1,10 @@
 SHELL=/bin/bash
 
-deposition-test:
-	python Deposition.py -i quickTestRunConfig.yml --start 0
-
-qsub-deposition-test :
-	#qsub
+test:
+	python deposition.py -i testing/quickTestRunConfig.yml --start 0
 
 gitlab-ci-test:
-	python Deposition.py -i gitlab-ci-test.yml --start 0
+	python deposition.py -i gitlab-ci-test.yml --start 0
 
 movie1:
 	python batchedMovieGenerator.py -i slowDepConfig.yml -b 1:10

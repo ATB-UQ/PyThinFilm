@@ -4,12 +4,14 @@ from plot import save_figure, add_axis_to_figure, create_figure, plot
 import numpy as np
 DATA_PATH = "deposition_runs/"
 DEPOSITED_GRO = {
-    0: os.path.join(DATA_PATH, "cbp.gro"),
-    15: os.path.join(DATA_PATH, "n15_cbp.gro"),
-    40: os.path.join(DATA_PATH, "n40_cbp.gro"),
-    108:os.path.join(DATA_PATH, "n108_cbp.gro"),
-    209:os.path.join(DATA_PATH, "n209_cbp.gro"),
+    0: os.path.join(DATA_PATH, "cbp_only/cbp.gro"),
+    15: os.path.join(DATA_PATH, "ip_15n/n15_cbp.gro"),
+    40: os.path.join(DATA_PATH, "ip_40n/n40_cbp.gro"),
+    45: os.path.join(DATA_PATH, "ip_45n/n45_cbp.gro"),
+    108:os.path.join(DATA_PATH, "ip_108n/n108_cbp.gro"),
+    209:os.path.join(DATA_PATH, "ip_209n/n209_cbp.gro"),
     }
+
 Z_RANGE = [3,9]
 INCLUDE = ["IPR", "IPS", "CBP"]
 MASS = {"C":12.011, "H":1.008, "N":14.0067, "I":192.2170}
@@ -56,7 +58,7 @@ def plot_density(n_irppy):
     print np.max(density)
 
 def plot_all_density():
-    for n_irppy in (0, 15, 40, 108, 209):
+    for n_irppy in (0, 15, 40, 45, 108, 209):
         plot_density(n_irppy)
 
 if __name__=="__main__":

@@ -1,8 +1,8 @@
 from plot import create_figure, add_axis_to_figure, plot, save_figure
 import numpy as np
-DEPOSITED_DATA_PATH = "rdf_xvg_data/n{0}/rdf_IP_IP.xvg"
-RANDOM_DATA_PATH = "rdf_xvg_data/n{0}/rdf_IPD_IPD.xvg"
-TITLE_MAP = {15:"2.0 wt%",40:"5.3 wt%",108:"14.1 wt%",209:"26.3 wt%"}
+DEPOSITED_DATA_PATH = "emissive_layer_analysis/ip_{0}n/rdf_IP_IP.xvg"
+RANDOM_DATA_PATH = "emissive_layer_analysis/simulated_hard_spheres/rdf_hard_sphere_data/n{0}/rdf_IPD_IPD.xvg"
+TITLE_MAP = {15:"2.0 wt%",40:"5.3 wt%",42:"5.6 wt%",45:"6.0 wt%", 48:"6.4 wt%",108:"14.1 wt%",209:"26.3 wt%"}
 
 def smooth(x,window_len=20,window_type='flat'):
     if x.ndim != 1:
@@ -33,7 +33,7 @@ def plot_to_axis(ax, deposited, random, hide_yaxis_label=False, hide_xaxis_label
     xlabel = None if hide_xaxis_label else "r (nm)"
     #plot(ax, deposited[0], deposited[1], color="k", label="Ir(ppy)3", xlabel="r (nm)", ylabel=ylabel, zorder=2, linewidth=1, title=title, legend_frame=False)
     #plot(ax,  random[0], random[1], color="k", label="Random", zorder=1, linewidth=1, xlim=(0,4), legend_position="upper right", dashes=(4,2), legend_frame=False)
-    plot(ax, deposited[0], deposited[1], color="b", xlabel=xlabel, ylabel=ylabel, zorder=2, linewidth=1.5, text=title, legend_frame=False)
+    plot(ax, deposited[0], deposited[1], color="k", xlabel=xlabel, ylabel=ylabel, zorder=2, linewidth=1.5, text=title, legend_frame=False)
     plot(ax,  random[0], random[1], color="k", zorder=1, linewidth=1, xlim=(0,4), legend_position="upper right", dashes=(4,2), legend_frame=False)
 
 def plot_all_on_single_fig():
@@ -65,7 +65,7 @@ def parse_xvg(data_path, smooth_data=False):
     return xs, ys
 
 def plot_all():
-    for n_irppy in (15, 40, 108, 209):
+    for n_irppy in (45,):#(15, 40, 42, 45, 48, 108, 209):
         deposited = parse_xvg(DEPOSITED_DATA_PATH.format(n_irppy))
         random = parse_xvg(RANDOM_DATA_PATH.format(n_irppy), smooth_data=True)
         plot_single_rdf(deposited, random, n_irppy)

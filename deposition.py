@@ -1,6 +1,6 @@
 import subprocess
 import os
-from os.path import join, basename, dirname, abspath, exists
+from os.path import join, basename, exists
 from traceback import format_exc
 import pmx
 import random
@@ -10,7 +10,6 @@ import yaml
 import jinja2
 import argparse
 
-VERBOSITY = logging.INFO
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = join(PROJECT_DIR, "templates")
 
@@ -23,7 +22,7 @@ BASENAME_REMOVE_SUFFIX = lambda path: ".".join( basename(path) .split('.')[0:2])
 
 TOPOLOGY_FILE = "topo.top"
 
-TOP_TEMPLATE = "templates/{0}.epy".format(TOPOLOGY_FILE)
+TOP_TEMPLATE = join(TEMPLATE_DIR, "{0}.epy".format(TOPOLOGY_FILE))
 TOP_FILE = BASENAME_REMOVE_SUFFIX(TOP_TEMPLATE)
 TEMPLATE_ALLOWED_TYPES = ['deposition', 'annealing']
 
@@ -56,10 +55,9 @@ DEFAULT_PARAMETERS = {"lincs_order": 4,
 class Deposition(object):
 
     def __init__(self, runConfigFile, starting_deposition_number=None):
-        print "runConfigFile: " + str(runConfigFile) 
         self.runConfig = yaml.load(open(runConfigFile))
-        # Convert "*file" paths in runConfig to be absolute
-        recursiveCorrectPaths(self.runConfig, dirname(abspath(runConfigFile)))
+        # Convert template paths in runConfig to be absolute
+        recursiveCorrectPaths(self.runConfig, PROJECT_DIR)
 
         # Read starting_deposition_number from YAML file unless provided by command line
         self.run_ID = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
@@ -97,7 +95,8 @@ class Deposition(object):
         return len(self.model.residues)
 
     def get_rundir(self):
-        return join(self.rootdir, str(self.run_ID) + str(self.runConfig['development']['branch']))
+        suffix = str(self.runConfig['development']['branch']) if ("development" in self.runConfig) else ""
+        return join(self.rootdir, str(self.run_ID) + suffix)
 
     def initDepositionSteps(self):
         # Get the list of all the deposition steps
@@ -238,7 +237,7 @@ class Deposition(object):
         try:
             logging.debug("    Running from: '{0}'".format(self.rundir))
             logging.debug("    Running command: '{0}'".format(argString))
-            subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile).wait()
+            subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile, env=os.environ).wait()
         except:
             print "Subprocess terminated with error: \n{0}\n\n{1}".format(argString, format_exc())
         finally: 
@@ -287,9 +286,8 @@ class Deposition(object):
         maxLayerHeight = self.maxLayerHeight(res)
         #  Should it be mass weighted ?
         net_z_velocity = sum( map( lambda x: x.v[2], res.atoms) ) / len(res.atoms)
-        if DEBUG :
-            highest_atom_height = max([a.x[2] for a in res.atoms])
-            logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
+        highest_atom_height = max([a.x[2] for a in res.atoms])
+        logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
         return net_z_velocity > 0. and any([a.x[2] > maxLayerHeight + self.runConfig["escape_tolerance"] for a in res.atoms])
 
     def genInitialVelocitiesLastResidue(self):
@@ -380,15 +378,15 @@ class Deposition(object):
         # Log the mixture
         logging.debug('Initial mixture is: {mixture}'.format(mixture=self.mixture))
 
-def recursiveCorrectPaths(node, runConfigFileDir):
+def recursiveCorrectPaths(node, root_dir):
     for key, value in node.items():
         if isinstance(value, dict):
-            recursiveCorrectPaths(value, runConfigFileDir)
+            recursiveCorrectPaths(value, root_dir)
         elif isinstance(value, list):
             for item in value:
-                recursiveCorrectPaths(item, runConfigFileDir) 
+                recursiveCorrectPaths(item, root_dir) 
         elif "file" in key:
-            node[key] = join(runConfigFileDir, value)
+            node[key] = join(root_dir, value)
 
 def getMassDict(itpString):
     itpString = itpString.split("[ atoms ]")[1].split("[ bonds ]")[0]
@@ -425,8 +423,14 @@ def cluster(resnameList):
             current_resname = ""
     return clusterList
 
-def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=False, remove_leaving_layer=False):
-
+def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=False, remove_leaving_layer=False, debug=DEBUG):
+    if debug:
+        verbosity = logging.DEBUG
+        format_log = '%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)'
+    else:
+        verbosity = logging.INFO
+        format_log = '%(asctime)s - [%(levelname)s] - %(message)s'
+    logging.basicConfig(level=verbosity, format=format_log, datefmt='%d-%m-%Y %H:%M:%S')
     deposition = Deposition(runConfigFile, starting_deposition_number=starting_deposition_number)
 
     while deposition.run_ID < deposition.last_run_ID:
@@ -479,7 +483,6 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
 
 
 def parseCommandLine():
-    global DEBUG, VERBOSITY
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
     parser.add_argument('--debug', dest='debug', action='store_true')
@@ -488,12 +491,7 @@ def parseCommandLine():
     parser.add_argument('--remove-mol-leaving',  dest='remove_leaving_layer', action='store_true')
     args = parser.parse_args()
 
-    if args.debug :
-        VERBOSITY = logging.DEBUG
-        DEBUG = True
-    logging.basicConfig(level=VERBOSITY, format='%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)', datefmt='%d-%m-%Y %H:%M:%S')
-
-    runDeposition(args.input, starting_deposition_number=int(args.start) if args.start else None, remove_bounce=args.remove_bounce, remove_leaving_layer=args.remove_leaving_layer)
+    runDeposition(args.input, starting_deposition_number=int(args.start) if args.start else None, remove_bounce=args.remove_bounce, remove_leaving_layer=args.remove_leaving_layer, debug=args.debug)
 
 if __name__=="__main__":
     parseCommandLine()

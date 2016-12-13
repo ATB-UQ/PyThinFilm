@@ -1,9 +1,7 @@
 import pmx
 import os
 import pickle
-import time
-import pylab
-os.environ["GMX_DLL"]="/home/uqbcaron/PROGRAMMING_PROJECTS/CPP/gromacs-4.0.7/build/lib/"
+os.environ["GMX_DLL"] = "/home/uqmstroe/Software/gromacs-4.0.7/build/lib/"
 from pmx.xtc import Trajectory
 import numpy as np
 from plot import create_figure, add_axis_to_figure, plot, save_figure
@@ -19,18 +17,20 @@ from plot import create_figure, add_axis_to_figure, plot, save_figure
 #    108: "/mddata2/uqmstroe/Claires_deposition_data/midRatio15wpc/eq300K/300K5ns/md.xtc",
 #    209: "/mddata2/uqmstroe/Claires_deposition_data/highRatio/300K5ns/md.xtc",
 #    }
-DATA_PATH = "deposition_runs/"
+DATA_PATH = "emissive_layer_analysis/"
 DEPOSITED_GRO = {
-    0: os.path.join(DATA_PATH, "cbp.gro"),
-    15: os.path.join(DATA_PATH, "n15_cbp.gro"),
-    40: os.path.join(DATA_PATH, "n40_cbp.gro"),
-    108:os.path.join(DATA_PATH, "n108_cbp.gro"),
-    209:os.path.join(DATA_PATH, "n209_cbp.gro"),
+    0: os.path.join(DATA_PATH, "cbp_only/cbp.gro"),
+    15: os.path.join(DATA_PATH, "ip_15n/n15_cbp.gro"),
+    40: os.path.join(DATA_PATH, "ip_40n/n40_cbp.gro"),
+    45: os.path.join(DATA_PATH, "ip_45n/n45_cbp.gro"),
+    108:os.path.join(DATA_PATH, "ip_108n/n108_cbp.gro"),
+    209:os.path.join(DATA_PATH, "ip_209n/n209_cbp.gro"),
     }
 DEPOSITED_TRAJ = {
     0: os.path.join(DATA_PATH, "cbp_only/cbp.xtc"),
     15: os.path.join(DATA_PATH, "ip_15n/whole_n15.xtc"),
     40: os.path.join(DATA_PATH, "ip_40n/whole_n40.xtc"),
+    45: os.path.join(DATA_PATH, "ip_45n/whole_n45.xtc"),
     108:os.path.join(DATA_PATH, "ip_108n/whole_n108.xtc"),
     209:os.path.join(DATA_PATH, "ip_209n/whole_n209.xtc"),
     }
@@ -39,6 +39,7 @@ FRAME_COUNT = {
     0: 100,
     15: 200,
     40: 10000,
+    45: 50000,
     108:13000,
     209:10000,
     }
@@ -172,7 +173,7 @@ def single_frame_analysis_for_all(species, ax=None):
 
 def irppy_traj_analysis_for_all(ax=None):
     angles = []
-    for n_irppy in (15, 40, 108, 209):
+    for n_irppy in (40,):#(15, 40, 108, 209):
         angles.extend(trajectory_analysis(n_irppy, molecular_axis_definition=irppy_c3_axis, molecules_to_include=["IPR", "IPS"], zero_to_90=False))
     plot_hist(angles, external_ax=ax)
 
@@ -286,8 +287,8 @@ def cbp_orientation_for_all(ax_external=None):
     dashes = [None, (1.5,2.5)]#(3.5,1.5)]
     line_widths = [1.5, 1.75]
     line_styles = ["-", "-"]
-    color = ["b", "k"]
-    for i, n_irppy in enumerate([0, 40]):#, 15, 40, 108, 209):
+    color = ["k", "k"]
+    for i, n_irppy in enumerate([0, 45]):#, 15, 40, 108, 209):
         window_pos, mean_angles_along_z, min_z, max_z = cbp_orientation_along_z(n_irppy)
         plot(ax, window_pos, mean_angles_along_z, color=color[i], xlabel="z-axis (nm)", ylim=None, xlim=(min_z, max_z), ylabel="orientation order", zorder=i, linewidth=line_widths[i], legend_frame=False, line_style=line_styles[i], dashes=dashes[i])
     #plot(ax, [window_pos[0], window_pos[-1]], [np.rad2deg(1), np.rad2deg(1)], zorder=2, linewidth=1, legend_frame=False, dashes=(3.5,1.5))
@@ -296,12 +297,14 @@ def cbp_orientation_for_all(ax_external=None):
         save_figure(fig, "./mean_angle_vs_z_distance_n_irppy", image_format=IMAGE_FORMAT)
 if __name__=="__main__":
     #fig = create_figure((4,6))
-    #irppy_single_frame_analysis_for_all()
+    #single_frame_analysis(45, molecules_to_include=["IPS", "IPR"], molecular_axis_definition=irppy_c3_axis, plot=True)
+    #cbp_orientation_along_z(45)
     #irppy_traj_analysis_for_all(add_axis_to_figure(fig, subplot_layout=212))
     #irppy_traj_analysis_for_all()
     #cbp_single_frame_analysis()
     #cbp_traj_analysis()
     #cbp_orientation_for_all(add_axis_to_figure(fig, subplot_layout=211))
     cbp_orientation_for_all()
+    #trajectory_analysis(45, molecular_axis_definition=irppy_c3_axis, molecules_to_include=["IPR", "IPS"], zero_to_90=False, plot=True)
     #fig.tight_layout()
     #save_figure(fig, "./angle_distribution_analysis", image_format=IMAGE_FORMAT)
