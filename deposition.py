@@ -127,8 +127,6 @@ class Deposition(object):
         if self.isDepositionRun():
             # Set the sampling mixture to the next current step mixture
             self.sampling_mixture = self.deposition_step['mixture']
-            # Then, update the sampling boundaries with the (maybe new) mixture
-            self.setMixtureSamplingBoundaries()
 
     def isDepositionRun(self):
         return self.template_type == 'deposition'
@@ -311,24 +309,29 @@ class Deposition(object):
             atom.v[1] = random.gauss(0.0, sigma)
             atom.v[2] = -abs(random.gauss(self.runConfig["drift_velocity"], sigma))
 
-    ## this method generates regions between 0-1 that when sampled correspond to particular residues in the mixture
-    # e.g. A 1:9 ratio of res1 to res2 is given by: [0.0, 0.1] -> res1, [0.1, 1.0] -> res2
-    def setMixtureSamplingBoundaries(self):
-        ratioSum = float(sum([v["ratio"] for v in self.sampling_mixture.values()]))
-        movingBoundary = 0.0
-        for res in self.sampling_mixture.values():
-            res["sample_boundary_min"] = movingBoundary
-            movingBoundary += res["ratio"] / ratioSum
-            res["sample_boundary_max"] = movingBoundary
-
     def sampleMixture(self):
         if len(self.sampling_mixture) == 1:
             return self.sampling_mixture.values()[0]
-        else:
-            randomNumber = random.uniform(0.0,1.0)
-            for res in self.sampling_mixture.values():
-                if res["sample_boundary_min"] <= randomNumber <= res["sample_boundary_max"]:
-                    return res
+
+        num_deposited = self.run_ID - self.deposition_step["first_sim_id"]
+        target_nummol = 1 + self.deposition_step["last_sim_id"] \
+                                         - self.deposition_step["first_sim_id"]
+        
+        ratioSum = sum([v["ratio"] for v in self.sampling_mixture.values()])
+        molecules = []
+        for mol in self.sampling_mixture.values():
+            nummol = target_nummol * mol["ratio"]*1.0/ratioSum
+            if not int(nummol) == nummol:
+                raise Exception("Cannot satisfy mixture composition.")
+            nummol = int(nummol)
+            molecules += [ mol for i in range(nummol) ]
+        assert len(molecules) == target_nummol
+        # create a random number generator initialized with the
+        # seed supplied in the config file
+        # A new generator is created so as not to impact on other parts of the
+        # code that require random numbers.
+        generator = random.Random(self.deposition_step["seed"])
+        return generator.sample(molecules, num_deposited+1)[-1]
 
 
     def getNextMolecule(self):

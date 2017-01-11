@@ -34,6 +34,7 @@ deposition_steps:
     last_sim_id:  2
     run_time: 1.5 #ps
     temperature: 300 #K
+    seed: 18975329750
     mixture:
       IPR:
         res_name: IPR
