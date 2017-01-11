@@ -29,25 +29,21 @@ TOP_TEMPLATE = join(TEMPLATE_DIR, "{0}.epy".format(TOPOLOGY_FILE))
 TOP_FILE = BASENAME_REMOVE_SUFFIX(TOP_TEMPLATE)
 TEMPLATE_ALLOWED_TYPES = ['deposition', 'annealing']
 
-GPP_TEMPLATE = "{GMX_PATH}grompp_d -f {MDP_FILE} -c {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE,
-                                                                                           MDP_FILE="{MDP_FILE}",
-                                                                                           GMX_PATH="{GMX_PATH}")
+GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE)
 
 MPI_ADDITION = "mpirun -np {0} --bind-to-none "
 
+GROMPP = "grompp_d"
+TPBCONV = "tpbconv_d"
 MDRUN = "mdrun_d"
 MDRUN_MPI = "mdrun_mpi_d" 
 
 RERUN_FLAG = "-cpi md.cpt -append"
 
 
-MDRUN_TEMPLATE = "{mpiRun}{GMX_PATH}{mdrun} -pd -s md.tpr -deffnm md -c {struct} {reRunFlag}".format(struct=OUT_STRUCT_FILE,
-                                                                                                     mdrun="{mdrun}",
-                                                                                                     GMX_PATH="{GMX_PATH}",
-                                                                                                     reRunFlag="{reRunFlag}",
-                                                                                                     mpiRun="{mpiRun}") 
+MDRUN_TEMPLATE = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -pd -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
 
-RERUN_SETUP_TEMPLATE = "{GMX_PATH}tpbconv_d -s md.tpr -extend {run_time} -o md.tpr" 
+RERUN_SETUP_TEMPLATE = "{GMX_PATH}{tpbconv} -s md.tpr -extend {run_time} -o md.tpr" 
 
 
 K_B = 0.00831451 #kJ / (mol K)
@@ -159,17 +155,23 @@ class Deposition(object):
 
         if self.runConfig["run_with_mpi"]:
             mpiRun = MPI_ADDITION.format(self.runConfig["max_cores"]) if self.molecule_number() > self.runConfig["max_cores"] else MPI_ADDITION.format(self.molecule_number())
-            mdrun = MDRUN_MPI
+            mdrun = self.runConfig["mdrun_mpi"] \
+                        if "mdrun_mpi" in self.runConfig else MDRUN_MPI
         else:
-            mdrun = MDRUN
+            mdrun = self.runConfig["mdrun"] \
+                        if "mdrun" in self.runConfig else MDRUN
             mpiRun = ""
+        grompp = self.runConfig["grompp"] \
+                    if "grompp" in self.runConfig else GROMPP
 
         inserts = {"GMX_PATH":   self.gmx_path,
                    "MDP_FILE": self.mdp_file,
                    "run_ID": self.run_ID,
                    "reRunFlag": reRunFlag,
                    "mpiRun":   mpiRun,
-                   "mdrun":    mdrun}
+                   "mdrun":    mdrun, 
+                   "grompp": grompp,
+                   }
 
         if rerun:
             # run rerun setup script
@@ -196,6 +198,8 @@ class Deposition(object):
 
     def runTPBConf(self, inserts):
         inserts["run_time"] = self.deposition_step["run_time"]
+        inserts["tpbconv"] = self.runConfig["tpbconv"] \
+                    if "tpbconv" in self.runConfig else TPBCONV
         self.run(RERUN_SETUP_TEMPLATE, inserts)
 
     def runGPP(self, inserts):
