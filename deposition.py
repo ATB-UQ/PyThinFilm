@@ -15,6 +15,9 @@ TEMPLATE_DIR = join(PROJECT_DIR, "templates")
 
 DEBUG = False
 
+if DEBUG:
+    logging.basicConfig(level=logging.DEBUG)
+
 OUT_STRUCT_FILE = "end.gro"
 IN_STRUCT_FILE = "init.gro"
 
