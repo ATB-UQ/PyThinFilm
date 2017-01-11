@@ -7,7 +7,7 @@ sys.path.append(PROJECT_PARENT_DIR)
 
 from vacuum_deposition.deposition import runDeposition
 
-TEST_CONFIG = "test.yml"
+TEST_CONFIG = sys.argv[1]
 GROMACS_BIN_PATH = "/usr/local/gromacs-4.6/bin"
 GROMACS_LIB_PATH = "/usr/local/gromacs-4.6/lib64"
 GROMACS_C_INCLUDE_PATH = "/usr/local/gromacs-4.6/include"
