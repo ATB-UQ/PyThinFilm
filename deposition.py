@@ -235,17 +235,23 @@ class Deposition(object):
         argString = argString.format(**inserts)
         argList = argString.split()
 
+        returncode = 0
         logFile = open(join(self.rundir, self.log),"a")
         errFile = open(join(self.rundir, self.err),"a")
         try:
             logging.debug("    Running from: '{0}'".format(self.rundir))
             logging.debug("    Running command: '{0}'".format(argString))
-            subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile, env=os.environ).wait()
+            returncode = subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile, env=os.environ).wait()
         except:
-            print "Subprocess terminated with error: \n{0}\n\n{1}".format(argString, format_exc())
+            logging.error("Subprocess terminated with error: \n{0}\n\n{1}".format(argString, format_exc()))
+            raise
         finally: 
             logFile.close()
             errFile.close()
+        if 0 < returncode:
+            msg = "Subprocess terminated with nonzero exit code: \n{0}\n\n{1}".format(argString, format_exc())
+            logging.error(msg)
+            raise Exception(msg)
 
     def getInsertHeight(self):
         return  self.maxZHeight() + self.runConfig["insert_distance"]
