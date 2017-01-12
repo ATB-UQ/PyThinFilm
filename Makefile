@@ -1,7 +1,10 @@
 SHELL=/bin/bash
 
 test:
-	python deposition.py -i testing/quickTestRunConfig.yml --start 0
+	$(MAKE) -C testing
+
+clean_tests:
+	$(MAKE) -C testing clean
 
 gitlab-ci-test:
 	python deposition.py -i gitlab-ci-test.yml --start 0
