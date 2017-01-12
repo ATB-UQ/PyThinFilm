@@ -1,5 +1,5 @@
 
-TESTCASES:=quicktest test IPA restarting
+TESTCASES:=quicktest test IPA restarting CLI
 
 .PHONY : all $(TESTCASES)
 
@@ -18,6 +18,15 @@ restarting :
 	python test.py restarting.yml 
 	python test.py restarting.yml 
 	python test.py restarting.yml 
+
+CLI :
+	python ../deposition.py -i CLI.yml \
+	    --remove-mol-bouncing \
+	    --remove-mol-leaving \
+	    --continuation \
+	    --debug \
+	    --start 0
+
 
 clean :
 	rm -rf $(foreach X,$(TESTCASES),$X_working)
