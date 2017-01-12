@@ -53,19 +53,26 @@ DEFAULT_PARAMETERS = {"lincs_order": 4,
 
 class Deposition(object):
 
-    def __init__(self, runConfigFile, starting_deposition_number=None):
+    def __init__(self, runConfigFile,
+            continuation = False,
+            starting_deposition_number=None):
         self.runConfig = yaml.load(open(runConfigFile))
         # Convert template paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, PROJECT_DIR)
 
-        # Read starting_deposition_number from YAML file unless provided by command line
-        self.run_ID = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
         self.rootdir = os.path.abspath(self.runConfig["work_directory"])
-        self.disambiguate_run_config()
-
         # Create the 'work_directory' if it doesn't exist
         if not os.path.exists(self.rootdir):
             os.makedirs(self.rootdir)
+
+        if continuation:
+            self.run_ID = self.get_latest_run_ID()
+        else:
+            # Read starting_deposition_number from YAML file unless provided by command line
+            self.run_ID = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
+            self.rootdir = os.path.abspath(self.runConfig["work_directory"])
+
+        self.disambiguate_run_config()
 
         # By default, try restarting form the current branch
         self.rundir = self.get_rundir()
@@ -92,6 +99,11 @@ class Deposition(object):
 
     def molecule_number(self):
         return len(self.model.residues)
+
+    def get_latest_run_ID(self):
+        depositions = [int(d) for d in os.listdir(self.rootdir)]
+        depositions.sort()
+        return depositions[-1] if len(depositions) > 0 else 0
 
     def get_rundir(self):
         suffix = str(self.runConfig['development']['branch']) if ("development" in self.runConfig) else ""
@@ -439,7 +451,7 @@ def cluster(resnameList):
             current_resname = ""
     return clusterList
 
-def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=False, remove_leaving_layer=False, debug=DEBUG):
+def runDeposition(runConfigFile, starting_deposition_number=None, continuation=False, remove_bounce=False, remove_leaving_layer=False, debug=DEBUG):
     if debug:
         verbosity = logging.DEBUG
         format_log = '%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)'
@@ -447,7 +459,10 @@ def runDeposition(runConfigFile, starting_deposition_number=None, remove_bounce=
         verbosity = logging.INFO
         format_log = '%(asctime)s - [%(levelname)s] - %(message)s'
     logging.basicConfig(level=verbosity, format=format_log, datefmt='%d-%m-%Y %H:%M:%S')
-    deposition = Deposition(runConfigFile, starting_deposition_number=starting_deposition_number)
+    deposition = Deposition(runConfigFile, starting_deposition_number=starting_deposition_number, continuation=continuation)
+    if deposition.run_ID == deposition.last_run_ID:
+        logging.error("No more depositions to run")
+        raise Exception("No more depositions to run")
 
     while deposition.run_ID < deposition.last_run_ID:
         # Increment run ID
@@ -505,9 +520,15 @@ def parseCommandLine():
     parser.add_argument('--start', help='{int} Provide a starting deposition number different from the one in the YAML file. Used to restart a deposition. This number corresponds to the last successful deposition. Use 0 to start from scratch.')
     parser.add_argument('--remove-mol-bouncing', dest='remove_bounce',        action='store_true')
     parser.add_argument('--remove-mol-leaving',  dest='remove_leaving_layer', action='store_true')
+    parser.add_argument('--continuation',  dest='continuation', action='store_true', help='Continue a run if the working directory already exists')
     args = parser.parse_args()
 
-    runDeposition(args.input, starting_deposition_number=int(args.start) if args.start else None, remove_bounce=args.remove_bounce, remove_leaving_layer=args.remove_leaving_layer, debug=args.debug)
+    runDeposition(args.input,
+            starting_deposition_number=int(args.start) if args.start else None,
+            remove_bounce=args.remove_bounce,
+            remove_leaving_layer=args.remove_leaving_layer,
+            debug=args.debug,
+            continuation=args.continuation)
 
 if __name__=="__main__":
     parseCommandLine()
