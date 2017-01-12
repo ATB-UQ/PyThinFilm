@@ -13,8 +13,7 @@ mdrun : "mdrun"
 mdrun_mpi : "mdrun_mpi" 
 grompp : "grompp"
 tpbconv : "tpbconv"
-walltime : 0.006 #hours
-walltime_safety : 0.003 #hours
+walltime : 0.003 #hours
 deposition_steps:
   - description: "Initial deposition of a full mixture of CBP"
     template: 

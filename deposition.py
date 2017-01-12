@@ -9,6 +9,7 @@ import math
 import yaml
 import jinja2
 import argparse
+from time import time
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = join(PROJECT_DIR, "templates")
@@ -96,6 +97,7 @@ class Deposition(object):
 
         self.log = "out.log"
         self.err = "out.err"
+        self.timelimit = 60*60*self.runConfig["walltime"] if "walltime" in self.runConfig else 1e30
 
     def molecule_number(self):
         return len(self.model.residues)
@@ -464,7 +466,10 @@ def runDeposition(runConfigFile, starting_deposition_number=None, continuation=F
         logging.error("No more depositions to run")
         raise Exception("No more depositions to run")
 
-    while deposition.run_ID < deposition.last_run_ID:
+
+    walltime = 0.0
+    starttime = time()
+    while deposition.run_ID < deposition.last_run_ID and walltime < deposition.timelimit:
         # Increment run ID
         deposition.run_ID += 1
 
@@ -509,8 +514,12 @@ def runDeposition(runConfigFile, starting_deposition_number=None, continuation=F
                     residue_id = residue.id
                     if deposition.hasResidueLeftLayer(residue_id):
                         deposition.removeResidueWithID(residue_id)
+        walltime = time() - starttime
 
-    logging.info("Finished deposition of {0} molecules".format(deposition.last_run_ID))
+    if deposition.run_ID >= deposition.last_run_ID:
+        logging.info("Finished deposition of {0} molecules".format(deposition.last_run_ID))
+    else:
+        logging.info("Allowed walltime exceeded after run_id {}".format(deposition.run_ID))
 
 
 def parseCommandLine():

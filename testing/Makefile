@@ -1,5 +1,5 @@
 
-TESTCASES:=quicktest test IPA
+TESTCASES:=quicktest test IPA restarting
 
 .PHONY : all $(TESTCASES)
 
@@ -13,6 +13,11 @@ test :
 
 IPA :
 	python test.py IPA.yml
+
+restarting :
+	python test.py restarting.yml 
+	python test.py restarting.yml 
+	python test.py restarting.yml 
 
 clean :
 	rm -rf $(foreach X,$(TESTCASES),$X_working)
