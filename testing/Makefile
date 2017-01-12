@@ -15,5 +15,5 @@ IPA :
 	python test.py IPA.yml
 
 clean :
-	rm -rf $(TESTCASES)
+	rm -rf $(foreach X,$(TESTCASES),$X_working)
 

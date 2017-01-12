@@ -1,6 +1,6 @@
 starting_deposition_number: 0
 final_deposition_number: 4
-work_directory: quicktest
+work_directory: quicktest_working
 run_with_mpi: False
 max_cores: 1
 insert_distance: 20.0 #angstrom 
