@@ -1,10 +1,19 @@
 
-all :
+TESTCASES:=quicktest test IPA
+
+.PHONY : all $(TESTCASES)
+
+all : $(TESTCASES)
+
+quicktest :
 	python test.py quicktest.yml
+
+test :
 	python test.py test.yml
 
-quick:
-	python test.py quicktest.yml
+IPA :
+	python test.py IPA.yml
 
 clean :
-	rm -rf quicktest test
+	rm -rf $(TESTCASES)
+
