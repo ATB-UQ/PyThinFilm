@@ -27,7 +27,7 @@ nstlog                   = 0                    ; [steps] freq to write energies
 nstenergy                = 0                     ; [steps] freq to write energies to energy file
 
 ; neighbor searching
-nstlist                  = 5                     ; [steps] freq to update neighbor list and long-range forces
+nstlist                  = {{neighborUpdate}}                    ; [steps] freq to update neighbor list and long-range forces
 ns_type                  = simple                ; method to determine neighbor list
 pbc                      = xyz                   ; periodic boundary conditions in all directions
 rlist                    = 1.4                   ; [nm] short-range cutoff for making neighbor list

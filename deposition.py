@@ -249,14 +249,17 @@ class Deposition(object):
 
         with open(join(self.rundir, self.mdp_file),"w") as fh:
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
+            time_step = self.runConfig["time_step"]
+            neighbor_list_time = 20e-3
             fh.write(mdpTemplate.render(resList=resList, 
                     substrate=self.runConfig["substrate"], 
                     resLength=len(resList), 
-                    timeStep=self.runConfig["time_step"], 
-                    numberOfSteps=int(self.deposition_step["run_time"]/self.runConfig["time_step"]), 
+                    timeStep=time_step, 
+                    numberOfSteps=int(self.deposition_step["run_time"]/time_step), 
                     temperature=self.deposition_step["temperature"],
                     lincs_order=self.deposition_step["lincs_order"] if "lincs_order" in self.deposition_step else DEFAULT_PARAMETERS["lincs_order"],
                     lincs_iterations= self.deposition_step["lincs_iterations"] if "lincs_iterations" in self.deposition_step else DEFAULT_PARAMETERS["lincs_iterations"],
+                    neighborUpdate = int(neighbor_list_time/time_step),
                     )
             )
 
