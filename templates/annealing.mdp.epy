@@ -28,7 +28,7 @@ nstenergy                = 0                     ; [steps] freq to write energie
 
 ; neighbor searching
 nstlist                  = {{neighborUpdate}}                    ; [steps] freq to update neighbor list and long-range forces
-ns_type                  = simple                ; method to determine neighbor list
+ns_type                  = grid                  ; method to determine neighbor list
 pbc                      = xyz                   ; periodic boundary conditions in all directions
 rlist                    = 1.4                   ; [nm] short-range cutoff for making neighbor list
 periodic_molecules       = yes                   ; for systems with mols that couple to themselves through pbc
