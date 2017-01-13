@@ -1,0 +1,82 @@
+starting_deposition_number: 0
+final_deposition_number: 12
+work_directory: MPI_working
+run_with_mpi: True
+max_cores: 8
+insert_distance: 20.0 #angstrom 
+contact_tolerance: 4.0 #angstrom 
+escape_tolerance: 20.0 #angstrom 
+time_step: 0.004 #ps
+drift_velocity: 0.8 #nm/ps
+gmx_path: ""
+mdrun : "mdrun" 
+mdrun_mpi : "mdrun_mpi" 
+grompp : "grompp"
+tpbconv : "tpbconv"
+deposition_steps:
+  - description: "Initial deposition of a full mixture of CBP"
+    template: 
+      type: deposition
+      file: templates/deposition.mdp.epy
+    first_sim_id: 1
+    last_sim_id:  1
+    run_time: 0.5 #ps
+    lincs_order: 4
+    lincs_iterations: 1
+    temperature: 300 #K
+    mixture:
+      CBP:
+        res_name: CBP
+        pdb_file: templates/CBP.pdb
+        itp_file: templates/CBP.itp
+        ratio: 1
+  - description: "Second deposition of a mixture of IPR and IPS"
+    template: 
+      type: deposition
+      file: templates/deposition.mdp.epy
+    first_sim_id: 2
+    last_sim_id:  7
+    run_time: 1.5 #ps
+    temperature: 300 #K
+    seed: 18975329750
+    mixture:
+      IPR:
+        res_name: IPR
+        pdb_file: templates/IPR.pdb
+        itp_file: templates/IPR.itp
+        ratio: 1
+      IPS:
+        res_name: IPS
+        pdb_file: templates/IPS.pdb
+        itp_file: templates/IPS.itp
+        ratio: 1
+  - description: "Final deposition of a mixture of a single CBP molecule"
+    template: 
+      type: deposition
+      file: templates/deposition.mdp.epy
+    first_sim_id: 8
+    last_sim_id:  10
+    run_time: 1.5 #ps
+    temperature: 300 #K
+    mixture:
+      BCP:
+        res_name: BCP
+        pdb_file: templates/BCP.pdb
+        itp_file: templates/BCP.itp
+        ratio: 1
+  - description: "Do two 0.5ps annealing runs"
+    template: 
+      type: annealing
+      file: templates/annealing.mdp.epy
+    first_sim_id: 11
+    last_sim_id:  12
+    run_time: 0.5 #ps
+    temperature: 500 #K
+    lincs_order: 8
+    lincs_iterations: 3
+substrate: 
+      res_name: GRM
+      pdb_file: templates/GRM.pdb
+      itp_file: templates/GRM.itp
+movies:
+    n_cores: 8

@@ -1,5 +1,5 @@
 
-TESTCASES:=quicktest test IPA restarting CLI
+TESTCASES:=quicktest test IPA restarting CLI MPI MPI2
 
 .PHONY : all $(TESTCASES)
 
@@ -18,6 +18,16 @@ restarting :
 	python test.py restarting.yml 
 	python test.py restarting.yml 
 	python test.py restarting.yml 
+
+MPI : 
+	python test.py MPI.yml 
+
+MPI2 : 
+	python ../deposition.py -i MPI2.yml \
+	    --remove-mol-bouncing \
+	    --remove-mol-leaving \
+	    --continuation \
+	    --mpi True --max-cores 6
 
 CLI :
 	python ../deposition.py -i CLI.yml \

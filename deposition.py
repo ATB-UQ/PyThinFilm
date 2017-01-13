@@ -56,7 +56,9 @@ class Deposition(object):
 
     def __init__(self, runConfigFile,
             continuation = False,
-            starting_deposition_number=None):
+            starting_deposition_number=None,
+            run_with_mpi = None, #use runConfigFile by default
+            max_cores = None): # use runConfigFile by default
         self.runConfig = yaml.load(open(runConfigFile))
         # Convert template paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, PROJECT_DIR)
@@ -98,6 +100,15 @@ class Deposition(object):
         self.log = "out.log"
         self.err = "out.err"
         self.timelimit = 60*60*self.runConfig["walltime"] if "walltime" in self.runConfig else 1e30
+
+        self.run_with_mpi = self.runConfig["run_with_mpi"] \
+                if "run_with_mpi" in self.runConfig else False
+        self.run_with_mpi = run_with_mpi \
+                if not run_with_mpi == None else self.run_with_mpi
+
+
+        if self.run_with_mpi:
+            self.max_cores = self.runConfig["max_cores"] if max_cores == None else max_cores
 
     def molecule_number(self):
         return len(self.model.residues)
@@ -165,8 +176,11 @@ class Deposition(object):
 
         reRunFlag = RERUN_FLAG if rerun else ""
 
-        if self.runConfig["run_with_mpi"]:
-            mpiRun = MPI_ADDITION.format(self.runConfig["max_cores"]) if self.molecule_number() > self.runConfig["max_cores"] else MPI_ADDITION.format(self.molecule_number())
+        if self.run_with_mpi:
+            max_cores = self.max_cores if self.max_cores <= self.molecule_number() \
+                    else self.molecule_number()
+
+            mpiRun = MPI_ADDITION.format(max_cores)
             mdrun = self.runConfig["mdrun_mpi"] \
                         if "mdrun_mpi" in self.runConfig else MDRUN_MPI
         else:
@@ -453,7 +467,10 @@ def cluster(resnameList):
             current_resname = ""
     return clusterList
 
-def runDeposition(runConfigFile, starting_deposition_number=None, continuation=False, remove_bounce=False, remove_leaving_layer=False, debug=DEBUG):
+def runDeposition(runConfigFile, starting_deposition_number=None,
+        continuation=False, remove_bounce=False, remove_leaving_layer=False,
+        run_with_mpi = None, max_cores = None,
+        debug=DEBUG):
     if debug:
         verbosity = logging.DEBUG
         format_log = '%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)'
@@ -461,7 +478,11 @@ def runDeposition(runConfigFile, starting_deposition_number=None, continuation=F
         verbosity = logging.INFO
         format_log = '%(asctime)s - [%(levelname)s] - %(message)s'
     logging.basicConfig(level=verbosity, format=format_log, datefmt='%d-%m-%Y %H:%M:%S')
-    deposition = Deposition(runConfigFile, starting_deposition_number=starting_deposition_number, continuation=continuation)
+
+    deposition = Deposition(runConfigFile,
+            starting_deposition_number=starting_deposition_number,
+            continuation=continuation,
+            run_with_mpi = run_with_mpi, max_cores = max_cores)
     if deposition.run_ID == deposition.last_run_ID:
         logging.error("No more depositions to run")
         raise Exception("No more depositions to run")
@@ -530,6 +551,10 @@ def parseCommandLine():
     parser.add_argument('--remove-mol-bouncing', dest='remove_bounce',        action='store_true')
     parser.add_argument('--remove-mol-leaving',  dest='remove_leaving_layer', action='store_true')
     parser.add_argument('--continuation',  dest='continuation', action='store_true', help='Continue a run if the working directory already exists')
+    parser.add_argument('--mpi',  dest='mpi', default=None, type=bool,
+            help='{bool} use mpi to run in parallel. Overrides "run_with_mpi" in config file.')
+    parser.add_argument('--max-cores', dest='max_cores', default = None, type=int,
+            help='{int} Provide the maximum number of cores to use with mpi. Overrides "max_cores" in config file.')
     args = parser.parse_args()
 
     runDeposition(args.input,
@@ -537,7 +562,9 @@ def parseCommandLine():
             remove_bounce=args.remove_bounce,
             remove_leaving_layer=args.remove_leaving_layer,
             debug=args.debug,
-            continuation=args.continuation)
+            continuation=args.continuation,
+            run_with_mpi = args.mpi,
+            max_cores = args.max_cores)
 
 if __name__=="__main__":
     parseCommandLine()
