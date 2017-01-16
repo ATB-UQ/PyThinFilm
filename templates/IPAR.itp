@@ -51,7 +51,7 @@
 ;      for those fields that could not be determined automatically. The parameters in these fields must be assigned manually
 ;      before the file can be used.
 ;---------------------------------------------------------------------------------------------------------------------------
-; Input Structure : IPAR
+; Input Structure : WWT2
 ; Output          : UNITED ATOM topology
 ;	Use in conjunction with the corresponding united atom PDB file.
 ;---------------------------------------------------------------------------------------------------------------------------
@@ -65,7 +65,7 @@
 ;
 [ moleculetype ]
 ; Name   nrexcl
-IPAR     3
+WWT2     3
 [ atoms ]
 ;  nr  type  resnr  resid  atom  cgnr  charge    mass    total_charge
     1    HC    1    IPAR     H1    4    0.039   1.0080
@@ -104,7 +104,7 @@ IPAR     3
    34    HC    1    IPAR    H17    3    0.184   1.0080
    35     C    1    IPAR    C17    3    0.217  12.0110
    36    HC    1    IPAR    H16    3    0.039   1.0080
-   37    NT    1    IPAR     N2   10   -0.665  14.0067
+   37    NR    1    IPAR     N2   10   -0.665  14.0067
    38    OA    1    IPAR     O2   13   -0.607  15.9994
    39     C    1    IPAR    C16   13    0.707  12.0110
    40   CH3    1    IPAR    C15   11   -0.038  15.0350
@@ -113,7 +113,7 @@ IPAR     3
    43     C    1    IPAR    C13   16    0.707  12.0110
    44   CH3    1    IPAR    C12   12   -0.038  15.0350
    45    OA    1    IPAR     O1   13   -0.607  15.9994
-   46    NT    1    IPAR     N1    9   -0.665  14.0067
+   46    NR    1    IPAR     N1    9   -0.665  14.0067
    47    HC    1    IPAR     H4    2    0.226   1.0080
    48    HC    1    IPAR     H3    2    0.096   1.0080
    49    HC    1    IPAR     H2    4    0.184   1.0080
