@@ -1,5 +1,5 @@
 
-TESTCASES:=quicktest test IPA restarting CLI MPI MPI2
+TESTCASES:=quicktest test IPA restarting CLI MPI MPI2 exactcomposition
 
 .PHONY : all $(TESTCASES)
 
@@ -37,6 +37,8 @@ CLI :
 	    --debug \
 	    --start 0
 
+exactcomposition :
+	python test.py exactcomposition.yml
 
 clean :
 	rm -rf $(foreach X,$(TESTCASES),$X_working)

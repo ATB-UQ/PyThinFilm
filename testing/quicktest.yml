@@ -35,6 +35,7 @@ deposition_steps:
     run_time: 1.5 #ps
     temperature: 300 #K
     seed: 18975329750
+    exact_composition: True
     mixture:
       IPR:
         res_name: IPR
