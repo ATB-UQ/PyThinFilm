@@ -6,6 +6,9 @@ Delta enantiomer: IPAR
 
 Lambda enantiomer: IPAS
 
+Also `IPAR_oldcharges.itp` and `IPAS_oldcharges.itp` which have ppy charges
+matching `IPR.itp` and `bIPS.itp` from and older ATB output.
+
 The Lambda enantiomer crystal structure was obtained from:
 
 Sergey Lamansky; Peter Djurovich; Drew Murphy; Feras Abdel-Razzaq;
