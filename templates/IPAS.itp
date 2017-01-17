@@ -51,7 +51,7 @@
 ;      for those fields that could not be determined automatically. The parameters in these fields must be assigned manually
 ;      before the file can be used.
 ;---------------------------------------------------------------------------------------------------------------------------
-; Input Structure : WWT2
+; Input Structure : IPAS
 ; Output          : UNITED ATOM topology
 ;	Use in conjunction with the corresponding united atom PDB file.
 ;---------------------------------------------------------------------------------------------------------------------------
@@ -65,7 +65,7 @@
 ;
 [ moleculetype ]
 ; Name   nrexcl
-WWT2     3
+IPAS     3
 [ atoms ]
 ;  nr  type  resnr  resid  atom  cgnr  charge    mass    total_charge
     1    HC    1    IPAS     H1    4    0.039   1.0080
