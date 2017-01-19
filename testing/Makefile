@@ -1,6 +1,6 @@
 
 TESTCASES:=quicktest test IPA IPAoldcharges IPAheavyH \
-    restarting CLI MPI MPI2 exactcomposition
+    restarting CLI MPI MPI2 exactcomposition IPheavyH
 
 .PHONY : all $(TESTCASES)
 
@@ -20,6 +20,9 @@ IPAoldcharges :
 
 IPAheavyH :
 	python test.py IPAheavyH.yml
+
+IPheavyH :
+	python test.py IPheavyH.yml
 
 restarting :
 	python test.py restarting.yml 

@@ -1,0 +1,59 @@
+starting_deposition_number: 0
+final_deposition_number: 7
+work_directory: IPheavyH_working
+run_with_mpi: False
+max_cores: 1
+insert_distance: 20.0 #angstrom 
+contact_tolerance: 4.0 #angstrom 
+escape_tolerance: 20.0 #angstrom 
+time_step: 0.004 #ps
+drift_velocity: 0.8 #nm/ps
+gmx_path: ""
+mdrun : "mdrun" 
+mdrun_mpi : "mdrun_mpi" 
+grompp : "grompp"
+tpbconv : "tpbconv"
+deposition_steps:
+  - description: "Initial deposition of a full mixture of CBP"
+    template: 
+      type: deposition
+      file: templates/deposition.mdp.epy
+    first_sim_id: 1
+    last_sim_id:  1
+    run_time: 0.5 #ps
+    lincs_order: 4
+    lincs_iterations: 1
+    temperature: 300 #K
+    mixture:
+      CBP:
+        res_name: CBP
+        pdb_file: templates/CBP.pdb
+        itp_file: templates/CBP_heavyH.itp
+        ratio: 1
+  - description: "Second deposition of a mixture of IPR and IPS"
+    template: 
+      type: deposition
+      file: templates/deposition.mdp.epy
+    first_sim_id: 2
+    last_sim_id:  7
+    run_time: 1.5 #ps
+    temperature: 300 #K
+    seed: 18975329750
+    exact_composition: True
+    mixture:
+      IPR:
+        res_name: IPR
+        pdb_file: templates/IPR.pdb
+        itp_file: templates/IPR_heavyH.itp
+        ratio: 1
+      IPS:
+        res_name: IPS
+        pdb_file: templates/IPS.pdb
+        itp_file: templates/IPS_heavyH.itp
+        ratio: 1
+substrate: 
+      res_name: GRM
+      pdb_file: templates/GRM.pdb
+      itp_file: templates/GRM.itp
+movies:
+    n_cores: 8
