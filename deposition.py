@@ -297,8 +297,11 @@ class Deposition(object):
         # take the 0th and 1st element from x and y respectively as these must be rectangular boxes
         return random.uniform(0.0, x[0]), random.uniform(0.0, y[1])
 
-    def maxLayerHeight(self, excluded_res):
-        maxLayerHeight = max([a.x[2] for a in self.model.atoms if a not in excluded_res.atoms])
+    def maxLayerHeight(self, excluded_res = None):
+        if excluded_res == None:
+            maxLayerHeight = max( a.x[2] for a in self.model.atoms )
+        else:
+            maxLayerHeight = max( a.x[2] for a in self.model.atoms if a not in excluded_res.atoms )
         logging.debug("    Max layer height {0}".format(maxLayerHeight))
         return maxLayerHeight
 
@@ -320,17 +323,21 @@ class Deposition(object):
         return any([a.x[2] > self.insertionHeight for a in res.atoms])
 
     # A molecule as left layer if it is above a certain height (above the layer's mean height ??)  with a net z velocity
-    def hasResidueLeftLayer(self, residue_ID):
+    def hasResidueLeftLayer(self, residue_ID, minimum_layer_height = -1e10):
         if residue_ID >=1 :
             res = self.model.residue(residue_ID)
         else :
             res = self.model.residues[residue_ID]
-        maxLayerHeight = self.maxLayerHeight(res)
-        #  Should it be mass weighted ?
-        net_z_velocity = sum( map( lambda x: x.v[2], res.atoms) ) / len(res.atoms)
+        escape_tolerance = self.runConfig["escape_tolerance"]
+
+        net_z_velocity = sum( a.v[2] for a in res.atoms ) / len(res.atoms)
         highest_atom_height = max([a.x[2] for a in res.atoms])
         logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
-        return net_z_velocity > 0. and any([a.x[2] > maxLayerHeight + self.runConfig["escape_tolerance"] for a in res.atoms])
+        if net_z_velocity <= 0 or minimum_layer_height + escape_tolerance > highest_atom_height: return False
+
+        maxLayerHeight = self.maxLayerHeight(res)
+        #  Should it be mass weighted ? why bother??
+        return highest_atom_height > maxLayerHeight + escape_tolerance
 
     def genInitialVelocitiesLastResidue(self):
 
@@ -520,6 +527,8 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
         # Update the deposition step in case we enter a new deposition phase
         deposition.updateDepositionStep()
 
+        initial_layer_height = deposition.maxLayerHeight()
+
         # Depending on run type ...
         if deposition.isDepositionRun():
             logging.info("[DEPOSITION] Running deposition run with parameters: {parameters_dict}".format(parameters_dict=deposition.runParameters()))
@@ -556,7 +565,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
                 # Iterate over the residues and remove the ones that left the layer
                 for residue in deposition.model.residues[1:]: # Dont't try to make sure the substrate is not leaving the layer !
                     residue_id = residue.id
-                    if deposition.hasResidueLeftLayer(residue_id):
+                    if deposition.hasResidueLeftLayer(residue_id, minimum_layer_height = initial_layer_height):
                         deposition.removeResidueWithID(residue_id)
         walltime = time() - starttime
 
