@@ -1,6 +1,6 @@
 starting_deposition_number: 0
-final_deposition_number: 7
-work_directory: IPAoldcharges_working
+final_deposition_number: 2
+work_directory: multiple_insertions_working
 run_with_mpi: False
 max_cores: 1
 insert_distance: 30.0 #angstrom 
@@ -21,7 +21,7 @@ deposition_steps:
     first_sim_id: 1
     last_sim_id:  1
     run_time: 0.5 #ps
-    insertions_per_run: 1
+    insertions_per_run: 2
     insertion_xy_radius: 20.0 #angstroms
     insertion_z_radius: 10.0 #angstroms
     lincs_order: 4
@@ -33,29 +33,29 @@ deposition_steps:
         pdb_file: templates/CBP.pdb
         itp_file: templates/CBP.itp
         ratio: 1
-  - description: "Second deposition of a mixture of IPAR and IPAS"
+  - description: "Second deposition of a mixture of IPR and IPS"
     template: 
       type: deposition
       file: templates/deposition.mdp.epy
     first_sim_id: 2
-    last_sim_id:  7
+    last_sim_id:  2
     run_time: 1.5 #ps
-    insertions_per_run: 1
+    insertions_per_run: 3
     insertion_xy_radius: 20.0 #angstroms
     insertion_z_radius: 10.0 #angstroms
     temperature: 300 #K
     seed: 18975329750
-    exact_composition: True
+    exact_composition: False
     mixture:
-      IPAR:
-        res_name: IPAR
-        pdb_file: templates/IPAR.pdb
-        itp_file: templates/IPAR_oldcharges.itp
+      IPR:
+        res_name: IPR
+        pdb_file: templates/IPR.pdb
+        itp_file: templates/IPR.itp
         ratio: 1
-      IPAS:
-        res_name: IPAS
-        pdb_file: templates/IPAS.pdb
-        itp_file: templates/IPAS_oldcharges.itp
+      IPS:
+        res_name: IPS
+        pdb_file: templates/IPS.pdb
+        itp_file: templates/IPS.itp
         ratio: 1
 substrate: 
       res_name: GRM
