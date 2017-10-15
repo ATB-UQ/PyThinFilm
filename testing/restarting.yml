@@ -3,8 +3,8 @@ final_deposition_number: 12
 work_directory: restarting_working
 run_with_mpi: False
 max_cores: 1
-insert_distance: 20.0 #angstrom 
-contact_tolerance: 4.0 #angstrom 
+insert_distance: 30.0 #angstrom 
+contact_tolerance: 100000.0 #angstrom 
 escape_tolerance: 20.0 #angstrom 
 time_step: 0.004 #ps
 drift_velocity: 0.8 #nm/ps
@@ -13,7 +13,7 @@ mdrun : "mdrun"
 mdrun_mpi : "mdrun_mpi" 
 grompp : "grompp"
 tpbconv : "tpbconv"
-walltime : 0.003 #hours
+walltime : 0.002 #hours
 deposition_steps:
   - description: "Initial deposition of a full mixture of CBP"
     template: 
@@ -22,6 +22,9 @@ deposition_steps:
     first_sim_id: 1
     last_sim_id:  1
     run_time: 0.5 #ps
+    insertions_per_run: 1
+    insertion_xy_radius: 20.0 #angstroms
+    insertion_z_radius: 10.0 #angstroms
     lincs_order: 4
     lincs_iterations: 1
     temperature: 300 #K
@@ -38,6 +41,9 @@ deposition_steps:
     first_sim_id: 2
     last_sim_id:  7
     run_time: 1.5 #ps
+    insertions_per_run: 1
+    insertion_xy_radius: 20.0 #angstroms
+    insertion_z_radius: 10.0 #angstroms
     temperature: 300 #K
     seed: 18975329750
     exact_composition: True
@@ -59,6 +65,9 @@ deposition_steps:
     first_sim_id: 8
     last_sim_id:  10
     run_time: 1.5 #ps
+    insertions_per_run: 1
+    insertion_xy_radius: 20.0 #angstroms
+    insertion_z_radius: 10.0 #angstroms
     temperature: 300 #K
     mixture:
       BCP:
@@ -73,6 +82,9 @@ deposition_steps:
     first_sim_id: 11
     last_sim_id:  12
     run_time: 0.5 #ps
+    insertions_per_run: 1
+    insertion_xy_radius: 20.0 #angstroms
+    insertion_z_radius: 10.0 #angstroms
     temperature: 500 #K
     lincs_order: 8
     lincs_iterations: 3

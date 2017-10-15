@@ -153,6 +153,9 @@ class Deposition(object):
             # Set the sampling mixture to the next current step mixture
             self.sampling_mixture = self.deposition_step['mixture']
 
+            self.insertions_per_run = \
+                self.deposition_step["insertions_per_run"]
+
     def isDepositionRun(self):
         return self.template_type == 'deposition'
     def isAnnealingRun(self):
@@ -287,21 +290,55 @@ class Deposition(object):
             raise Exception(msg)
 
     def getInsertHeight(self):
-        return  self.maxZHeight() + self.runConfig["insert_distance"]
+        return  self.maxLayerHeight() + self.runConfig["insert_distance"]
 
-    def maxZHeight(self):
-        return max([a.x[2] for a in self.model.atoms])
-
-    def getRandomPosXY(self):
-        x, y = map(lambda x:[v*10 for v in x], self.model.box[:2])
+    def getRandomPosXY(self, z, xy_cutoff, z_cutoff):
+        Lx, Ly = map(lambda x:[v*10 for v in x], self.model.box[:2])
         # take the 0th and 1st element from x and y respectively as these must be rectangular boxes
-        return random.uniform(0.0, x[0]), random.uniform(0.0, y[1])
+        collision = True
+        x, y = 0, 0
+        max_attempts = 100
+        num_attempts = 0
+        while collision:
+            if num_attempts > max_attempts:
+                msg = "Failed to insert new molecule after {} attempts. Too crowded"
+                msg = msg.format(max_attempts)
+                logging.error(msg)
+                raise Exception(msg)
+                break
+            x, y = random.uniform(0.0, Lx[0]), random.uniform(0.0, Ly[1])
+            collision = self.collision_check(x, y, z,
+                Lx[0], Ly[1], xy_cutoff, z_cutoff
+            )
+            num_attempts += 1
+        return x, y
+
+    def collision_check(self, x, y, z, Lx, Ly, xycut, zcut):
+        xycut2 = xycut*xycut
+        zcut2 = zcut*zcut
+        for a in self.model.atoms:
+            dz = a.x[2]-z
+            dz2 = dz*dz
+            if dz2 < zcut2:
+                dx = a.x[0] - x
+                dy = a.x[1] - y
+                dx = dx-Lx if dx >  0.5*Lx else dx
+                dy = dy-Ly if dy >  0.5*Ly else dy
+                dx = dx+Lx if dx < -0.5*Lx else dx
+                dy = dy+Ly if dy < -0.5*Ly else dy
+                dxy2 = dx*dx + dy*dy
+                if dxy2 < xycut2:
+                    return True
+        return False
 
     def maxLayerHeight(self, excluded_res = None):
-        if excluded_res == None:
-            maxLayerHeight = max( a.x[2] for a in self.model.atoms )
-        else:
-            maxLayerHeight = max( a.x[2] for a in self.model.atoms if a not in excluded_res.atoms )
+        filled = [ False ] * 1000 #initialize bins
+        binwidth = 5.0 # angstroms
+        for a in self.model.atoms:
+            if excluded_res == None or a not in excluded_res.atoms:
+                bin = int(math.floor(a.x[2]/binwidth))
+                filled[bin] = True
+        maxLayerHeight = filled.index(False) * binwidth
         logging.debug("    Max layer height {0}".format(maxLayerHeight))
         return maxLayerHeight
 
@@ -332,12 +369,14 @@ class Deposition(object):
 
         net_z_velocity = sum( a.v[2] for a in res.atoms ) / len(res.atoms)
         highest_atom_height = max([a.x[2] for a in res.atoms])
-        logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
         if net_z_velocity <= 0 or minimum_layer_height + escape_tolerance > highest_atom_height: return False
 
         maxLayerHeight = self.maxLayerHeight(res)
         #  Should it be mass weighted ? why bother??
-        return highest_atom_height > maxLayerHeight + escape_tolerance
+        hasLeft = highest_atom_height > maxLayerHeight + escape_tolerance
+        if hasLeft:
+            logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
+        return hasLeft
 
     def genInitialVelocitiesLastResidue(self):
 
@@ -351,9 +390,11 @@ class Deposition(object):
         if len(self.sampling_mixture) == 1:
             return self.sampling_mixture.values()[0]
 
-        num_deposited = self.run_ID - self.deposition_step["first_sim_id"]
-        target_nummol = 1 + self.deposition_step["last_sim_id"] \
-                                         - self.deposition_step["first_sim_id"]
+        num_deposited = self.insertions_per_run * \
+            (self.run_ID - self.deposition_step["first_sim_id"])
+        target_nummol = self.insertions_per_run \
+             * (1 + self.deposition_step["last_sim_id"] \
+                - self.deposition_step["first_sim_id"])
         
         ratioSum = sum([v["ratio"] for v in self.sampling_mixture.values()])
         molecules = []
@@ -410,7 +451,11 @@ class Deposition(object):
             atom.m = massDict[atom.name]
 
         insertHeight = self.getInsertHeight()
-        xPos, yPos = self.getRandomPosXY()
+        xPos, yPos = self.getRandomPosXY(
+            insertHeight,
+            self.deposition_step["insertion_xy_radius"],
+            self.deposition_step["insertion_z_radius"],
+            )
 
         nextMolecule.translate([xPos, yPos, insertHeight])
         nextMolecule.random_rotation()
@@ -421,11 +466,11 @@ class Deposition(object):
         return nextMolecule
 
     def removeResidueWithID(self, residue_ID):
-        residue = self.model.residues[residue_ID]
+        residue = self.model.residue(residue_ID)
         self.model.remove_residue(residue)
         logging.debug("Removing residue: {0}".format(residue.resname))
-        # Decrease the run ID by one
-        self.run_ID -= 1
+        # DON'T Decrease the run ID by one!!
+        #self.run_ID -= 1
         # Decrease the mixture counts
         self.mixture[residue.resname]["count"] -= 1
 
@@ -523,20 +568,26 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
     while deposition.run_ID < deposition.last_run_ID and walltime < deposition.timelimit:
         # Increment run ID
         deposition.run_ID += 1
+        logging.debug("increment run_ID to '{0}'".format(deposition.run_ID))
 
         # Update the deposition step in case we enter a new deposition phase
         deposition.updateDepositionStep()
 
+        logging.debug("run_ID is '{0}' after updateDepostionSetup".format(deposition.run_ID))
+
         initial_layer_height = deposition.maxLayerHeight()
+
+        logging.debug("run_ID is '{0}' after maxLayerHeight".format(deposition.run_ID))
 
         # Depending on run type ...
         if deposition.isDepositionRun():
-            logging.info("[DEPOSITION] Running deposition run with parameters: {parameters_dict}".format(parameters_dict=deposition.runParameters()))
+            logging.info("[DEPOSITION] Running deposition with parameters: {parameters_dict}".format(rid=deposition.run_ID, parameters_dict=deposition.runParameters()))
             # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
-            nextMolecule = deposition.getNextMolecule()
-            last_residue = len(deposition.model.residues)
-            deposition.model.insert_residue(last_residue, nextMolecule.residues[0], " ")
-            deposition.genInitialVelocitiesLastResidue()
+            for i in range(deposition.insertions_per_run):
+                nextMolecule = deposition.getNextMolecule()
+                last_residue = len(deposition.model.residues)
+                deposition.model.insert_residue(last_residue, nextMolecule.residues[0], " ")
+                deposition.genInitialVelocitiesLastResidue()
         elif deposition.isAnnealingRun():
             logging.info("[ANNEALING] Running annealing run with parameters: {parameters_dict}".format(parameters_dict=deposition.runParameters()))
 

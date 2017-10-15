@@ -1,0 +1,47 @@
+starting_deposition_number: 0
+final_deposition_number: 8000 #keep same as sim id
+work_directory: working
+insert_distance: 30.0 #angstrom 
+contact_tolerance: 4000.0 #angstrom keep constant
+escape_tolerance: 10.0 #angstrom 
+time_step: 0.001 #ps
+drift_velocity: 0.005 #nm/ps
+gmx_path: ""
+mdrun : "mdrun" 
+mdrun_mpi : "mdrun_mpi" 
+grompp : "grompp"
+tpbconv : "tpbconv"
+walltime : 2.5 #hours
+deposition_steps:
+    - description: 'Initial Deposition of a 1000 CBP/IPS/IPR (42:1:1 ratio) (~10nm high) molecules'
+      template: 
+        type: deposition
+        file: templates/deposition_restr.mdp.epy
+      first_sim_id: 1
+      last_sim_id: 8000 
+      run_time: 2.0 #ps
+      insertions_per_run: 1
+      insertion_xy_radius: 20.0 #angstroms
+      insertion_z_radius: 10.0 #angstroms
+      lincs_order: 4
+      lincs_iterations: 1
+      seed: 1111456789
+      exact_composition: False
+      temperature: 300 #K
+      mixture:
+        C60:
+            res_name: G8LE
+            pdb_file: templates/c60.pdb
+            itp_file: templates/c60.itp
+            ratio: 33
+        TAPC:
+            res_name: OLMW
+            pdb_file: templates/TAPC.pdb
+            itp_file: templates/TAPC.itp
+            ratio: 2
+substrate: 
+    res_name: GRM
+    pdb_file: templates/GRM8x_restr.pdb
+    itp_file: templates/GRM8x_restr.itp
+movies:
+    n_cores: 8
