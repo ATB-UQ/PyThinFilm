@@ -1,6 +1,7 @@
 starting_deposition_number: 0
 final_deposition_number: 2
 work_directory: multiple_insertions_working
+forcefield: ffG53a6.itp
 run_with_mpi: False
 max_cores: 1
 insert_distance: 30.0 #angstrom 

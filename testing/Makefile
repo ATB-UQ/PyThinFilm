@@ -30,7 +30,7 @@ IPheavyH :
 restarting :
 	python test.py restarting.yml 
 	python test.py restarting.yml 
-	python test.py restarting.yml 
+	python test.py restarting.yml || echo done
 
 MPI : 
 	python test.py MPI.yml 

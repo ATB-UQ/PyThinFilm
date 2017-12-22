@@ -248,7 +248,16 @@ class Deposition(object):
             mdpTemplate = jinja2.Template(fh.read())
 
         with open(join(self.rundir, TOP_FILE), "w") as fh:
-            fh.write(topTemplate.render(resMixture=self.mixture, substrate=self.runConfig["substrate"], resnameClusters=cluster(map( lambda x:x.resname, self.model.residues))))
+            fh.write(
+                topTemplate.render(
+                    resMixture = self.mixture,
+                    substrate  = self.runConfig["substrate"],
+                    forcefield = self.runConfig["forcefield"], #eg "ffG54a7.itp"
+                    resnameClusters = cluster(
+                        map( lambda x:x.resname, self.model.residues)
+                    ),
+                )
+            )
 
         with open(join(self.rundir, self.mdp_file),"w") as fh:
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]

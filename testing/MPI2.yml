@@ -1,6 +1,7 @@
 starting_deposition_number: 0
 final_deposition_number: 12
 work_directory: MPI2_working
+forcefield: ffG53a6.itp
 run_with_mpi: False
 max_cores: 8
 insert_distance: 30.0 #angstrom 

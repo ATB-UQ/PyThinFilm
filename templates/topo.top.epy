@@ -1,5 +1,5 @@
 ; Include forcefield parameters
-#include "ffG53a6.itp"
+#include "{{forcefield}}"
 
 ; Include chain topologies
 #include "{{substrate["itp_file"]}}"

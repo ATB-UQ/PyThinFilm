@@ -1,6 +1,7 @@
 starting_deposition_number: 0
 final_deposition_number: 8000 #keep same as sim id
 work_directory: working
+forcefield: ffG53a6.itp
 insert_distance: 30.0 #angstrom 
 contact_tolerance: 4000.0 #angstrom keep constant
 escape_tolerance: 10.0 #angstrom 
