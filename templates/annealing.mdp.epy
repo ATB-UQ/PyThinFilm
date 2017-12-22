@@ -13,7 +13,7 @@ comm_grps               = system                 ; group(s) for center of mass m
 
 
 ; output control
-nstxtcout                = 2500                  ; [steps] freq to write coordinates to xtc trajectory
+nstxtcout                = {{trajectory_steps}}           ; [steps] freq to write coordinates to xtc trajectory
 xtc_grps                 = system                ; group(s) to write to xtc trajectory
 energygrps               = system                ; group(s) to write to energy file
 
