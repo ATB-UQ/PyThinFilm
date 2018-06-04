@@ -262,7 +262,7 @@ class Deposition(object):
         with open(join(self.rundir, self.mdp_file),"w") as fh:
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
             time_step = self.runConfig["time_step"]
-            neighbor_list_time = 20e-3
+            neighbor_list_time = self.runConfig["neighbor_list_time"]
 
             # trajectory write frequency (nsxtcout)
             trajectory_steps = 0 \
