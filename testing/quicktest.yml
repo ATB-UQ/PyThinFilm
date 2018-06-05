@@ -9,6 +9,7 @@ contact_tolerance: 100000.0 #angstrom
 escape_tolerance: 20.0 #angstrom 
 time_step: 0.004 #ps
 drift_velocity: 0.8 #nm/ps
+neighbor_list_time: 0.020 #ps
 gmx_path: ""
 deposition_steps:
   - description: "Initial deposition of a full mixture of CBP"

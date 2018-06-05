@@ -14,6 +14,8 @@ mdrun : "mdrun"
 mdrun_mpi : "mdrun_mpi" 
 grompp : "grompp"
 tpbconv : "tpbconv"
+neighbor_list_time: 0.020 #ps
+mpi_prefix : "mpirun -np {0} " #for cpu simulations: "mpirun np {0} --bind-to-none"
 deposition_steps:
   - description: "Initial deposition of a full mixture of CBP"
     template: 

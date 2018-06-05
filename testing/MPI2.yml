@@ -8,12 +8,14 @@ insert_distance: 30.0 #angstrom
 contact_tolerance: 100000.0 #angstrom 
 escape_tolerance: 20.0 #angstrom 
 time_step: 0.004 #ps
+neighbor_list_time: 0.020 #ps
 drift_velocity: 0.8 #nm/ps
 gmx_path: ""
 mdrun : "mdrun" 
 mdrun_mpi : "mdrun_mpi" 
 grompp : "grompp"
 tpbconv : "tpbconv"
+mpi_prefix : "mpirun -np {0} " #for cpu simulations: "mpirun np {0} --bind-to-none"
 deposition_steps:
   - description: "Initial deposition of a full mixture of CBP"
     template: 

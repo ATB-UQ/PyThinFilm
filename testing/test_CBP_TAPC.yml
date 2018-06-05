@@ -6,6 +6,7 @@ insert_distance: 30.0 #angstrom
 contact_tolerance: 4000.0 #angstrom keep constant
 escape_tolerance: 10.0 #angstrom 
 time_step: 0.001 #ps
+neighbor_list_time: 0.020 #ps
 drift_velocity: 0.005 #nm/ps
 gmx_path: ""
 mdrun : "mdrun" 
