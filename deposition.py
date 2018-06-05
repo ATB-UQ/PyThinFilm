@@ -180,10 +180,14 @@ class Deposition(object):
         reRunFlag = RERUN_FLAG if rerun else ""
 
         if self.run_with_mpi:
-            max_cores = self.max_cores if self.max_cores <= self.molecule_number() \
+            max_cores = self.max_cores \
+                    if self.max_cores <= self.molecule_number() \
                     else self.molecule_number()
 
-            mpiRun = MPI_ADDITION.format(max_cores)
+            mpi_prefix = self.runConfig["mpi_prefix"] \
+                    if "mpi_prefix" in self.runConfig \
+                    else ""
+            mpiRun = mpi_prefix.format(max_cores)
             mdrun = self.runConfig["mdrun_mpi"] \
                         if "mdrun_mpi" in self.runConfig else MDRUN_MPI
         else:
