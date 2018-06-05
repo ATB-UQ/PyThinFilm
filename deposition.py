@@ -32,7 +32,6 @@ TEMPLATE_ALLOWED_TYPES = ['deposition', 'annealing']
 
 GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE)
 
-MPI_ADDITION = "mpirun -np {0} --bind-to-none "
 
 GROMPP = "grompp_d"
 TPBCONV = "tpbconv_d"
@@ -43,6 +42,8 @@ RERUN_FLAG = "-cpi md.cpt -append"
 
 
 MDRUN_TEMPLATE = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -pd -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
+
+MDRUN_TEMPLATE_GPU = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -dlb no -nstlist {{neighborUpdate}} -ntomp 1 -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
 
 RERUN_SETUP_TEMPLATE = "{GMX_PATH}{tpbconv} -s md.tpr -extend {run_time} -o md.tpr" 
 
@@ -206,6 +207,15 @@ class Deposition(object):
                    "grompp": grompp,
                    }
 
+        use_gpu = "use_gpu" in self.runConfig and True==self.runConfig["use_gpu"]
+        if use_gpu:
+            time_step = self.runConfig["time_step"]
+            neighbor_list_time = self.runConfig["neighbor_list_time"]
+            inserts["neighborUpdate"] = int(neighbor_list_time/time_step)
+            mdrun_template = MDRUN_TEMPLATE_GPU
+        else:
+            mdrun_template = MDRUN_TEMPLATE
+
         if rerun:
             # run rerun setup script
             self.runTPBConf(inserts)
@@ -214,7 +224,7 @@ class Deposition(object):
             self.runGPP(inserts)
 
         # run the md
-        self.run(MDRUN_TEMPLATE, inserts)
+        self.run(mdrun_template, inserts)
 
         configurationPath = join(self.rundir, OUT_STRUCT_FILE) 
 
