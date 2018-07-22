@@ -106,7 +106,10 @@ class Deposition(object):
                 if "run_with_mpi" in self.runConfig else False
         self.run_with_mpi = run_with_mpi \
                 if not run_with_mpi == None else self.run_with_mpi
-
+	self.remove_top_molecule = self.runConfig["remove_top_molecule"] \
+		if "remove_top_molecule" in self.runConfig else 0
+	self.solvent_name = self.runConfig["solvent_name"] \
+		if "solvent_name" in self.runConfig else None
 
         if self.run_with_mpi:
             self.max_cores = self.runConfig["max_cores"] if max_cores == None else max_cores
@@ -371,6 +374,17 @@ class Deposition(object):
         maxLayerHeight = filled.index(False) * binwidth
         logging.debug("    Max layer height {0}".format(maxLayerHeight))
         return maxLayerHeight
+
+    def top_molecule(self, resname):
+	zmax=-1e10
+	id = -1
+	for residue in self.model.residues:
+	    if resname == residue.resname:
+		for atom in residue.atoms:
+		    if atom.x[2] > zmax:
+		        zmax=atom.x[2]
+		        id=residue.id
+	return id
 
     def hasResidueReachedLayer(self, residue_ID):
         if residue_ID >=1 :
@@ -641,7 +655,10 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
                 else:
                     logging.info("    Rerunning with same parameters ({parameters_dict}) due to last inserted  molecule not reaching layer".format(parameters_dict=deposition.runParameters()))
                     deposition.runSystem(rerun=True)
-
+	    for i in range(deposition.remove_top_molecule) :
+		residue_id=deposition.top_molecule(deposition.solvent_name)		
+		logging.info("removing top molecule {0}".format(residue_id))
+		deposition.removeResidueWithID(residue_id)
             if remove_leaving_layer :
                 # Iterate over the residues and remove the ones that left the layer
                 for residue in deposition.model.residues[1:]: # Dont't try to make sure the substrate is not leaving the layer !
