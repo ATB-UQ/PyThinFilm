@@ -10,6 +10,7 @@ import yaml
 import jinja2
 import argparse
 from time import time
+from threading import Timer
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = join(PROJECT_DIR, "templates")
@@ -76,6 +77,9 @@ class Deposition(object):
             self.run_ID = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
             self.rootdir = os.path.abspath(self.runConfig["work_directory"])
 
+        self.first_run_ID = self.run_ID
+        self.start_time = time() 
+
         self.disambiguate_run_config()
 
         # By default, try restarting form the current branch
@@ -118,7 +122,7 @@ class Deposition(object):
         return len(self.model.residues)
 
     def get_latest_run_ID(self):
-        depositions = [int(d) for d in os.listdir(self.rootdir)]
+        depositions = [int(d) for d in os.listdir(self.rootdir) if d.isdigit()]
         depositions.sort()
         return depositions[-1] if len(depositions) > 0 else 0
 
@@ -304,23 +308,45 @@ class Deposition(object):
         argString = argString.format(**inserts)
         argList = argString.split()
 
-        returncode = 0
-        logFile = open(join(self.rundir, self.log),"a")
-        errFile = open(join(self.rundir, self.err),"a")
-        try:
-            logging.debug("    Running from: '{0}'".format(self.rundir))
-            logging.debug("    Running command: '{0}'".format(argString))
-            returncode = subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile, env=os.environ).wait()
-        except:
-            logging.error("Subprocess terminated with error: \n{0}\n\n{1}".format(argString, format_exc()))
-            raise
-        finally: 
-            logFile.close()
-            errFile.close()
-        if 0 < returncode:
-            msg = "Subprocess terminated with nonzero exit code: \n{0}\n\n{1}".format(argString, format_exc())
-            logging.error(msg)
-            raise Exception(msg)
+        num_attempts = 0
+        returncode = 1
+        logFilepath = join(self.rundir, self.log)
+        errFilepath = join(self.rundir, self.err)
+        while 0 < returncode:
+            logFile = open(logFilepath, "a")
+            errFile = open(errFilepath, "a")
+            try:
+                logging.debug("    Running from: '{0}'".format(self.rundir))
+                logging.debug("    Running command: '{0}'".format(argString))
+                step_start_time = time()
+                timeout_limit = 3*(self.start_time-time()) / (1+self.run_ID - self.first_run_ID)
+                if timeout_limit < 60*10: #seconds
+                    timeout_limit = 60*10
+                proc = subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile, env=os.environ)
+                timer = Timer(timeout_limit, proc.kill) #kill if taking too long
+                returncode = proc.wait()
+            except:
+                logging.error("Subprocess terminated with error: \n{0}\n\n{1}".format(argString, format_exc()))
+                raise
+            finally: 
+                timer.cancel()
+                logFile.close()
+                errFile.close()
+            if 0 < returncode:
+                num_attempts += 1
+                msg = "Subprocess terminated with nonzero exit code: \n{0}\n\n{1}".format(argString, format_exc())
+                logging.error(msg)
+                if num_attempts > 0:
+                    logging.error("failed 1 times. Aborting.")
+                    raise Exception(msg)
+                else:
+                    logs = [
+                        join(self.get_rundir(), "md.log"),
+                    ]
+                    for logfile in logs:
+                        os.rename(logfile, "{}.bak.{}".format(logfile, num_attempts))
+
+
 
     def getInsertHeight(self):
         return  self.maxLayerHeight() + self.runConfig["insert_distance"]
@@ -438,9 +464,8 @@ class Deposition(object):
         if "exact_composition" in self.deposition_step:
             assert False == self.deposition_step["exact_composition"]
 
-        num_deposited = self.insertions_per_run * \
-            (self.run_ID - self.deposition_step["first_sim_id"])
-        generator = random.Random(num_deposited*self.deposition_step["seed"])
+        num_residues = len(self.model.residues)
+        generator = random.Random(num_residues*self.run_ID*self.deposition_step["seed"])
         random_num = generator.random()
         ratioSum = sum([v["ratio"] for v in self.sampling_mixture.values()])
         cumulative = 0.0
