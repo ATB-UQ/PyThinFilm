@@ -301,6 +301,7 @@ class Deposition(object):
                     lincs_iterations= self.deposition_step["lincs_iterations"] if "lincs_iterations" in self.deposition_step else DEFAULT_PARAMETERS["lincs_iterations"],
                     neighborUpdate = int(neighbor_list_time/time_step),
                     )
+                    constraints=self.deposition_step["constraints"],
             )
 
     def run(self, argString, inserts):
