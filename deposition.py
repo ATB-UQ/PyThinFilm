@@ -44,7 +44,7 @@ RERUN_FLAG = "-cpi md.cpt -append"
 
 MDRUN_TEMPLATE = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -pd -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
 
-MDRUN_TEMPLATE_GPU = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -dlb no -nstlist {{neighborUpdate}} -ntomp 1 -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
+MDRUN_TEMPLATE_GPU = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -dlb no {{domain_decomposition}} -nstlist {{neighborUpdate}} -ntomp 1 -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
 
 RERUN_SETUP_TEMPLATE = "{GMX_PATH}{tpbconv} -s md.tpr -extend {run_time} -o md.tpr" 
 
@@ -186,6 +186,10 @@ class Deposition(object):
     def runSystem(self, rerun=False):
 
         reRunFlag = RERUN_FLAG if rerun else ""
+        if "domain_decomposition" in self.runConfig:
+            domain_decomposition = "-dd "+self.runConfig["domain_decomposition"]
+        else:
+            domain_decomposition = ""
 
         if self.run_with_mpi:
             max_cores = self.max_cores \
@@ -212,6 +216,7 @@ class Deposition(object):
                    "mpiRun":   mpiRun,
                    "mdrun":    mdrun, 
                    "grompp": grompp,
+                   "domain_decomposition": domain_decomposition,
                    }
 
         use_gpu = "use_gpu" in self.runConfig and True==self.runConfig["use_gpu"]
@@ -300,8 +305,8 @@ class Deposition(object):
                     lincs_order=self.deposition_step["lincs_order"] if "lincs_order" in self.deposition_step else DEFAULT_PARAMETERS["lincs_order"],
                     lincs_iterations= self.deposition_step["lincs_iterations"] if "lincs_iterations" in self.deposition_step else DEFAULT_PARAMETERS["lincs_iterations"],
                     neighborUpdate = int(neighbor_list_time/time_step),
-                    )
                     constraints=self.deposition_step["constraints"],
+                    )
             )
 
     def run(self, argString, inserts):
