@@ -192,9 +192,10 @@ class Deposition(object):
             domain_decomposition = ""
 
         if self.run_with_mpi:
-            max_cores = self.max_cores \
-                    if self.max_cores <= self.molecule_number() \
-                    else self.molecule_number()
+            max_cores = self.max_cores 
+           #max_cores = self.max_cores \
+           #        if self.max_cores <= self.molecule_number() \
+           #        else self.molecule_number()
 
             mpi_prefix = self.runConfig["mpi_prefix"] \
                     if "mpi_prefix" in self.runConfig \
