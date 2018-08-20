@@ -31,7 +31,7 @@ TOP_TEMPLATE = join(TEMPLATE_DIR, "{0}.epy".format(TOPOLOGY_FILE))
 TOP_FILE = BASENAME_REMOVE_SUFFIX(TOP_TEMPLATE)
 TEMPLATE_ALLOWED_TYPES = ['deposition', 'annealing']
 
-GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE)
+GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -r {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE)
 
 
 GROMPP = "grompp_d"
