@@ -385,6 +385,11 @@ class Deposition(object):
         logging.debug("    Max layer height {0}".format(maxLayerHeight))
         return maxLayerHeight
 
+    def zero_substrate_velocity(self):
+	for atom in self.model.atoms:
+            if atom.resname == self.runConfig["substrate"]["res_name"]:
+		atom.v=[0.0,0.0,0.0] 
+
     def hasResidueReachedLayer(self, residue_ID):
         if residue_ID >=1 :
             res = self.model.residue(residue_ID)
@@ -650,6 +655,8 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
 
         # create run directory and run setup make file
         deposition.runSetup()
+        
+        deposition.zero_substrate_velocity()
 
         # Write updated model to run directory
         deposition.writeInitConfiguration()
