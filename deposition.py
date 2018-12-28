@@ -106,7 +106,6 @@ class Deposition(object):
         self.log = "out.log"
         self.err = "out.err"
         self.timeout = 60*60*self.runConfig["timeout"] if "timeout" in self.runConfig else 1e30
-        self.timelimit = 60*60*self.runConfig["walltime"] if "walltime" in self.runConfig else 1e30
 
         self.run_with_mpi = self.runConfig["run_with_mpi"] \
                 if "run_with_mpi" in self.runConfig else False
@@ -529,15 +528,24 @@ class Deposition(object):
     def removeResidue(self, residue):
         self.removeResidueWithID(residue.id)
 
-    def resize_box(self, buffer_space):
+    def highest_z(self):
         substrate = self.runConfig["substrate"]["res_name"]
         z = max(a.x[2] for a in self.model.atoms if a.resname != substrate)
         halfheight = 0.5*self.model.box[2][2]*10
-        # make sure substrate only has low coordiantes
-        for atom in self.model.residues[0].atoms: #substrate residue
-            if atom.x[2] > halfheight:
-                atom.x[2] -= self.model.box[2][2]*10
-        self.model.box[2][2] = 0.1 * (z + buffer_space)
+        logging.debug("    highest z = {0}".format(z))
+        return z
+
+    def resize_box(self, new_Lz):
+#       substrate = self.runConfig["substrate"]["res_name"]
+#       z = max(a.x[2] for a in self.model.atoms if a.resname != substrate)
+        halfheight = 0.5*self.model.box[2][2]*10
+#       # make sure substrate only has low coordiantes
+#       for atom in self.model.residues[0].atoms: #substrate residue
+#           if atom.x[2] > halfheight:
+#               atom.x[2] -= self.model.box[2][2]*10
+#       self.model.box[2][2] = 0.1 * (z + buffer_space)
+        self.model.box[2][2] = 0.1 * (new_Lz)
+
         logging.debug("    box size changed from {0} to {1}".format(halfheight*2, 10*self.model.box[2][2]))
 
     def writeInitConfiguration(self):
@@ -670,7 +678,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
 
     walltime = 0.0
     starttime = time()
-    while deposition.run_ID < deposition.last_run_ID and walltime < deposition.timelimit:
+    while deposition.run_ID < deposition.last_run_ID
         # Increment run ID
         deposition.run_ID += 1
         logging.debug("increment run_ID to '{0}'".format(deposition.run_ID))
@@ -703,13 +711,15 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
 
             if remove_leaving_layer :
                 # Iterate over the residues and remove the ones that left the layer
+                highest = deposition.highest_z()
                 layer_height = deposition.maxLayerHeight()
                 leaving = [ residue for residue in deposition.model.residues[1:] \
                            if deposition.hasResidueLeftLayer(residue.id, minimum_layer_height = initial_layer_height, layer_height=layer_height)
                            ]
                 deposition.removeResidues(leaving)
-                buffer_space = 30
-                deposition.resize_box(buffer_space)
+                buffer_space = 14
+                new_Lz = highest + buffer_space
+                deposition.resize_box(new_Lz)
             logging.info("[DEPOSITION] Running deposition with parameters: {parameters_dict}".format(rid=deposition.run_ID, parameters_dict=deposition.runParameters()))
             # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
             for i in range(deposition.insertions_per_run):
