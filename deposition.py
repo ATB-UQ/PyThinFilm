@@ -112,7 +112,10 @@ class Deposition(object):
                 if "run_with_mpi" in self.runConfig else False
         self.run_with_mpi = run_with_mpi \
                 if not run_with_mpi == None else self.run_with_mpi
-
+	self.remove_top_molecule = self.runConfig["remove_top_molecule"] \
+		if "remove_top_molecule" in self.runConfig else 0
+	self.solvent_name = self.runConfig["solvent_name"] \
+		if "solvent_name" in self.runConfig else None
 
         if self.run_with_mpi:
             self.max_cores = self.runConfig["max_cores"] if max_cores == None else max_cores
@@ -400,6 +403,18 @@ class Deposition(object):
             res = self.model.residues[residue_ID]
         maxLayerHeight = self.maxLayerHeight(res)
         return any([a.x[2] < maxLayerHeight + self.runConfig["contact_tolerance"] for a in res.atoms])
+
+    def top_molecule(self, resname):
+	zmax=-1e10
+	id = -1
+	for residue in self.model.residues:
+	    if resname == residue.resname:
+		for atom in residue.atoms:
+		    if atom.x[2] > zmax:
+		        zmax=atom.x[2]
+		        id=residue.id
+	return id
+
 
     # A molecule has bounced if any of its atoms is above its insertion height
     # NB: Relies on the definition of self.insertionHeight
