@@ -455,49 +455,20 @@ class Deposition(object):
     def sampleMixture(self):
         if len(self.sampling_mixture) == 1:
             return self.sampling_mixture.values()[0]
+        # exact composition no longer supported
+        if "exact_composition" in self.deposition_step:
+            raise Exception("parameter 'exact_composition' no longer supported")
 
-        num_deposited = self.insertions_per_run * \
-            (self.run_ID - self.deposition_step["first_sim_id"])
-        target_nummol = self.insertions_per_run \
-             * (1 + self.deposition_step["last_sim_id"] \
-                - self.deposition_step["first_sim_id"])
-        
+        num_residues = len(self.model.residues)
+        generator = random.Random(num_residues*self.run_ID*self.deposition_step["seed"])
+        random_num = generator.random()
         ratioSum = sum([v["ratio"] for v in self.sampling_mixture.values()])
-        molecules = []
-        # true if the composition must match the ratio exactly
-        # false for a statistical composition
-        exact_composition = self.deposition_step["exact_composition"]
-        assert exact_composition in (True,False) #make sure its a boolean
-        
-        # here we build the collection of molecules from which we will sample
-        for mol in self.sampling_mixture.values():
-            if exact_composition:
-                # make a collection of target_nummol molecules in the correct ratio
-                nummol = target_nummol * mol["ratio"]*1.0/ratioSum
-                if not int(nummol) == nummol:
-                    raise Exception("Cannot satisfy mixture composition.")
-                nummol = int(nummol)
-            else:
-                #make a collection of ratioSum molecules in the correct ratio
-                nummol = mol["ratio"]
-            #add this species to the collection
-            molecules += [ mol for i in range(nummol) ]
-        if exact_composition:
-            assert len(molecules) == target_nummol
-
-        # create a random number generator initialized with the
-        # seed supplied in the config file
-        # A new generator is created so as not to impact on other parts of the
-        # code that require random numbers.
-        generator = random.Random(self.deposition_step["seed"])
-
-        # sample without replacement if exact composition, 
-        #else sample with replacement for statistical composition
-        sequence = generator.sample(molecules, num_deposited+1) \
-                    if exact_composition else \
-                    [ generator.choice(molecules) for i in range(num_deposited+1) ]
-
-        return sequence[-1] #next molecule in the sequence
+        cumulative = 0.0
+        for v in self.sampling_mixture.values():
+            cumulative += v["ratio"]
+            if random_num < cumulative/ratioSum:
+                return v
+        raise Exception("If you are reading this something terrible has happened")
 
     def getNextMolecule(self):
         nextMol = self.sampleMixture()
