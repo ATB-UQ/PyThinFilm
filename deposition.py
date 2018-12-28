@@ -72,6 +72,10 @@ class Deposition(object):
 
         if continuation:
             self.run_ID = self.get_latest_run_ID()
+            while self.last_run_failed():
+                logging.debug("    Running failed. Deleting: '{0}'".format(self.run_ID))
+                self.delete_run()
+                self.run_ID = self.get_latest_run_ID()
         else:
             # Read starting_deposition_number from YAML file unless provided by command line
             self.run_ID = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
@@ -117,7 +121,7 @@ class Deposition(object):
         return len(self.model.residues)
 
     def get_latest_run_ID(self):
-        depositions = [int(d) for d in os.listdir(self.rootdir)]
+        depositions = [int(d) for d in os.listdir(self.rootdir) if d.isdigit()]
         depositions.sort()
         return depositions[-1] if len(depositions) > 0 else 0
 
@@ -519,6 +523,20 @@ class Deposition(object):
     def writeInitConfiguration(self):
         updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
         self.model.write(updatedPDBPath, "{0} deposited molecules".format(self.run_ID), 0)
+
+    def delete_run(self):
+        run_dir = os.path.join(self.rootdir ,str(self.run_ID))
+        os.rename(run_dir, run_dir+".bak."+str(time()))
+
+    def last_run_failed(self):
+        log_filename = os.path.join(self.rootdir ,str(self.run_ID), "md.log")
+        if not os.path.isfile(log_filename):
+            return False
+        else:
+            proc = subprocess.Popen(['tail', '-n', "1", log_filename], stdout=subprocess.PIPE)
+            lines = proc.stdout.readlines()
+            last_line = lines[-1]
+            return not (last_line.startswith("Finished mdrun"))
 
     def initMixtureAndResidueCounts(self):
         # Set the count to zero for all the residues in the different mixtures from the different deposition steps
