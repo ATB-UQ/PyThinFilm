@@ -31,7 +31,7 @@ TOP_TEMPLATE = join(TEMPLATE_DIR, "{0}.epy".format(TOPOLOGY_FILE))
 TOP_FILE = BASENAME_REMOVE_SUFFIX(TOP_TEMPLATE)
 TEMPLATE_ALLOWED_TYPES = ['deposition', 'annealing']
 
-GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE)
+GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -r {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE)
 
 
 GROMPP = "grompp_d"
@@ -44,7 +44,7 @@ RERUN_FLAG = "-cpi md.cpt -append"
 
 MDRUN_TEMPLATE = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -pd -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
 
-MDRUN_TEMPLATE_GPU = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -dlb no -nstlist {{neighborUpdate}} -ntomp 1 -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
+MDRUN_TEMPLATE_GPU = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -dlb no {{domain_decomposition}} -nstlist {{neighborUpdate}} -ntomp 1 -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
 
 RERUN_SETUP_TEMPLATE = "{GMX_PATH}{tpbconv} -s md.tpr -extend {run_time} -o md.tpr" 
 
@@ -185,11 +185,13 @@ class Deposition(object):
     def runSystem(self, rerun=False):
 
         reRunFlag = RERUN_FLAG if rerun else ""
+        if "domain_decomposition" in self.runConfig:
+            domain_decomposition = "-dd "+self.runConfig["domain_decomposition"]
+        else:
+            domain_decomposition = ""
 
         if self.run_with_mpi:
-            max_cores = self.max_cores \
-                    if self.max_cores <= self.molecule_number() \
-                    else self.molecule_number()
+            max_cores = self.max_cores 
 
             mpi_prefix = self.runConfig["mpi_prefix"] \
                     if "mpi_prefix" in self.runConfig \
@@ -211,6 +213,7 @@ class Deposition(object):
                    "mpiRun":   mpiRun,
                    "mdrun":    mdrun, 
                    "grompp": grompp,
+                   "domain_decomposition": domain_decomposition,
                    }
 
         use_gpu = "use_gpu" in self.runConfig and True==self.runConfig["use_gpu"]
@@ -298,7 +301,7 @@ class Deposition(object):
                     trajectory_steps=trajectory_steps,
                     lincs_order=self.deposition_step["lincs_order"] if "lincs_order" in self.deposition_step else DEFAULT_PARAMETERS["lincs_order"],
                     lincs_iterations= self.deposition_step["lincs_iterations"] if "lincs_iterations" in self.deposition_step else DEFAULT_PARAMETERS["lincs_iterations"],
-                    neighborUpdate = int(neighbor_list_time/time_step),
+                    neighborUpdate = int(neighbor_list_time/time_step),                    
                     )
             )
 
