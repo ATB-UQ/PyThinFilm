@@ -431,22 +431,26 @@ class Deposition(object):
         return any([a.x[2] > self.insertionHeight for a in res.atoms])
 
     # A molecule as left layer if it is above a certain height (above the layer's mean height ??)  with a net z velocity
-    def hasResidueLeftLayer(self, residue_ID, minimum_layer_height = -1e10):
+    def hasResidueLeftLayer(self, residue_ID, minimum_layer_height = -1e10, vapor_thickness = 10, layer_height=None):
         if residue_ID >=1 :
             res = self.model.residue(residue_ID)
         else :
             res = self.model.residues[residue_ID]
         escape_tolerance = self.runConfig["escape_tolerance"]
 
-        net_z_velocity = sum( a.v[2] for a in res.atoms ) / len(res.atoms)
-        highest_atom_height = max([a.x[2] for a in res.atoms])
-        if net_z_velocity <= 0 or minimum_layer_height + escape_tolerance > highest_atom_height: return False
 
-        maxLayerHeight = self.maxLayerHeight(res)
+        highest_atom_height = max([a.x[2] for a in res.atoms])
+        cut_off_height = self.model.box[2][2]*10 - vapor_thickness
+       # if net_z_velocity <= 0 or minimum_layer_height + escape_tolerance > highest_atom_height: return False
+	if minimum_layer_height + escape_tolerance > highest_atom_height and cut_off_height > highest_atom_height: return False
+
+        #net_z_velocity = sum( a.v[2] for a in res.atoms ) / len(res.atoms)
+        maxLayerHeight = layer_height if not layer_height == None else self.maxLayerHeight(res)
         #  Should it be mass weighted ? why bother??
-        hasLeft = highest_atom_height > maxLayerHeight + escape_tolerance
+        hasLeft = highest_atom_height > maxLayerHeight + escape_tolerance or highest_atom_height > cut_off_height
         if hasLeft:
-            logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
+            #logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
+            logging.debug("    Highest Atom Height: {1}".format(res.id, highest_atom_height))
         return hasLeft
 
     def genInitialVelocitiesLastResidue(self):
@@ -516,8 +520,25 @@ class Deposition(object):
         # Decrease the mixture counts
         self.mixture[residue.resname]["count"] -= 1
 
+    def removeResidues(self, residues):
+        # Decrease the mixture counts
+        for residue in residues:
+            self.mixture[residue.resname]["count"] -= 1
+        remove_residues(self.model, residues)
+
     def removeResidue(self, residue):
         self.removeResidueWithID(residue.id)
+
+    def resize_box(self, buffer_space):
+        substrate = self.runConfig["substrate"]["res_name"]
+        z = max(a.x[2] for a in self.model.atoms if a.resname != substrate)
+        halfheight = 0.5*self.model.box[2][2]*10
+        # make sure substrate only has low coordiantes
+        for atom in self.model.residues[0].atoms: #substrate residue
+            if atom.x[2] > halfheight:
+                atom.x[2] -= self.model.box[2][2]*10
+        self.model.box[2][2] = 0.1 * (z + buffer_space)
+        logging.debug("    box size changed from {0} to {1}".format(halfheight*2, 10*self.model.box[2][2]))
 
     def writeInitConfiguration(self):
         updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
@@ -552,6 +573,34 @@ class Deposition(object):
                 self.mixture[res.resname]["count"] += 1
         # Log the mixture
         logging.debug('Initial mixture is: {mixture}'.format(mixture=self.mixture))
+
+#this is needed because removing one by one is very slow in large systems
+# (one by one takes 4s for 1.8 million atoms)
+#modified from pmx code
+def remove_residues(model,residues):
+    logging.debug("num  residue: {0} num chains {1}".format(len(model.chains), len(model.residues)))
+    assert len(model.chains) == 1
+    chain = model.chains[0]
+    for residue in residues:
+        logging.debug("Removing residue: {0}".format(residue.resname))
+        idx = chain.residues.index(residue)
+        try:
+            midx = chain.model.residues.index(residue)
+        except:
+            midx = -1
+        del chain.residues[idx]
+        del chain.model.residues[midx]
+    model.atoms = []
+    for r in model.residues:
+        for atom in r.atoms:
+            model.atoms.append(atom)
+    chain.atoms = []
+    for r in chain.residues:
+        for atom in r.atoms:
+            chain.atoms.append(atom)
+    model.renumber_atoms()
+    model.renumber_residues()
+    chain.make_residue_tree()
 
 def recursiveCorrectPaths(node, root_dir):
     for key, value in node.items():
@@ -635,8 +684,32 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
 
         logging.debug("run_ID is '{0}' after maxLayerHeight".format(deposition.run_ID))
 
-        # Depending on run type ...
+#NOTE THIS HAS BEEN MOVED FORWARD TO BETTER HANDLE SOLUTION DEPOSITION
         if deposition.isDepositionRun():
+	    for i in range(deposition.remove_top_molecule) :
+		residue_id=deposition.top_molecule(deposition.solvent_name)		
+		logging.info("removing top molecule {0}".format(residue_id))
+		deposition.removeResidueWithID(residue_id)
+
+            while not deposition.hasResidueReachedLayer(-1): # -1 means last residue
+                if remove_bounce and deposition.hasResidueBounced(-1): # -1 means last residue
+                    logging.warning('It seems like the last inserted molecule has bounced off the surface.')
+                    deposition.removeResidueWithID(-1) #-1 means last residue
+                    break
+                else:
+                    logging.info("    Rerunning with same parameters ({parameters_dict}) due to last inserted  molecule not reaching layer".format(parameters_dict=deposition.runParameters()))
+                    deposition.runSystem(rerun=True)
+
+
+            if remove_leaving_layer :
+                # Iterate over the residues and remove the ones that left the layer
+                layer_height = deposition.maxLayerHeight()
+                leaving = [ residue for residue in deposition.model.residues[1:] \
+                           if deposition.hasResidueLeftLayer(residue.id, minimum_layer_height = initial_layer_height, layer_height=layer_height)
+                           ]
+                deposition.removeResidues(leaving)
+                buffer_space = 30
+                deposition.resize_box(buffer_space)
             logging.info("[DEPOSITION] Running deposition with parameters: {parameters_dict}".format(rid=deposition.run_ID, parameters_dict=deposition.runParameters()))
             # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
             for i in range(deposition.insertions_per_run):
@@ -660,22 +733,6 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
         logging.info("    Current mixture is: {0}".format(actualMixture))
         deposition.runSystem()
 
-        if deposition.isDepositionRun():
-            while not deposition.hasResidueReachedLayer(-1): # -1 means last residue
-                if remove_bounce and deposition.hasResidueBounced(-1): # -1 means last residue
-                    logging.warning('It seems like the last inserted molecule has bounced off the surface.')
-                    deposition.removeResidueWithID(-1) #-1 means last residue
-                    break
-                else:
-                    logging.info("    Rerunning with same parameters ({parameters_dict}) due to last inserted  molecule not reaching layer".format(parameters_dict=deposition.runParameters()))
-                    deposition.runSystem(rerun=True)
-
-            if remove_leaving_layer :
-                # Iterate over the residues and remove the ones that left the layer
-                for residue in deposition.model.residues[1:]: # Dont't try to make sure the substrate is not leaving the layer !
-                    residue_id = residue.id
-                    if deposition.hasResidueLeftLayer(residue_id, minimum_layer_height = initial_layer_height):
-                        deposition.removeResidueWithID(residue_id)
         walltime = time() - starttime
 
     if deposition.run_ID >= deposition.last_run_ID:
