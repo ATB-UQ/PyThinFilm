@@ -381,12 +381,17 @@ class Deposition(object):
         return False
 
     def maxLayerHeight(self, excluded_res = None):
-        filled = [ False ] * 1000 #initialize bins
-        binwidth = 5.0 # angstroms
+# now takes top of layer as first 1 nm bin with atom number density less than 0.1 the maximum
+        binwidth = 10.0 # angstroms
+        numbins = int(math.ceil(self.model.box[2][2]*10/binwidth))
+        count = [ 0 ] * numbins #initialize bins
+        substrate = self.runConfig["substrate"]["res_name"]
         for a in self.model.atoms:
-            if excluded_res == None or a not in excluded_res.atoms:
+            if a.resname != substrate:
                 bin = int(math.floor(a.x[2]/binwidth))
-                filled[bin] = True
+                count[bin] += 1
+        maxcount = max(count)
+        filled = [ c > 0.1*maxcount for c in count ]
         maxLayerHeight = filled.index(False) * binwidth
         logging.debug("    Max layer height {0}".format(maxLayerHeight))
         return maxLayerHeight
