@@ -10,6 +10,7 @@ import yaml
 import jinja2
 import argparse
 from time import time
+from threading import Timer
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = join(PROJECT_DIR, "templates")
@@ -100,6 +101,7 @@ class Deposition(object):
 
         self.log = "out.log"
         self.err = "out.err"
+        self.timeout = 60*60*self.runConfig["timeout"] if "timeout" in self.runConfig else 1e30
         self.timelimit = 60*60*self.runConfig["walltime"] if "walltime" in self.runConfig else 1e30
 
         self.run_with_mpi = self.runConfig["run_with_mpi"] \
@@ -301,17 +303,24 @@ class Deposition(object):
         argString = argString.format(**inserts)
         argList = argString.split()
 
-        returncode = 0
-        logFile = open(join(self.rundir, self.log),"a")
-        errFile = open(join(self.rundir, self.err),"a")
+        returncode = 1
+        logFilepath = join(self.rundir, self.log)
+        errFilepath = join(self.rundir, self.err)
+        logFile = open(logFilepath, "a")
+        errFile = open(errFilepath, "a")
         try:
             logging.debug("    Running from: '{0}'".format(self.rundir))
             logging.debug("    Running command: '{0}'".format(argString))
-            returncode = subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile, env=os.environ).wait()
+            step_start_time = time()
+            # kill if talking too long
+            proc = subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile, env=os.environ)
+            timer = Timer(self.timeout, proc.kill) #kill if taking too long
+            returncode = proc.wait()
         except:
             logging.error("Subprocess terminated with error: \n{0}\n\n{1}".format(argString, format_exc()))
             raise
         finally: 
+            timer.cancel()
             logFile.close()
             errFile.close()
         if 0 < returncode:
