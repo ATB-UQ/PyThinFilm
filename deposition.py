@@ -79,6 +79,9 @@ class Deposition(object):
             self.run_ID = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
             self.rootdir = os.path.abspath(self.runConfig["work_directory"])
 
+        self.first_run_ID = self.run_ID
+        self.start_time = time() 
+
         self.disambiguate_run_config()
 
         # By default, try restarting form the current branch
@@ -294,7 +297,8 @@ class Deposition(object):
                     trajectory_steps=trajectory_steps,
                     lincs_order=self.deposition_step["lincs_order"] if "lincs_order" in self.deposition_step else DEFAULT_PARAMETERS["lincs_order"],
                     lincs_iterations= self.deposition_step["lincs_iterations"] if "lincs_iterations" in self.deposition_step else DEFAULT_PARAMETERS["lincs_iterations"],
-                    neighborUpdate = int(neighbor_list_time/time_step),                    
+                    neighborUpdate = int(neighbor_list_time/time_step),
+                    constraints=self.deposition_step["constraints"],
                     )
             )
 

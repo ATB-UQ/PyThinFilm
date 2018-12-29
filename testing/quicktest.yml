@@ -25,6 +25,7 @@ deposition_steps:
     first_sim_id: 1
     last_sim_id:  1
     run_time: 0.5 #ps
+    constraints: all-bonds
     trajectory_steps: 1 
     insertions_per_run: 1
     insertion_xy_radius: 20.0 #angstroms

@@ -22,6 +22,7 @@ deposition_steps:
     template: 
       type: deposition
       file: templates/deposition.mdp.epy
+    constraints: all-bonds
     first_sim_id: 1
     last_sim_id:  7
     run_time: 0.5 #ps

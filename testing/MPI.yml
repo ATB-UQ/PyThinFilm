@@ -33,6 +33,7 @@ deposition_steps:
     insertion_z_radius: 10.0 #angstroms
     seed: 489327835
     lincs_order: 4
+    constraints: all-bonds
     lincs_iterations: 1
     temperature: 300 #K
     mixture:
