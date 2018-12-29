@@ -17,37 +17,36 @@ tpbconv : "notneeded"
 timeout: 10
 neighbor_list_time: 0.020 #ps
 use_gpu : True
-deposition_steps:
-  - description: "Initial deposition of a full mixture of CBP"
-    template: templates/deposition.mdp.epy
-    first_sim_id: 1
-    last_sim_id:  1
-    run_time: 0.5 #ps
-    constraints: all-bonds
-    trajectory_steps: 1 
-    insertions_per_run: 1
-    insertion_xy_radius: 20.0 #angstroms
-    insertion_z_radius: 10.0 #angstroms
-    seed: 489327835
-    lincs_order: 4
-    lincs_iterations: 1
-    temperature: 300 #K
-    mixture:
-      CBP:
-        res_name: CBP
-        pdb_file: templates/CBP.pdb
-        itp_file: templates/CBP.itp
-        ratio: 1
-      IPAR:
-        res_name: IPAR
-        pdb_file: templates/IPAR.pdb
-        itp_file: templates/IPAR.itp
-        ratio: 1
-      IPAS:
-        res_name: IPAS
-        pdb_file: templates/IPAS.pdb
-        itp_file: templates/IPAS.itp
-        ratio: 1
+description: "Initial deposition of a full mixture of CBP"
+template: templates/deposition.mdp.epy
+first_sim_id: 1
+last_sim_id:  1
+run_time: 0.5 #ps
+constraints: all-bonds
+trajectory_steps: 1 
+insertions_per_run: 1
+insertion_xy_radius: 20.0 #angstroms
+insertion_z_radius: 10.0 #angstroms
+seed: 489327835
+lincs_order: 4
+lincs_iterations: 1
+temperature: 300 #K
+mixture:
+  CBP:
+    res_name: CBP
+    pdb_file: templates/CBP.pdb
+    itp_file: templates/CBP.itp
+    ratio: 1
+  IPAR:
+    res_name: IPAR
+    pdb_file: templates/IPAR.pdb
+    itp_file: templates/IPAR.itp
+    ratio: 1
+  IPAS:
+    res_name: IPAS
+    pdb_file: templates/IPAS.pdb
+    itp_file: templates/IPAS.itp
+    ratio: 1
 substrate: 
       res_name: GRM
       pdb_file: templates/GRM.pdb

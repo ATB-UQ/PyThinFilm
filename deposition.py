@@ -87,8 +87,13 @@ class Deposition(object):
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
 
+        self.sampling_mixture = self.runConfig["mixture"]
         self.mixture = {}
-        self.sampling_mixture = {}
+
+        self.mdp_template_file = self.runConfig['template']
+        self.mdp_file = BASENAME_REMOVE_SUFFIX(self.mdp_template_file)
+
+        self.insertions_per_run = self.runConfig["insertions_per_run"]
 
         self.initDepositionSteps()
 
@@ -117,39 +122,17 @@ class Deposition(object):
 
     def initDepositionSteps(self):
         # Get the list of all the deposition steps
-        self.deposition_steps = self.runConfig['deposition_steps']
         self.last_run_ID = self.runConfig["final_deposition_number"]
         self.initMixtureAndResidueCounts()
 
     def disambiguate_run_config(self):
         self.gmx_path = self.runConfig['gmx_path'] if self.runConfig['gmx_path'] else ""
 
-    def updateDepositionStep(self):
-        # Filter the one that apply to this particular Deposition run
-        self.current_deposition_steps = [ x for x in self.deposition_steps if x["first_sim_id"] <= self.run_ID <= x["last_sim_id"] ]
-        # Just to be sure, prevent overlapping deposition step simulation boundaries
-        if len(self.current_deposition_steps) > 1 :
-            raise Exception("Overlapping deposition steps definitions. Aborting.")
-        elif len(self.current_deposition_steps) == 0 :
-            raise Exception("No deposition step defined for deposition molecule number {0}. Aborting.".format(self.run_ID))
-
-        self.deposition_step = self.current_deposition_steps[0]
-        # Update the MDP template
-        self.mdp_template_file = self.deposition_step['template']
-        self.mdp_file = BASENAME_REMOVE_SUFFIX(self.mdp_template_file)
-
-        # For depositon steps only, update the sampling mixture
-        # Set the sampling mixture to the next current step mixture
-        self.sampling_mixture = self.deposition_step['mixture']
-
-        self.insertions_per_run = \
-        self.deposition_step["insertions_per_run"]
-
     def runParameters(self):
         parameters_dict =  { \
                 'run_ID': "{0}/{1}".format(self.run_ID, self.last_run_ID),
-                'temperature':    "{0} K".format(self.deposition_step["temperature"]),
-                'run_time':       "{0} ps".format(self.deposition_step["run_time"]),
+                'temperature':    "{0} K".format(self.runConfig["temperature"]),
+                'run_time':       "{0} ps".format(self.runConfig["run_time"]),
         }
         parameters_dict['drift_velocity'] = "{0} nm/ps".format(self.runConfig["drift_velocity"])
         return parameters_dict
@@ -250,20 +233,20 @@ class Deposition(object):
 
             # trajectory write frequency (nsxtcout)
             trajectory_steps = 0 \
-                if not "trajectory_steps" in self.deposition_step \
-                else self.deposition_step["trajectory_steps"]
+                if not "trajectory_steps" in self.runConfig \
+                else self.runConfig["trajectory_steps"]
 
             fh.write(mdpTemplate.render(resList=resList, 
                     substrate=self.runConfig["substrate"], 
                     resLength=len(resList), 
                     timeStep=time_step, 
-                    numberOfSteps=int(self.deposition_step["run_time"]/time_step), 
-                    temperature=self.deposition_step["temperature"],
+                    numberOfSteps=int(self.runConfig["run_time"]/time_step), 
+                    temperature=self.runConfig["temperature"],
                     trajectory_steps=trajectory_steps,
-                    lincs_order=self.deposition_step["lincs_order"] if "lincs_order" in self.deposition_step else DEFAULT_PARAMETERS["lincs_order"],
-                    lincs_iterations= self.deposition_step["lincs_iterations"] if "lincs_iterations" in self.deposition_step else DEFAULT_PARAMETERS["lincs_iterations"],
+                    lincs_order=self.runConfig["lincs_order"] if "lincs_order" in self.runConfig else DEFAULT_PARAMETERS["lincs_order"],
+                    lincs_iterations= self.runConfig["lincs_iterations"] if "lincs_iterations" in self.runConfig else DEFAULT_PARAMETERS["lincs_iterations"],
                     neighborUpdate = int(neighbor_list_time/time_step),
-                    constraints=self.deposition_step["constraints"],
+                    constraints=self.runConfig["constraints"],
                     )
             )
 
@@ -405,7 +388,7 @@ class Deposition(object):
     def genInitialVelocitiesLastResidue(self):
 
         for atom in self.model.residues[-1].atoms:
-            sigma = math.sqrt(K_B*self.deposition_step["temperature"]/atom.m)
+            sigma = math.sqrt(K_B*self.runConfig["temperature"]/atom.m)
             atom.v[0] = random.gauss(0.0, sigma)
             atom.v[1] = random.gauss(0.0, sigma)
             atom.v[2] = -abs(random.gauss(self.runConfig["drift_velocity"], sigma))
@@ -414,11 +397,11 @@ class Deposition(object):
         if len(self.sampling_mixture) == 1:
             return self.sampling_mixture.values()[0]
         # exact composition no longer supported
-        if "exact_composition" in self.deposition_step:
+        if "exact_composition" in self.runConfig:
             raise Exception("parameter 'exact_composition' no longer supported")
 
         num_residues = len(self.model.residues)
-        generator = random.Random(num_residues*self.run_ID*self.deposition_step["seed"])
+        generator = random.Random(num_residues*self.run_ID*self.runConfig["seed"])
         random_num = generator.random()
         ratioSum = sum([v["ratio"] for v in self.sampling_mixture.values()])
         cumulative = 0.0
@@ -448,8 +431,8 @@ class Deposition(object):
         insertHeight = self.getInsertHeight()
         xPos, yPos = self.getRandomPosXY(
             insertHeight,
-            self.deposition_step["insertion_xy_radius"],
-            self.deposition_step["insertion_z_radius"],
+            self.runConfig["insertion_xy_radius"],
+            self.runConfig["insertion_z_radius"],
             )
 
         nextMolecule.translate([xPos, yPos, insertHeight])
@@ -514,12 +497,11 @@ class Deposition(object):
             return not (last_line.startswith("Finished mdrun"))
 
     def initMixtureAndResidueCounts(self):
-        # Set the count to zero for all the residues in the different mixtures from the different deposition steps
-        for mixture in [ x['mixture'] for x in self.deposition_steps if 'mixture' in x ] :
-            for res in mixture.values():
-                resname = res["res_name"]
-                self.mixture[resname] = res
-                self.mixture[resname]["count"]= 0
+        # Set the count to zero for all the residues in the mixtures 
+        for res in self.sampling_mixture.values():
+            resname = res["res_name"]
+            self.mixture[resname] = res
+            self.mixture[resname]["count"]= 0
 
         # Then, update count for residues already in the model
         for res in self.model.residues:
@@ -632,9 +614,6 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
         logging.debug("increment run_ID to '{0}'".format(deposition.run_ID))
 
         # Update the deposition step in case we enter a new deposition phase
-        deposition.updateDepositionStep()
-
-        logging.debug("run_ID is '{0}' after updateDepostionSetup".format(deposition.run_ID))
 
         initial_layer_height = deposition.maxLayerHeight(
             density_fraction_cutoff = deposition.runConfig["density_fraction_cutoff"],
