@@ -1,27 +1,35 @@
 starting_deposition_number: 0
-final_deposition_number: 1
+final_deposition_number: 7
 work_directory: CLI_working
-forcefield: ffG53a6.itp
-run_with_mpi: False
+forcefield: '../../gromos54a7_atb.ff/forcefield.itp'
 max_cores: 1
 insert_distance: 30.0 #angstrom 
 contact_tolerance: 10000.0 #angstrom 
 escape_tolerance: 20.0 #angstrom 
 time_step: 0.004 #ps
+density_fraction_cutoff: 0.5
+overhead_void_space: 60
 drift_velocity: 0.8 #nm/ps
-neighbor_list_time: 0.020 #ps
 gmx_path: ""
+mdrun : "gmx_mpi_d mdrun" 
+grompp : "gmx_mpi_d grompp"
+tpbconv : "notneeded"
+timeout: 10
+neighbor_list_time: 0.020 #ps
+use_gpu : True
 deposition_steps:
   - description: "Initial deposition of a full mixture of CBP"
     template: 
       type: deposition
       file: templates/deposition.mdp.epy
     first_sim_id: 1
-    last_sim_id:  1
+    last_sim_id:  7
     run_time: 0.5 #ps
+    trajectory_steps: 1 
     insertions_per_run: 1
     insertion_xy_radius: 20.0 #angstroms
     insertion_z_radius: 10.0 #angstroms
+    seed: 489327835
     lincs_order: 4
     lincs_iterations: 1
     temperature: 300 #K
@@ -31,9 +39,19 @@ deposition_steps:
         pdb_file: templates/CBP.pdb
         itp_file: templates/CBP.itp
         ratio: 1
+      IPAR:
+        res_name: IPAR
+        pdb_file: templates/IPAR.pdb
+        itp_file: templates/IPAR.itp
+        ratio: 1
+      IPAS:
+        res_name: IPAS
+        pdb_file: templates/IPAS.pdb
+        itp_file: templates/IPAS.itp
+        ratio: 1
 substrate: 
       res_name: GRM
       pdb_file: templates/GRM.pdb
-      itp_file: templates/GRM.itp
+      itp_file: templates/GRM_restr_stiff.itp
 movies:
     n_cores: 8

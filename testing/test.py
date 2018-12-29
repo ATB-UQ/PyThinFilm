@@ -24,4 +24,4 @@ def setup_env_variables():
 
 if __name__ == "__main__":
     setup_env_variables()
-    runDeposition(TEST_CONFIG, debug=False, continuation=True)
+    runDeposition(TEST_CONFIG, debug=True, continuation=True,)

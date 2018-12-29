@@ -37,7 +37,6 @@ GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -r {struct} -
 GROMPP = "grompp_d"
 TPBCONV = "tpbconv_d"
 MDRUN = "mdrun_d"
-MDRUN_MPI = "mdrun_mpi_d" 
 
 RERUN_FLAG = "-cpi md.cpt -append"
 
@@ -59,7 +58,6 @@ class Deposition(object):
     def __init__(self, runConfigFile,
             continuation = False,
             starting_deposition_number=None,
-            run_with_mpi = None, #use runConfigFile by default
             max_cores = None): # use runConfigFile by default
         self.runConfig = yaml.load(open(runConfigFile))
         # Convert template paths in runConfig to be absolute
@@ -107,17 +105,12 @@ class Deposition(object):
         self.err = "out.err"
         self.timeout = 60*60*self.runConfig["timeout"] if "timeout" in self.runConfig else 1e30
 
-        self.run_with_mpi = self.runConfig["run_with_mpi"] \
-                if "run_with_mpi" in self.runConfig else False
-        self.run_with_mpi = run_with_mpi \
-                if not run_with_mpi == None else self.run_with_mpi
 	self.remove_top_molecule = self.runConfig["remove_top_molecule"] \
 		if "remove_top_molecule" in self.runConfig else 0
 	self.solvent_name = self.runConfig["solvent_name"] \
 		if "solvent_name" in self.runConfig else None
 
-        if self.run_with_mpi:
-            self.max_cores = self.runConfig["max_cores"] if max_cores == None else max_cores
+        self.max_cores = self.runConfig["max_cores"] if max_cores == None else max_cores
 
     def molecule_number(self):
         return len(self.model.residues)
@@ -192,15 +185,13 @@ class Deposition(object):
         else:
             domain_decomposition = ""
 
-        if self.run_with_mpi:
+        if "mpi_prefix" in self.runConfig:
             max_cores = self.max_cores 
-
             mpi_prefix = self.runConfig["mpi_prefix"] \
                     if "mpi_prefix" in self.runConfig \
                     else ""
             mpiRun = mpi_prefix.format(max_cores)
-            mdrun = self.runConfig["mdrun_mpi"] \
-                        if "mdrun_mpi" in self.runConfig else MDRUN_MPI
+            mdrun = self.runConfig["mdrun"] 
         else:
             mdrun = self.runConfig["mdrun"] \
                         if "mdrun" in self.runConfig else MDRUN
@@ -379,8 +370,9 @@ class Deposition(object):
                     return True
         return False
 
-    def maxLayerHeight(self, excluded_res = None):
-# now takes top of layer as first 1 nm bin with atom number density less than 0.1 the maximum
+    def maxLayerHeight(self, excluded_res = None, density_fraction_cutoff = 0.0):
+# now takes top of layer as first 1 nm bin with atom number density less than
+# `density_fraction_cutoff` (eg 0.1) the maximum
         binwidth = 10.0 # angstroms
         numbins = int(math.ceil(self.model.box[2][2]*10/binwidth))
         count = [ 0 ] * numbins #initialize bins
@@ -390,7 +382,7 @@ class Deposition(object):
                 bin = int(math.floor(a.x[2]/binwidth))
                 count[bin] += 1
         maxcount = max(count)
-        filled = [ c > 0.1*maxcount for c in count ]
+        filled = [ c > density_fraction_cutoff*maxcount for c in count ]
         maxLayerHeight = filled.index(False) * binwidth
         logging.debug("    Max layer height {0}".format(maxLayerHeight))
         return maxLayerHeight
@@ -430,7 +422,7 @@ class Deposition(object):
         return any([a.x[2] > self.insertionHeight for a in res.atoms])
 
     # A molecule as left layer if it is above a certain height (above the layer's mean height ??)  with a net z velocity
-    def hasResidueLeftLayer(self, residue_ID, minimum_layer_height = -1e10, vapor_thickness = 10, layer_height=None):
+    def hasResidueLeftLayer(self, residue_ID, minimum_layer_height = -1e10, vapor_thickness = 10, density_fraction_cutoff=0.0, layer_height=None):
         if residue_ID >=1 :
             res = self.model.residue(residue_ID)
         else :
@@ -444,8 +436,7 @@ class Deposition(object):
 	if minimum_layer_height + escape_tolerance > highest_atom_height and cut_off_height > highest_atom_height: return False
 
         #net_z_velocity = sum( a.v[2] for a in res.atoms ) / len(res.atoms)
-        maxLayerHeight = layer_height if not layer_height == None else self.maxLayerHeight(res)
-        #  Should it be mass weighted ? why bother??
+        maxLayerHeight = layer_height if not layer_height == None else self.maxLayerHeight(res, density_fraction_cutoff=density_fraction_cutoff) #  Should it be mass weighted ? why bother??
         hasLeft = highest_atom_height > maxLayerHeight + escape_tolerance or highest_atom_height > cut_off_height
         if hasLeft:
             #logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
@@ -530,7 +521,11 @@ class Deposition(object):
 
     def highest_z(self):
         substrate = self.runConfig["substrate"]["res_name"]
-        z = max(a.x[2] for a in self.model.atoms if a.resname != substrate)
+        count = sum(1 for a in self.model.atoms if a.resname != substrate)
+        if count > 0:
+            z = max(a.x[2] for a in self.model.atoms if a.resname != substrate)
+        else:
+            z=0
         halfheight = 0.5*self.model.box[2][2]*10
         logging.debug("    highest z = {0}".format(z))
         return z
@@ -656,8 +651,7 @@ def cluster(resnameList):
     return clusterList
 
 def runDeposition(runConfigFile, starting_deposition_number=None,
-        continuation=False, remove_bounce=False, remove_leaving_layer=False,
-        run_with_mpi = None, max_cores = None,
+        continuation=False, remove_bounce=False, remove_leaving_layer=True, max_cores = None,
         debug=DEBUG):
     if debug:
         verbosity = logging.DEBUG
@@ -670,7 +664,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
     deposition = Deposition(runConfigFile,
             starting_deposition_number=starting_deposition_number,
             continuation=continuation,
-            run_with_mpi = run_with_mpi, max_cores = max_cores)
+            max_cores = max_cores)
     if deposition.run_ID == deposition.last_run_ID:
         logging.error("No more depositions to run")
         raise Exception("No more depositions to run")
@@ -678,7 +672,7 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
 
     walltime = 0.0
     starttime = time()
-    while deposition.run_ID < deposition.last_run_ID
+    while deposition.run_ID < deposition.last_run_ID:
         # Increment run ID
         deposition.run_ID += 1
         logging.debug("increment run_ID to '{0}'".format(deposition.run_ID))
@@ -688,7 +682,9 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
 
         logging.debug("run_ID is '{0}' after updateDepostionSetup".format(deposition.run_ID))
 
-        initial_layer_height = deposition.maxLayerHeight()
+        initial_layer_height = deposition.maxLayerHeight(
+            density_fraction_cutoff = deposition.runConfig["density_fraction_cutoff"],
+        )
 
         logging.debug("run_ID is '{0}' after maxLayerHeight".format(deposition.run_ID))
 
@@ -699,27 +695,24 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
 		logging.info("removing top molecule {0}".format(residue_id))
 		deposition.removeResidueWithID(residue_id)
 
-            while not deposition.hasResidueReachedLayer(-1): # -1 means last residue
-                if remove_bounce and deposition.hasResidueBounced(-1): # -1 means last residue
-                    logging.warning('It seems like the last inserted molecule has bounced off the surface.')
-                    deposition.removeResidueWithID(-1) #-1 means last residue
-                    break
-                else:
-                    logging.info("    Rerunning with same parameters ({parameters_dict}) due to last inserted  molecule not reaching layer".format(parameters_dict=deposition.runParameters()))
-                    deposition.runSystem(rerun=True)
-
+            highest = deposition.highest_z()
+            overhead_void_space = deposition.runConfig["overhead_void_space"]
+            new_Lz = highest + overhead_void_space
+            deposition.resize_box(new_Lz)
 
             if remove_leaving_layer :
                 # Iterate over the residues and remove the ones that left the layer
-                highest = deposition.highest_z()
-                layer_height = deposition.maxLayerHeight()
+                layer_height = deposition.maxLayerHeight(density_fraction_cutoff = deposition.runConfig['density_fraction_cutoff'])
+		logging.info("Layer height {0}".format(layer_height))
                 leaving = [ residue for residue in deposition.model.residues[1:] \
-                           if deposition.hasResidueLeftLayer(residue.id, minimum_layer_height = initial_layer_height, layer_height=layer_height)
+                           if deposition.hasResidueLeftLayer(
+                                   residue.id,
+                                   minimum_layer_height = initial_layer_height,
+                                   layer_height=layer_height,
+                                   density_fraction_cutoff = deposition.runConfig["density_fraction_cutoff"],
+                           )
                            ]
                 deposition.removeResidues(leaving)
-                buffer_space = 14
-                new_Lz = highest + buffer_space
-                deposition.resize_box(new_Lz)
             logging.info("[DEPOSITION] Running deposition with parameters: {parameters_dict}".format(rid=deposition.run_ID, parameters_dict=deposition.runParameters()))
             # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
             for i in range(deposition.insertions_per_run):
@@ -759,8 +752,6 @@ def parseCommandLine():
     parser.add_argument('--remove-mol-bouncing', dest='remove_bounce',        action='store_true')
     parser.add_argument('--remove-mol-leaving',  dest='remove_leaving_layer', action='store_true')
     parser.add_argument('--continuation',  dest='continuation', action='store_true', help='Continue a run if the working directory already exists')
-    parser.add_argument('--mpi',  dest='mpi', default=None, type=bool,
-            help='{bool} use mpi to run in parallel. Overrides "run_with_mpi" in config file.')
     parser.add_argument('--max-cores', dest='max_cores', default = None, type=int,
             help='{int} Provide the maximum number of cores to use with mpi. Overrides "max_cores" in config file.')
     args = parser.parse_args()
@@ -771,7 +762,6 @@ def parseCommandLine():
             remove_leaving_layer=args.remove_leaving_layer,
             debug=args.debug,
             continuation=args.continuation,
-            run_with_mpi = args.mpi,
             max_cores = args.max_cores)
 
 if __name__=="__main__":
