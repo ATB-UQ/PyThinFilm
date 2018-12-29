@@ -8,6 +8,7 @@ sys.path.append(PROJECT_PARENT_DIR)
 from vacuum_deposition.deposition import runDeposition
 
 TEST_CONFIG = sys.argv[1]
+TEST_CORES = sys.argv[2]
 GROMACS_BIN_PATH = "/usr/local/gromacs-4.6/bin"
 GROMACS_LIB_PATH = "/usr/local/gromacs-4.6/lib64"
 GROMACS_C_INCLUDE_PATH = "/usr/local/gromacs-4.6/include"
@@ -24,4 +25,4 @@ def setup_env_variables():
 
 if __name__ == "__main__":
     setup_env_variables()
-    runDeposition(TEST_CONFIG, debug=True, continuation=True,)
+    runDeposition(TEST_CONFIG, TEST_CORES, debug=True, continuation=True,)

@@ -6,10 +6,10 @@ TESTCASES:=quicktest IPA CLI MPI solution
 all : $(TESTCASES)
 
 quicktest :
-	python test.py quicktest.yml
+	python test.py quicktest.yml 1
 
 IPA :
-	python test.py IPA.yml
+	python test.py IPA.yml 1
 
 restarting :
 	python test.py restarting.yml 
@@ -17,19 +17,18 @@ restarting :
 	python test.py restarting.yml || echo done
 
 MPI : 
-	python test.py MPI.yml 
+	python test.py MPI.yml 2
 
 CLI :
 	python ../deposition.py -i CLI.yml \
-	    --remove-mol-bouncing \
-	    --remove-mol-leaving \
+	    --max-cores 1 \
 	    --debug \
 	    --start 0
 
 solution:
 	mkdir -p solution_working/1
 	cp configurations/solution.gro solution_working/1/end.gro
-	python test.py solution.yml 
+	python test.py solution.yml 2
 
 
 clean :

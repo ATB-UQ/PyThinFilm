@@ -1,13 +1,11 @@
 starting_deposition_number: 0
 final_deposition_number: 2 
 work_directory: solution_working
-#forcefield: '/home/564/avs564/m72/Ir_ppy2_acac/gromos54a7_atb.ff/forcefield.itp'
 forcefield: '../../gromos54a7_atb.ff/forcefield.itp'
 insert_distance: 30.0 #angstrom 
 contact_tolerance: 4000.0 #angstrom 
 escape_tolerance: 30.0 #angstrom 
 time_step: 0.004 #ps
-max_cores: 2
 density_fraction_cutoff: 0.5
 neighbor_list_time: 0.020 #ps
 drift_velocity: 0.05 #nm/ps
@@ -19,9 +17,8 @@ timeout: 10
 overhead_void_space: 30
 use_gpu : True
 mpi_prefix : "mpirun -np {0} " #for cpu simulations: "mpirun np {0} --bind-to-none"
-deposition_steps:
 description: 'DUMMY Deposition of CBP/IPS/CCL3 molecules (CBP/IPS weight percent = 5)'
-template: templates/deposition.mdp.epy
+template: deposition.mdp.epy
 first_sim_id: 1
 constraints: all-bonds
 last_sim_id: 2 

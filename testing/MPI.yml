@@ -2,7 +2,6 @@ starting_deposition_number: 0
 final_deposition_number: 7
 work_directory: MPI_working
 forcefield: '../../gromos54a7_atb.ff/forcefield.itp'
-max_cores: 2
 insert_distance: 30.0 #angstrom 
 contact_tolerance: 10000.0 #angstrom 
 escape_tolerance: 20.0 #angstrom 
@@ -14,13 +13,12 @@ gmx_path: ""
 mdrun : "gmx_mpi_d mdrun" 
 mdrun_mpi : "gmx_mpi_d mdrun" 
 grompp : "gmx_mpi_d grompp"
-tpbconv : "notneeded"
 timeout: 10
 neighbor_list_time: 0.020 #ps
 use_gpu : True
 mpi_prefix : "mpirun -np {0} " #for cpu simulations: "mpirun np {0} --bind-to-none"
 description: "Initial deposition of a full mixture of CBP"
-template: templates/deposition.mdp.epy
+template: deposition.mdp.epy
 first_sim_id: 1
 last_sim_id:  7
 run_time: 0.5 #ps
@@ -53,5 +51,3 @@ substrate:
       res_name: GRM
       pdb_file: templates/GRM.pdb
       itp_file: templates/GRM_restr_stiff.itp
-movies:
-    n_cores: 8

@@ -50,8 +50,9 @@ DEFAULT_PARAMETERS = {"lincs_order": 4,
 class Deposition(object):
 
     def __init__(self, runConfigFile,
+            max_cores,
             starting_deposition_number=None,
-            max_cores = None): # use runConfigFile by default
+            ): # use runConfigFile by default
         self.runConfig = yaml.load(open(runConfigFile))
         # Convert template paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, PROJECT_DIR)
@@ -106,7 +107,7 @@ class Deposition(object):
 	self.solvent_name = self.runConfig["solvent_name"] \
 		if "solvent_name" in self.runConfig else None
 
-        self.max_cores = self.runConfig["max_cores"] if max_cores == None else max_cores
+        self.max_cores = max_cores
 
     def molecule_number(self):
         return len(self.model.residues)
@@ -586,8 +587,8 @@ def cluster(resnameList):
             current_resname = ""
     return clusterList
 
-def runDeposition(runConfigFile, starting_deposition_number=None,
-        continuation=False, remove_bounce=False, remove_leaving_layer=True, max_cores = None,
+def runDeposition(runConfigFile, max_cores, starting_deposition_number=None,
+        continuation=False, remove_bounce=False, remove_leaving_layer=True,
         debug=DEBUG):
     if debug:
         verbosity = logging.DEBUG
@@ -598,8 +599,8 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
     logging.basicConfig(level=verbosity, format=format_log, datefmt='%d-%m-%Y %H:%M:%S')
 
     deposition = Deposition(runConfigFile,
+            max_cores,
             starting_deposition_number=starting_deposition_number,
-            max_cores = max_cores,
     )
     if deposition.run_ID == deposition.last_run_ID:
         logging.error("No more depositions to run")
@@ -681,16 +682,17 @@ def parseCommandLine():
     parser.add_argument('--start', help='{int} Provide a starting deposition number different from the one in the YAML file. Used to restart a deposition. This number corresponds to the last successful deposition. Use 0 to start from scratch.')
     parser.add_argument('--remove-mol-bouncing', dest='remove_bounce',        action='store_true')
     parser.add_argument('--remove-mol-leaving',  dest='remove_leaving_layer', action='store_true')
-    parser.add_argument('--max-cores', dest='max_cores', default = None, type=int,
-            help='{int} Provide the maximum number of cores to use with mpi. Overrides "max_cores" in config file.')
+    parser.add_argument('--max-cores', dest='max_cores', default = 1, type=int,
+            help='{int} Provide the maximum number of cores to use with mpi.')
     args = parser.parse_args()
 
     runDeposition(args.input,
+            args.max_cores,
             starting_deposition_number=int(args.start) if args.start else None,
             remove_bounce=args.remove_bounce,
             remove_leaving_layer=args.remove_leaving_layer,
             debug=args.debug,
-            max_cores = args.max_cores)
+    )
 
 if __name__=="__main__":
     parseCommandLine()

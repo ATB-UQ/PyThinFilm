@@ -2,7 +2,6 @@ starting_deposition_number: 0
 final_deposition_number: 7
 work_directory: IPA_working
 forcefield: '../../gromos54a7_atb.ff/forcefield.itp'
-max_cores: 1
 insert_distance: 30.0 #angstrom 
 contact_tolerance: 10000.0 #angstrom 
 escape_tolerance: 20.0 #angstrom 
@@ -19,7 +18,7 @@ timeout: 10
 neighbor_list_time: 0.020 #ps
 use_gpu : True
 description: "Initial deposition of a full mixture of CBP"
-template: templates/deposition.mdp.epy
+template: deposition.mdp.epy
 first_sim_id: 1
 last_sim_id:  7
 constraints: all-bonds
