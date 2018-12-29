@@ -1,7 +1,0 @@
-title: "Movie Scene n°1 (Changes the view, color residue number 14 in black, and no speedup)"
-first_sim_id: 11
-last_sim_id: 100
-pymol_commands:
-  - "color red, resi {{last_resid}}"
-frame_averaging: 8
-frame_skipping: 1
