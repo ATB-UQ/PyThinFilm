@@ -23,7 +23,6 @@ CLI :
 	python ../deposition.py -i CLI.yml \
 	    --remove-mol-bouncing \
 	    --remove-mol-leaving \
-	    --continuation \
 	    --debug \
 	    --start 0
 

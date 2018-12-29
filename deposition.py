@@ -38,14 +38,9 @@ GROMPP = "grompp_d"
 TPBCONV = "tpbconv_d"
 MDRUN = "mdrun_d"
 
-RERUN_FLAG = "-cpi md.cpt -append"
+MDRUN_TEMPLATE = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -pd -s md.tpr -deffnm md -c {struct}".format(struct=OUT_STRUCT_FILE)
 
-
-MDRUN_TEMPLATE = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -pd -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
-
-MDRUN_TEMPLATE_GPU = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -dlb no {{domain_decomposition}} -nstlist {{neighborUpdate}} -ntomp 1 -s md.tpr -deffnm md -c {struct} {{reRunFlag}}".format(struct=OUT_STRUCT_FILE)
-
-RERUN_SETUP_TEMPLATE = "{GMX_PATH}{tpbconv} -s md.tpr -extend {run_time} -o md.tpr" 
+MDRUN_TEMPLATE_GPU = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -dlb no {{domain_decomposition}} -nstlist {{neighborUpdate}} -ntomp 1 -s md.tpr -deffnm md -c {struct}".format(struct=OUT_STRUCT_FILE)
 
 
 K_B = 0.00831451 #kJ / (mol K)
@@ -56,7 +51,6 @@ DEFAULT_PARAMETERS = {"lincs_order": 4,
 class Deposition(object):
 
     def __init__(self, runConfigFile,
-            continuation = False,
             starting_deposition_number=None,
             max_cores = None): # use runConfigFile by default
         self.runConfig = yaml.load(open(runConfigFile))
@@ -68,16 +62,11 @@ class Deposition(object):
         if not os.path.exists(self.rootdir):
             os.makedirs(self.rootdir)
 
-        if continuation:
+        self.run_ID = self.get_latest_run_ID()
+        while self.last_run_failed():
+            logging.debug("    Running failed. Deleting: '{0}'".format(self.run_ID))
+            self.delete_run()
             self.run_ID = self.get_latest_run_ID()
-            while self.last_run_failed():
-                logging.debug("    Running failed. Deleting: '{0}'".format(self.run_ID))
-                self.delete_run()
-                self.run_ID = self.get_latest_run_ID()
-        else:
-            # Read starting_deposition_number from YAML file unless provided by command line
-            self.run_ID = self.runConfig["starting_deposition_number"] if not starting_deposition_number else starting_deposition_number
-            self.rootdir = os.path.abspath(self.runConfig["work_directory"])
 
         self.first_run_ID = self.run_ID
         self.start_time = time() 
@@ -180,9 +169,8 @@ class Deposition(object):
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
 
-    def runSystem(self, rerun=False):
+    def runSystem(self):
 
-        reRunFlag = RERUN_FLAG if rerun else ""
         if "domain_decomposition" in self.runConfig:
             domain_decomposition = "-dd "+self.runConfig["domain_decomposition"]
         else:
@@ -205,7 +193,6 @@ class Deposition(object):
         inserts = {"GMX_PATH":   self.gmx_path,
                    "MDP_FILE": self.mdp_file,
                    "run_ID": self.run_ID,
-                   "reRunFlag": reRunFlag,
                    "mpiRun":   mpiRun,
                    "mdrun":    mdrun, 
                    "grompp": grompp,
@@ -221,12 +208,8 @@ class Deposition(object):
         else:
             mdrun_template = MDRUN_TEMPLATE
 
-        if rerun:
-            # run rerun setup script
-            self.runTPBConf(inserts)
-        else:
-            # run grompp 
-            self.runGPP(inserts)
+        # run grompp 
+        self.runGPP(inserts)
 
         # run the md
         self.run(mdrun_template, inserts)
@@ -244,14 +227,7 @@ class Deposition(object):
         # now update model after run
         self.updateModel(configurationPath)
 
-    def runTPBConf(self, inserts):
-        inserts["run_time"] = self.deposition_step["run_time"]
-        inserts["tpbconv"] = self.runConfig["tpbconv"] \
-                    if "tpbconv" in self.runConfig else TPBCONV
-        self.run(RERUN_SETUP_TEMPLATE, inserts)
-
     def runGPP(self, inserts):
-
         self.run(GPP_TEMPLATE, inserts)
 
     def runSetup(self):
@@ -415,16 +391,6 @@ class Deposition(object):
 		        id=residue.id
 	return id
 
-
-    # A molecule has bounced if any of its atoms is above its insertion height
-    # NB: Relies on the definition of self.insertionHeight
-    def hasResidueBounced(self, residue_ID):
-        if residue_ID >=1 :
-            res = self.model.residue(residue_ID)
-        else :
-            res = self.model.residues[residue_ID]
-        return any([a.x[2] > self.insertionHeight for a in res.atoms])
-
     # A molecule as left layer if it is above a certain height (above the layer's mean height ??)  with a net z velocity
     def hasResidueLeftLayer(self, residue_ID, minimum_layer_height = -1e10, vapor_thickness = 10, density_fraction_cutoff=0.0, layer_height=None):
         if residue_ID >=1 :
@@ -535,14 +501,7 @@ class Deposition(object):
         return z
 
     def resize_box(self, new_Lz):
-#       substrate = self.runConfig["substrate"]["res_name"]
-#       z = max(a.x[2] for a in self.model.atoms if a.resname != substrate)
         halfheight = 0.5*self.model.box[2][2]*10
-#       # make sure substrate only has low coordiantes
-#       for atom in self.model.residues[0].atoms: #substrate residue
-#           if atom.x[2] > halfheight:
-#               atom.x[2] -= self.model.box[2][2]*10
-#       self.model.box[2][2] = 0.1 * (z + buffer_space)
         self.model.box[2][2] = 0.1 * (new_Lz)
 
         logging.debug("    box size changed from {0} to {1}".format(halfheight*2, 10*self.model.box[2][2]))
@@ -667,8 +626,8 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
 
     deposition = Deposition(runConfigFile,
             starting_deposition_number=starting_deposition_number,
-            continuation=continuation,
-            max_cores = max_cores)
+            max_cores = max_cores,
+    )
     if deposition.run_ID == deposition.last_run_ID:
         logging.error("No more depositions to run")
         raise Exception("No more depositions to run")
@@ -755,7 +714,6 @@ def parseCommandLine():
     parser.add_argument('--start', help='{int} Provide a starting deposition number different from the one in the YAML file. Used to restart a deposition. This number corresponds to the last successful deposition. Use 0 to start from scratch.')
     parser.add_argument('--remove-mol-bouncing', dest='remove_bounce',        action='store_true')
     parser.add_argument('--remove-mol-leaving',  dest='remove_leaving_layer', action='store_true')
-    parser.add_argument('--continuation',  dest='continuation', action='store_true', help='Continue a run if the working directory already exists')
     parser.add_argument('--max-cores', dest='max_cores', default = None, type=int,
             help='{int} Provide the maximum number of cores to use with mpi. Overrides "max_cores" in config file.')
     args = parser.parse_args()
@@ -765,7 +723,6 @@ def parseCommandLine():
             remove_bounce=args.remove_bounce,
             remove_leaving_layer=args.remove_leaving_layer,
             debug=args.debug,
-            continuation=args.continuation,
             max_cores = args.max_cores)
 
 if __name__=="__main__":
