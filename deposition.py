@@ -232,10 +232,6 @@ class Deposition(object):
             time_step = self.runConfig["time_step"]
             neighbor_list_time = self.runConfig["neighbor_list_time"]
 
-            # trajectory write frequency (nsxtcout)
-            trajectory_steps = 0 \
-                if not "trajectory_steps" in self.runConfig \
-                else self.runConfig["trajectory_steps"]
 
             fh.write(mdpTemplate.render(resList=resList, 
                     substrate=self.runConfig["substrate"], 
@@ -243,11 +239,7 @@ class Deposition(object):
                     timeStep=time_step, 
                     numberOfSteps=int(self.runConfig["run_time"]/time_step), 
                     temperature=self.runConfig["temperature"],
-                    trajectory_steps=trajectory_steps,
-                    lincs_order=self.runConfig["lincs_order"] if "lincs_order" in self.runConfig else DEFAULT_PARAMETERS["lincs_order"],
-                    lincs_iterations= self.runConfig["lincs_iterations"] if "lincs_iterations" in self.runConfig else DEFAULT_PARAMETERS["lincs_iterations"],
                     neighborUpdate = int(neighbor_list_time/time_step),
-                    constraints=self.runConfig["constraints"],
                     )
             )
 

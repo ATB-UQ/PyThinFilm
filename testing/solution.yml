@@ -12,7 +12,6 @@ drift_velocity: 0.05 #nm/ps
 gmx_path: ""
 mdrun : "gmx_mpi_d mdrun" 
 grompp : "gmx_mpi_d grompp"
-tpbconv : "gmx_mpi_d tpbconv"
 timeout: 10
 overhead_void_space: 30
 use_gpu : True
@@ -20,15 +19,11 @@ mpi_prefix : "mpirun -np {0} " #for cpu simulations: "mpirun np {0} --bind-to-no
 description: 'DUMMY Deposition of CBP/IPS/CCL3 molecules (CBP/IPS weight percent = 5)'
 template: deposition.mdp.epy
 first_sim_id: 1
-constraints: all-bonds
 last_sim_id: 2 
 run_time: 0.05 #ps
-trajectory_steps: 10
 insertions_per_run: 0
 insertion_xy_radius: 20.0 #angstroms
 insertion_z_radius: 20.0 #angstroms
-lincs_order: 4
-lincs_iterations: 1
 seed: 142271835
 temperature: 310 #K      
 mixture:
@@ -56,5 +51,3 @@ substrate:
     res_name: GRM
     pdb_file: templates/GRM.pdb
     itp_file: templates/GRM_restr_stiff.itp
-movies:
-    n_cores: 8

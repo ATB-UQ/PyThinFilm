@@ -20,14 +20,10 @@ template: deposition.mdp.epy
 first_sim_id: 1
 last_sim_id:  1
 run_time: 0.5 #ps
-constraints: all-bonds
-trajectory_steps: 1 
 insertions_per_run: 1
 insertion_xy_radius: 20.0 #angstroms
 insertion_z_radius: 10.0 #angstroms
 seed: 489327835
-lincs_order: 4
-lincs_iterations: 1
 temperature: 300 #K
 mixture:
   CBP:
@@ -49,5 +45,3 @@ substrate:
       res_name: GRM
       pdb_file: templates/GRM.pdb
       itp_file: templates/GRM_restr_stiff.itp
-movies:
-    n_cores: 8

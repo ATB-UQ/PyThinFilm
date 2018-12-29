@@ -13,7 +13,7 @@ comm_grps               = system                 ; group(s) for center of mass m
 
 
 ; output control
-nstxtcout                = {{trajectory_steps}}           ; [steps] freq to write coordinates to xtc trajectory
+nstxtcout                = 100
 xtc_grps                 = system                ; group(s) to write to xtc trajectory
 ;energygrps               = GRM CCL3 IPAS IPAR CBP                ; group(s) to write to energy file
                                                   ;energygrp-excl		 = GRM GRM
@@ -70,10 +70,10 @@ ref_t                    = {{temperature}} {{"{0} ".format(temperature)*resLengt
 gen_vel                  = no                   ; generate velocities according to Maxwell distribution of temperature
 
 ; bonds
-constraints              = {{constraints}}                      ; all-bonds or h-bonds
+constraints              = all-bonds
 constraint-algorithm     = lincs
-lincs-order              = {{lincs_order}}
-lincs-iter               = {{lincs_iterations}}
+lincs-order              = 4
+lincs-iter               = 1
 lincs-warnangle          = 30
 continuation             = no            ; no = apply constraints to the start configuration
 freezegrps               = {{substrate["res_name"]}}

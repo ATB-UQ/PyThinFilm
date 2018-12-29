@@ -21,15 +21,11 @@ description: "Initial deposition of a full mixture of CBP"
 template: deposition.mdp.epy
 first_sim_id: 1
 last_sim_id:  7
-constraints: all-bonds
 run_time: 0.5 #ps
-trajectory_steps: 1 
 insertions_per_run: 1
 insertion_xy_radius: 20.0 #angstroms
 insertion_z_radius: 10.0 #angstroms
 seed: 489327835
-lincs_order: 4
-lincs_iterations: 1
 temperature: 300 #K
 mixture:
   CBP:
