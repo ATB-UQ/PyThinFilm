@@ -21,9 +21,7 @@ use_gpu : True
 mpi_prefix : "mpirun -np {0} " #for cpu simulations: "mpirun np {0} --bind-to-none"
 deposition_steps:
     - description: 'DUMMY Deposition of CBP/IPS/CCL3 molecules (CBP/IPS weight percent = 5)'
-      template: 
-        type: deposition
-        file: templates/deposition.mdp.epy
+      template: templates/deposition.mdp.epy
       first_sim_id: 1
       constraints: all-bonds
       last_sim_id: 2 

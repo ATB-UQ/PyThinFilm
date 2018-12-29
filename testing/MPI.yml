@@ -21,9 +21,7 @@ use_gpu : True
 mpi_prefix : "mpirun -np {0} " #for cpu simulations: "mpirun np {0} --bind-to-none"
 deposition_steps:
   - description: "Initial deposition of a full mixture of CBP"
-    template: 
-      type: deposition
-      file: templates/deposition.mdp.epy
+    template: templates/deposition.mdp.epy
     first_sim_id: 1
     last_sim_id:  7
     run_time: 0.5 #ps

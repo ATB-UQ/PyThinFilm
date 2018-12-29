@@ -29,7 +29,6 @@ TOPOLOGY_FILE = "topo.top"
 
 TOP_TEMPLATE = join(TEMPLATE_DIR, "{0}.epy".format(TOPOLOGY_FILE))
 TOP_FILE = BASENAME_REMOVE_SUFFIX(TOP_TEMPLATE)
-TEMPLATE_ALLOWED_TYPES = ['deposition', 'annealing']
 
 GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -r {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE)
 
@@ -136,24 +135,15 @@ class Deposition(object):
 
         self.deposition_step = self.current_deposition_steps[0]
         # Update the MDP template
-        self.template_type = self.deposition_step['template']['type']
-        if not self.template_type in TEMPLATE_ALLOWED_TYPES :
-            raise Exception('Unknown template type: {template_type}. Allowed types are: {allowed_types}'.format(template_type=self.template_type, allowed_types=TEMPLATE_ALLOWED_TYPES) )
-        self.mdp_template_file = self.deposition_step['template']['file']
+        self.mdp_template_file = self.deposition_step['template']
         self.mdp_file = BASENAME_REMOVE_SUFFIX(self.mdp_template_file)
 
         # For depositon steps only, update the sampling mixture
-        if self.isDepositionRun():
-            # Set the sampling mixture to the next current step mixture
-            self.sampling_mixture = self.deposition_step['mixture']
+        # Set the sampling mixture to the next current step mixture
+        self.sampling_mixture = self.deposition_step['mixture']
 
-            self.insertions_per_run = \
-                self.deposition_step["insertions_per_run"]
-
-    def isDepositionRun(self):
-        return self.template_type == 'deposition'
-    def isAnnealingRun(self):
-        return self.template_type == 'annealing'
+        self.insertions_per_run = \
+        self.deposition_step["insertions_per_run"]
 
     def runParameters(self):
         parameters_dict =  { \
@@ -161,8 +151,7 @@ class Deposition(object):
                 'temperature':    "{0} K".format(self.deposition_step["temperature"]),
                 'run_time':       "{0} ps".format(self.deposition_step["run_time"]),
         }
-        if self.isDepositionRun():
-            parameters_dict['drift_velocity'] = "{0} nm/ps".format(self.runConfig["drift_velocity"])
+        parameters_dict['drift_velocity'] = "{0} nm/ps".format(self.runConfig["drift_velocity"])
         return parameters_dict
 
     def updateModel(self, configurationPath):
@@ -575,6 +564,8 @@ def recursiveCorrectPaths(node, root_dir):
         elif isinstance(value, list):
             for item in value:
                 recursiveCorrectPaths(item, root_dir) 
+        elif "template" in key:
+            node[key] = join(root_dir, value)
         elif "file" in key:
             node[key] = join(root_dir, value)
 
@@ -652,39 +643,36 @@ def runDeposition(runConfigFile, starting_deposition_number=None,
         logging.debug("run_ID is '{0}' after maxLayerHeight".format(deposition.run_ID))
 
 #NOTE THIS HAS BEEN MOVED FORWARD TO BETTER HANDLE SOLUTION DEPOSITION
-        if deposition.isDepositionRun():
-	    for i in range(deposition.remove_top_molecule) :
-		residue_id=deposition.top_molecule(deposition.solvent_name)		
-		logging.info("removing top molecule {0}".format(residue_id))
-		deposition.removeResidueWithID(residue_id)
+	for i in range(deposition.remove_top_molecule) :
+	    residue_id=deposition.top_molecule(deposition.solvent_name)		
+	    logging.info("removing top molecule {0}".format(residue_id))
+	    deposition.removeResidueWithID(residue_id)
 
-            highest = deposition.highest_z()
-            overhead_void_space = deposition.runConfig["overhead_void_space"]
-            new_Lz = highest + overhead_void_space
-            deposition.resize_box(new_Lz)
+        highest = deposition.highest_z()
+        overhead_void_space = deposition.runConfig["overhead_void_space"]
+        new_Lz = highest + overhead_void_space
+        deposition.resize_box(new_Lz)
 
-            if remove_leaving_layer :
-                # Iterate over the residues and remove the ones that left the layer
-                layer_height = deposition.maxLayerHeight(density_fraction_cutoff = deposition.runConfig['density_fraction_cutoff'])
-		logging.info("Layer height {0}".format(layer_height))
-                leaving = [ residue for residue in deposition.model.residues[1:] \
-                           if deposition.hasResidueLeftLayer(
-                                   residue.id,
-                                   minimum_layer_height = initial_layer_height,
-                                   layer_height=layer_height,
-                                   density_fraction_cutoff = deposition.runConfig["density_fraction_cutoff"],
-                           )
-                           ]
-                deposition.removeResidues(leaving)
-            logging.info("[DEPOSITION] Running deposition with parameters: {parameters_dict}".format(rid=deposition.run_ID, parameters_dict=deposition.runParameters()))
-            # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
-            for i in range(deposition.insertions_per_run):
-                nextMolecule = deposition.getNextMolecule()
-                last_residue = len(deposition.model.residues)
-                deposition.model.insert_residue(last_residue, nextMolecule.residues[0], " ")
-                deposition.genInitialVelocitiesLastResidue()
-        elif deposition.isAnnealingRun():
-            logging.info("[ANNEALING] Running annealing run with parameters: {parameters_dict}".format(parameters_dict=deposition.runParameters()))
+        if remove_leaving_layer :
+            # Iterate over the residues and remove the ones that left the layer
+            layer_height = deposition.maxLayerHeight(density_fraction_cutoff = deposition.runConfig['density_fraction_cutoff'])
+	    logging.info("Layer height {0}".format(layer_height))
+            leaving = [ residue for residue in deposition.model.residues[1:] \
+                       if deposition.hasResidueLeftLayer(
+                               residue.id,
+                               minimum_layer_height = initial_layer_height,
+                               layer_height=layer_height,
+                               density_fraction_cutoff = deposition.runConfig["density_fraction_cutoff"],
+                       )
+                       ]
+            deposition.removeResidues(leaving)
+        logging.info("[DEPOSITION] Running deposition with parameters: {parameters_dict}".format(rid=deposition.run_ID, parameters_dict=deposition.runParameters()))
+        # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
+        for i in range(deposition.insertions_per_run):
+            nextMolecule = deposition.getNextMolecule()
+            last_residue = len(deposition.model.residues)
+            deposition.model.insert_residue(last_residue, nextMolecule.residues[0], " ")
+            deposition.genInitialVelocitiesLastResidue()
 
         # create run directory and run setup make file
         deposition.runSetup()

@@ -19,9 +19,7 @@ neighbor_list_time: 0.020 #ps
 use_gpu : True
 deposition_steps:
   - description: "Initial deposition of a full mixture of CBP"
-    template: 
-      type: deposition
-      file: templates/deposition.mdp.epy
+    template: templates/deposition.mdp.epy
     first_sim_id: 1
     last_sim_id:  1
     run_time: 0.5 #ps
