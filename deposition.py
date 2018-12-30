@@ -336,14 +336,6 @@ class Deposition(object):
             if atom.resname == self.runConfig["substrate"]["res_name"]:
 		atom.v=[0.0,0.0,0.0] 
 
-    def hasResidueReachedLayer(self, residue_ID):
-        if residue_ID >=1 :
-            res = self.model.residue(residue_ID)
-        else :
-            res = self.model.residues[residue_ID]
-        maxLayerHeight = self.maxLayerHeight(res)
-        return any([a.x[2] < maxLayerHeight + self.runConfig["contact_tolerance"] for a in res.atoms])
-
     def top_molecule(self, resname):
 	zmax=-1e10
 	id = -1
@@ -579,7 +571,6 @@ def cluster(resnameList):
     return clusterList
 
 def runDeposition(runConfigFile, max_cores, 
-        continuation=False, remove_bounce=False, remove_leaving_layer=True,
         debug=DEBUG):
     if debug:
         verbosity = logging.DEBUG
@@ -623,7 +614,7 @@ def runDeposition(runConfigFile, max_cores,
         new_Lz = highest + overhead_void_space
         deposition.resize_box(new_Lz)
 
-        if remove_leaving_layer :
+        if highest > deposition.runConfig["escape_tolerance"]  :
             # Iterate over the residues and remove the ones that left the layer
             layer_height = deposition.maxLayerHeight(density_fraction_cutoff = deposition.runConfig['density_fraction_cutoff'])
 	    logging.info("Layer height {0}".format(layer_height))
@@ -669,16 +660,12 @@ def parseCommandLine():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
     parser.add_argument('--debug', dest='debug', action='store_true')
-    parser.add_argument('--remove-mol-bouncing', dest='remove_bounce',        action='store_true')
-    parser.add_argument('--remove-mol-leaving',  dest='remove_leaving_layer', action='store_true')
     parser.add_argument('--max-cores', dest='max_cores', default = 1, type=int,
             help='{int} Provide the maximum number of cores to use with mpi.')
     args = parser.parse_args()
 
     runDeposition(args.input,
             args.max_cores,
-            remove_bounce=args.remove_bounce,
-            remove_leaving_layer=args.remove_leaving_layer,
             debug=args.debug,
     )
 

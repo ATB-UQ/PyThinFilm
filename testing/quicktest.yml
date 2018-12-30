@@ -2,7 +2,6 @@ final_deposition_number: 1
 work_directory: quicktest_working
 forcefield: '../../gromos54a7_atb.ff/forcefield.itp'
 insert_distance: 30.0 #angstrom 
-contact_tolerance: 10000.0 #angstrom 
 escape_tolerance: 20.0 #angstrom 
 time_step: 0.004 #ps
 density_fraction_cutoff: 0.5

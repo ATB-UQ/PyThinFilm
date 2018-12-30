@@ -25,4 +25,4 @@ def setup_env_variables():
 
 if __name__ == "__main__":
     setup_env_variables()
-    runDeposition(TEST_CONFIG, TEST_CORES, debug=True, continuation=True,)
+    runDeposition(TEST_CONFIG, TEST_CORES, debug=True, )
