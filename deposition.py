@@ -348,7 +348,7 @@ class Deposition(object):
 	return id
 
     # A molecule as left layer if it is above a certain height (above the layer's mean height ??)  with a net z velocity
-    def hasResidueLeftLayer(self, residue_ID, minimum_layer_height = -1e10, vapor_thickness = 10, density_fraction_cutoff=0.0, layer_height=None):
+    def hasResidueLeftLayer(self, residue_ID, minimum_layer_height = -1e10, density_fraction_cutoff=0.0, layer_height=None):
         if residue_ID >=1 :
             res = self.model.residue(residue_ID)
         else :
@@ -357,15 +357,12 @@ class Deposition(object):
 
 
         highest_atom_height = max([a.x[2] for a in res.atoms])
-        cut_off_height = self.model.box[2][2]*10 - vapor_thickness
        # if net_z_velocity <= 0 or minimum_layer_height + escape_tolerance > highest_atom_height: return False
-	if minimum_layer_height + escape_tolerance > highest_atom_height and cut_off_height > highest_atom_height: return False
+	if minimum_layer_height + escape_tolerance > highest_atom_height: return False
 
-        #net_z_velocity = sum( a.v[2] for a in res.atoms ) / len(res.atoms)
         maxLayerHeight = layer_height if not layer_height == None else self.maxLayerHeight(res, density_fraction_cutoff=density_fraction_cutoff) #  Should it be mass weighted ? why bother??
-        hasLeft = highest_atom_height > maxLayerHeight + escape_tolerance or highest_atom_height > cut_off_height
+        hasLeft = highest_atom_height > maxLayerHeight + escape_tolerance
         if hasLeft:
-            #logging.debug("    Net Z velocity for residue {0}: {1}; Highest Atom Height: {2}".format(res.id, net_z_velocity, highest_atom_height))
             logging.debug("    Highest Atom Height: {1}".format(res.id, highest_atom_height))
         return hasLeft
 
