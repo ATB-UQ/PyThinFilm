@@ -1,4 +1,3 @@
-starting_deposition_number: 0
 final_deposition_number: 1
 work_directory: quicktest_working
 forcefield: '../../gromos54a7_atb.ff/forcefield.itp'
@@ -17,8 +16,6 @@ neighbor_list_time: 0.020 #ps
 use_gpu : True
 description: "Initial deposition of a full mixture of CBP"
 template: deposition.mdp.epy
-first_sim_id: 1
-last_sim_id:  1
 run_time: 0.5 #ps
 insertions_per_run: 1
 insertion_xy_radius: 20.0 #angstroms

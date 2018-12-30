@@ -22,8 +22,7 @@ MPI :
 CLI :
 	python ../deposition.py -i CLI.yml \
 	    --max-cores 1 \
-	    --debug \
-	    --start 0
+	    --debug
 
 solution:
 	mkdir -p solution_working/1
