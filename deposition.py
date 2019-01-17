@@ -470,7 +470,7 @@ class Deposition(object):
     def last_run_failed(self):
         log_filename = os.path.join(self.rootdir ,str(self.run_ID), "md.log")
         if not os.path.isfile(log_filename):
-            return False
+            return True
         else:
             proc = subprocess.Popen(['tail', '-n', "1", log_filename], stdout=subprocess.PIPE)
             lines = proc.stdout.readlines()
