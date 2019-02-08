@@ -469,10 +469,15 @@ class Deposition(object):
         return z
 
     def resize_box(self, new_Lz):
-        halfheight = 0.5*self.model.box[2][2]*10
+        old_Lz = self.model.box[2][2]*10
+        half_old_Lz = 0.5*old_Lz
         self.model.box[2][2] = 0.1 * (new_Lz)
 
-        logging.debug("    box size changed from {0} to {1}".format(halfheight*2, 10*self.model.box[2][2]))
+	for atom in self.model.atoms:
+            if atom.resname == self.runConfig["substrate"]["res_name"] and atom.x[2] > half_old_Lz:
+		atom.x[2] -= old_Lz
+
+        logging.debug("    box size changed from {0} to {1}".format(old_Lz, 10*self.model.box[2][2]))
 
     def writeInitConfiguration(self):
         updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
