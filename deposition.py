@@ -22,6 +22,7 @@ if DEBUG:
 
 OUT_STRUCT_FILE = "end.gro"
 IN_STRUCT_FILE = "init.gro"
+RESTRAINT_FILE = "restraints.gro"
 
 BASENAME_REMOVE_SUFFIX = lambda path: ".".join( basename(path) .split('.')[0:2])
 
@@ -30,7 +31,7 @@ TOPOLOGY_FILE = "topo.top"
 TOP_TEMPLATE = join(TEMPLATE_DIR, "{0}.epy".format(TOPOLOGY_FILE))
 TOP_FILE = BASENAME_REMOVE_SUFFIX(TOP_TEMPLATE)
 
-GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -r {struct} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE)
+GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -r {restraints} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE, restraints = RESTRAINT_FILE)
 
 
 GROMPP = "grompp_d"
@@ -140,6 +141,20 @@ class Deposition(object):
     def updateModel(self, configurationPath):
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
+
+    def reset_substrate_positions(self):
+#WARNING! This modifies the model
+#would be better to make a deep copy but slow for large systems
+        substrate = pmx.Model(self.runConfig["substrate"]["pdb_file"])
+        substrate.nm2a()
+        for i in range(len(substrate.atoms)):
+            self.model.atoms[i].x = substrate.atoms[i].x
+
+    def write_restraints_file(self):
+        self.reset_substrate_positions()
+        restraints_path = join(self.rundir, RESTRAINT_FILE)
+        self.model.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
+
 
     def runSystem(self):
 
@@ -635,10 +650,11 @@ def runDeposition(runConfigFile, max_cores,
         # create run directory and run setup make file
         deposition.runSetup()
         
-        deposition.zero_substrate_velocity()
+        #deposition.zero_substrate_velocity()
 
         # Write updated model to run directory
         deposition.writeInitConfiguration()
+        deposition.write_restraints_file() #NOTE! This modifies substrate positions in deposition.model.
 
         actualMixture = ",".join([" {0}:{1}".format(r["res_name"], r["count"]) for r in deposition.mixture.values()])
         # Do first Run
