@@ -62,7 +62,7 @@ class Deposition(object):
             os.makedirs(self.rootdir)
 
         self.run_ID = self.get_latest_run_ID()
-        while self.last_run_failed():
+        while self.last_run_failed() and self.run_ID > 1:
             logging.debug("    Running failed. Deleting: '{0}'".format(self.run_ID))
             self.delete_run()
             self.run_ID = self.get_latest_run_ID()
