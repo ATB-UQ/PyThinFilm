@@ -10,7 +10,7 @@ datetime=$(date +"%F-%H-%M-%S")
 
 mkdir -p log
 
-squeue --format "%Z" | grep $(pwd -P) || sbatch  <<EOF
+squeue --format "%Z %t" | grep $(pwd -P) | grep -v ' CG' || sbatch  <<EOF
 #!/usr/bin/env bash
 #SBATCH --job-name=${name}
 #SBATCH --nodes=2 --ntasks-per-node=28
