@@ -1,5 +1,6 @@
 import subprocess
 import os
+from StringIO import StringIO
 from os.path import join, basename, exists
 from traceback import format_exc
 import pmx
@@ -20,27 +21,24 @@ DEBUG = False
 if DEBUG:
     logging.basicConfig(level=logging.DEBUG)
 
-OUT_STRUCT_FILE = "end.gro"
-IN_STRUCT_FILE = "init.gro"
-RESTRAINT_FILE = "restraints.gro"
+def filename(sim_name, category, run, ext):
+    return "{}_{}_{}.{}".format(sim_name, category, run, ext)
+
 
 BASENAME_REMOVE_SUFFIX = lambda path: ".".join( basename(path) .split('.')[0:2])
 
-TOPOLOGY_FILE = "topo.top"
+TOP_TEMPLATE = join(TEMPLATE_DIR, "topo.top.epy")
 
-TOP_TEMPLATE = join(TEMPLATE_DIR, "{0}.epy".format(TOPOLOGY_FILE))
-TOP_FILE = BASENAME_REMOVE_SUFFIX(TOP_TEMPLATE)
-
-GPP_TEMPLATE = "{{GMX_PATH}}{{grompp}} -f {{MDP_FILE}} -c {struct} -r {restraints} -p topo.top -o md.tpr".format(struct=IN_STRUCT_FILE, restraints = RESTRAINT_FILE)
+GPP_TEMPLATE = "{GMX_PATH}{grompp} -f {MDP_FILE} -c {initial} -r {restraints} -n {index} -p {top} -o {tpr} "
 
 
 GROMPP = "grompp_d"
 TPBCONV = "tpbconv_d"
 MDRUN = "mdrun_d"
 
-MDRUN_TEMPLATE = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -pd -s md.tpr -deffnm md -c {struct}".format(struct=OUT_STRUCT_FILE)
+MDRUN_TEMPLATE = "{mpiRun}{GMX_PATH}{mdrun} -pd -s {tpr} -x {xtc} -e {edr} -g {log} -cpo {cpo} -c {initial}"
 
-MDRUN_TEMPLATE_GPU = "{{mpiRun}}{{GMX_PATH}}{{mdrun}} -dlb no {{domain_decomposition}} -nstlist {{neighborUpdate}} -ntomp 1 -s md.tpr -deffnm md -c {struct}".format(struct=OUT_STRUCT_FILE)
+MDRUN_TEMPLATE_GPU = "{mpiRun}{GMX_PATH}{mdrun} -dlb no {domain_decomposition} -nstlist {neighborUpdate} -ntomp 1 -s {tpr} -x {xtc} -e {edr} -g {log} -cpo {cpo} -c {final}"
 
 
 K_B = 0.00831451 #kJ / (mol K)
@@ -48,11 +46,14 @@ K_B = 0.00831451 #kJ / (mol K)
 DEFAULT_PARAMETERS = {"lincs_order": 4,
               "lincs_iterations":1}
 
+ROOT_DIRS = ["topology", "trajectory", "log", "tpr", "energy", "restraints", "index", "checkpoint", "final-coordinates", "control", "input-coordinates", "stdout", "stderr"]
+
 class Deposition(object):
 
-    def __init__(self, runConfigFile,
+    def __init__(self, name, runConfigFile,
             max_cores,
             ): # use runConfigFile by default
+        self.name = name
         self.runConfig = yaml.load(open(runConfigFile))
         # Convert template paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, PROJECT_DIR)
@@ -61,6 +62,8 @@ class Deposition(object):
         # Create the 'work_directory' if it doesn't exist
         if not os.path.exists(self.rootdir):
             os.makedirs(self.rootdir)
+            for dir in ROOT_DIRS:
+                os.makedirs(os.path.join(self.rootdir, dir))
 
         self.run_ID = self.get_latest_run_ID()
         while self.last_run_failed() and self.run_ID > 1:
@@ -73,17 +76,10 @@ class Deposition(object):
 
         self.disambiguate_run_config()
 
-        # By default, try restarting form the current branch
-        self.rundir = self.get_rundir()
-        # Otherwise restart from the master '' branch
-        if not exists(self.rundir):
-            self.rundir = join(self.rootdir, str(self.run_ID))
-        print self.rundir
-
         if self.run_ID == 0:
             configurationPath = self.runConfig["substrate"]["pdb_file"]
         else:
-            configurationPath = join(self.rundir, OUT_STRUCT_FILE)
+            configurationPath = self.filename("final-coordinates","gro", prev_run=True)
 
         self.model = pmx.Model(configurationPath)
         self.model.nm2a()
@@ -98,8 +94,6 @@ class Deposition(object):
 
         self.initDepositionSteps()
 
-        self.log = "out.log"
-        self.err = "out.err"
         self.timeout = 60*60*self.runConfig["timeout"] if "timeout" in self.runConfig else 1e30
 
 	self.remove_top_molecule = self.runConfig["remove_top_molecule"] \
@@ -113,13 +107,14 @@ class Deposition(object):
         return len(self.model.residues)
 
     def get_latest_run_ID(self):
-        depositions = [int(d) for d in os.listdir(self.rootdir) if d.isdigit()]
-        depositions.sort()
-        return depositions[-1] if len(depositions) > 0 else 0
+        logdir = os.path.join(self.rootdir, "log")
+        if os.path.isdir(logdir):
+            log_files = os.listdir(os.path.join(self.rootdir, "log"))
+            num = [ int(f.rsplit('_', 1)[-1].split('.')[0]) for f in log_files if not ".bak." in f  ]
+            return max(num) if len(num) > 0 else 0
+        else:
+            return 0
 
-    def get_rundir(self):
-        suffix = str(self.runConfig['development']['branch']) if ("development" in self.runConfig) else ""
-        return join(self.rootdir, str(self.run_ID) + suffix)
 
     def initDepositionSteps(self):
         # Get the list of all the deposition steps
@@ -152,8 +147,12 @@ class Deposition(object):
 
     def write_restraints_file(self):
         self.reset_substrate_positions()
-        restraints_path = join(self.rundir, RESTRAINT_FILE)
+        restraints_path = join(self.rootdir, self.filename("restraints", "gro"))
         self.model.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
+
+    def filename(self, category, ext, prev_run=False):
+        run = self.run_ID - (1 if prev_run else 0)
+        return join(self.rootdir, category, filename(self.name, category, run, ext))
 
 
     def runSystem(self):
@@ -178,7 +177,17 @@ class Deposition(object):
                     if "grompp" in self.runConfig else GROMPP
 
         inserts = {"GMX_PATH":   self.gmx_path,
-                   "MDP_FILE": self.mdp_file,
+                   "MDP_FILE": self.filename("control","mdp"),
+                   "tpr": self.filename("tpr", "tpr"),
+                   "xtc": self.filename("trajectory", "xtc"),
+                   "top": self.filename("topology", "top"),
+                   "log": self.filename("log", "log"),
+                   "edr": self.filename("energy", "edr"),
+                   "cpo": self.filename("checkpoint", "cpt"),
+                   "initial": self.filename("input-coordinates", "gro"),
+                   "final": self.filename("final-coordinates", "gro"),
+                   "index": self.filename("index", "ndx"),
+                   "restraints": self.filename("restraints", "gro"),
                    "run_ID": self.run_ID,
                    "mpiRun":   mpiRun,
                    "mdrun":    mdrun, 
@@ -201,15 +210,10 @@ class Deposition(object):
         # run the md
         self.run(mdrun_template, inserts)
 
-        configurationPath = join(self.rundir, OUT_STRUCT_FILE) 
+        configurationPath = self.filename("final-coordinates","gro")
 
         if not os.path.exists(configurationPath):
             logging.error("MD run did not produce expected output file")
-            errorLog = open(join(self.rootdir, str(self.run_ID), self.err)).readlines()
-            for i, l in enumerate(errorLog):
-                if "fatal error" in l.lower():
-                    logging.error("Error from GROMACS:\n{0}\n".format("".join(errorLog[i:i+7])))
-                    break
 
         # now update model after run
         self.updateModel(configurationPath)
@@ -218,10 +222,9 @@ class Deposition(object):
         self.run(GPP_TEMPLATE, inserts)
 
     def runSetup(self):
-        self.rundir = self.get_rundir()
 
-        if not os.path.exists(self.rundir):
-            os.mkdir(self.rundir)
+        if not os.path.exists(self.rootdir):
+            os.mkdir(self.rootdir)
 
         with open(TOP_TEMPLATE) as fh:
             topTemplate = jinja2.Template(fh.read())
@@ -229,7 +232,7 @@ class Deposition(object):
         with open(self.mdp_template_file) as fh:
             mdpTemplate = jinja2.Template(fh.read())
 
-        with open(join(self.rundir, TOP_FILE), "w") as fh:
+        with open(self.filename("topology","top"), "w") as fh:
             fh.write(
                 topTemplate.render(
                     resMixture = self.mixture,
@@ -241,15 +244,16 @@ class Deposition(object):
                 )
             )
 
-        with open(join(self.rundir, self.mdp_file),"w") as fh:
+        with open(self.filename("control", "mdp"),"w") as fh:
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
             time_step = self.runConfig["time_step"]
             neighbor_list_time = self.runConfig["neighbor_list_time"]
-
+            num_slabs = self.get_num_slabs()
 
             fh.write(mdpTemplate.render(resList=resList, 
                     substrate=self.runConfig["substrate"], 
-                    resLength=len(resList), 
+                    slabs = " ".join(["slab{}".format(b) for b in range(num_slabs)]),
+                    num_slabs= num_slabs, 
                     timeStep=time_step, 
                     numberOfSteps=int(self.runConfig["run_time"]/time_step), 
                     temperature=self.runConfig["temperature"],
@@ -263,16 +267,16 @@ class Deposition(object):
         argList = argString.split()
 
         returncode = 1
-        logFilepath = join(self.rundir, self.log)
-        errFilepath = join(self.rundir, self.err)
+        logFilepath = self.filename("stdout", "txt")
+        errFilepath = self.filename("stderr", "txt")
         logFile = open(logFilepath, "a")
         errFile = open(errFilepath, "a")
+        logging.debug("    Running from: '{0}'".format(self.rootdir))
+        logging.debug("    Running command: '{0}'".format(argString))
+        step_start_time = time()
+        # kill if talking too long
+        proc = subprocess.Popen(argList, cwd=self.rootdir, stdout=logFile, stderr=errFile, env=os.environ)
         try:
-            logging.debug("    Running from: '{0}'".format(self.rundir))
-            logging.debug("    Running command: '{0}'".format(argString))
-            step_start_time = time()
-            # kill if talking too long
-            proc = subprocess.Popen(argList, cwd=self.rundir, stdout=logFile, stderr=errFile, env=os.environ)
             timer = Timer(self.timeout, proc.kill) #kill if taking too long
             returncode = proc.wait()
         except:
@@ -480,15 +484,22 @@ class Deposition(object):
         logging.debug("    box size changed from {0} to {1}".format(old_Lz, 10*self.model.box[2][2]))
 
     def writeInitConfiguration(self):
-        updatedPDBPath = join(self.rundir, IN_STRUCT_FILE)
+        updatedPDBPath = self.filename("input-coordinates", "gro")
         self.model.write(updatedPDBPath, "{0} deposited molecules".format(self.run_ID), 0)
 
     def delete_run(self):
-        run_dir = os.path.join(self.rootdir ,str(self.run_ID))
-        os.rename(run_dir, run_dir+".bak."+str(time()))
+        dirs = os.listdir(self.rootdir)
+        for dir in ROOT_DIRS:
+            if os.path.isdir(os.path.join(self.rootdir, dir)):
+                files = os.listdir(os.path.join(self.rootdir, dir))
+                idstr = "_{}".format(self.run_ID)
+                for file in files:
+                    if file.rsplit(".", 1)[0].endswith(idstr):
+                        filepath = os.path.join(self.rootdir, dir, file)
+                        os.rename(filepath, filepath+".bak."+str(time()))
 
     def last_run_failed(self):
-        log_filename = os.path.join(self.rootdir ,str(self.run_ID), "md.log")
+        log_filename = self.filename("log", "log")
         if not os.path.isfile(log_filename):
             return True
         else:
@@ -511,6 +522,68 @@ class Deposition(object):
                 self.mixture[res.resname]["count"] += 1
         # Log the mixture
         logging.debug('Initial mixture is: {mixture}'.format(mixture=self.mixture))
+
+    def get_num_slabs(self):
+        slab_width = self.runConfig["slab_width"]
+        Lz = self.model.box[2][2]*10
+        return int(math.ceil(Lz/slab_width))
+
+    def write_index_file(self):
+        """
+        write index file containing groups for thermostatting and com subtraction"
+        """
+        slab_width = self.runConfig["slab_width"]
+        Lz = self.model.box[2][2]*10
+        num_slabs = self.get_num_slabs()
+        substrate = self.runConfig["substrate"]["res_name"]
+        residue_z = { residue.id:res_highest_z(residue) for residue in self.model.residues if not residue.resname == substrate }
+        slab_strings = {b:StringIO() for b in range(num_slabs)}
+        slab_atoms = {b:[] for b in range(num_slabs)}
+        for atom in self.model.atoms:
+            if not atom.resname == substrate:
+                slab_id = int(math.floor(residue_z[atom.resnr]/slab_width))
+                slab_atoms[slab_id].append(atom.id)
+
+        min_atoms_per_slab = self.runConfig["min_atoms_per_slab"]
+        # make sure atoms not in small groups if possible
+        num_slab_atoms = sum( len(x) for x in slab_atoms.values() )
+        if num_slab_atoms < min_atoms_per_slab:
+            for slab_id in range(1,len(slab_atoms)):
+                slab_atoms[0] += slab_atoms[slab_id]
+                slab_atoms[slab_id] = []
+        else:
+            #keep looping until no changes being made
+            consolidated = False
+            while not consolidated:
+                consolidated = True
+                for slab_id in range(1,num_slabs):
+                    if len(slab_atoms[slab_id]) < min_atoms_per_slab:
+                        slab_atoms[slab_id-1] = slab_atoms[slab_id-1] + slab_atoms[slab_id]
+                        slab_atoms[slab_id] = []
+                        consolidated = False
+                
+        ndx_path = self.filename("index", "ndx")
+        with open(ndx_path,"w") as f:
+            for slab_id in range(num_slabs):
+                f.write("[ slab{} ]\n".format(slab_id))
+                for atom_id in slab_atoms[slab_id]:
+                    f.write("{}\n".format(atom_id))
+            f.write("[ system ]\n")
+            for i in range(len(self.model.atoms)):
+                f.write("{}\n".format(i+1))
+            f.write("[ substrate ]\n")
+            for residue in self.model.residues:
+                if residue.resname == substrate:
+                    for atom in residue.atoms:
+                        f.write("{}\n".format(atom.id))
+            f.write("[ film ]\n")
+            for residue in self.model.residues:
+                if not residue.resname == substrate:
+                    for atom in residue.atoms:
+                        f.write("{}\n".format(atom.id))
+
+def res_highest_z(residue):
+    return max(atom.x[2] for atom in residue.atoms)
 
 #this is needed because removing one by one is very slow in large systems
 # (one by one takes 4s for 1.8 million atoms)
@@ -587,8 +660,7 @@ def cluster(resnameList):
             current_resname = ""
     return clusterList
 
-def runDeposition(runConfigFile, max_cores, 
-        debug=DEBUG):
+def runDeposition(runConfigFile, name, max_cores, debug=DEBUG):
     if debug:
         verbosity = logging.DEBUG
         format_log = '%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)'
@@ -597,7 +669,8 @@ def runDeposition(runConfigFile, max_cores,
         format_log = '%(asctime)s - [%(levelname)s] - %(message)s'
     logging.basicConfig(level=verbosity, format=format_log, datefmt='%d-%m-%Y %H:%M:%S')
 
-    deposition = Deposition(runConfigFile,
+    deposition = Deposition(name,
+                            runConfigFile,
             max_cores,
     )
     if deposition.run_ID == deposition.last_run_ID:
@@ -659,6 +732,9 @@ def runDeposition(runConfigFile, max_cores,
 
         # Write updated model to run directory
         deposition.writeInitConfiguration()
+        logging.debug("creating index file")
+        deposition.write_index_file()
+        logging.debug("creating restraints file")
         deposition.write_restraints_file() #NOTE! This modifies substrate positions in deposition.model.
 
         actualMixture = ",".join([" {0}:{1}".format(r["res_name"], r["count"]) for r in deposition.mixture.values()])
@@ -677,12 +753,14 @@ def runDeposition(runConfigFile, max_cores,
 def parseCommandLine():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
+    parser.add_argument('-n', '--name', help="name of simulation.")
     parser.add_argument('--debug', dest='debug', action='store_true')
     parser.add_argument('--max-cores', dest='max_cores', default = 1, type=int,
             help='{int} Provide the maximum number of cores to use with mpi.')
     args = parser.parse_args()
 
     runDeposition(args.input,
+            args.name,
             args.max_cores,
             debug=args.debug,
     )

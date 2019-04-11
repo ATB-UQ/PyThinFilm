@@ -14,6 +14,7 @@ timeout: 10
 neighbor_list_time: 0.020 #ps
 use_gpu : True
 description: "Initial deposition of a full mixture of CBP"
+mpi_prefix : "mpirun -np {0} " #for cpu simulations: "mpirun np {0} --bind-to-none"
 template: deposition.mdp.epy
 run_time: 0.5 #ps
 insertions_per_run: 1
@@ -21,6 +22,8 @@ insertion_xy_radius: 20.0 #angstroms
 insertion_z_radius: 10.0 #angstroms
 seed: 489327835
 temperature: 300 #K
+bath_width: 100
+restraint_file: GRM4x_restr_nobonds_2layers.gro
 mixture:
   CBP:
     res_name: CBP
