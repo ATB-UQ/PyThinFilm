@@ -24,7 +24,6 @@ seed: 489327835
 temperature: 300 #K
 slab_width: 100
 min_atoms_per_slab: 1000
-restraint_file: GRM4x_restr_nobonds_2layers.gro
 mixture:
   CBP:
     res_name: CBP
