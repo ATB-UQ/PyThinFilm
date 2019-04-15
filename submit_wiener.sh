@@ -29,6 +29,6 @@ set -o verbose
 #load modules here
 module use /scratch/scmb/uqtlee10/modulefiles
 module load gromacs/2018.3-TLmod
-python deposition.py -i parameters.yml --debug --max-cores $cpus >> log/${name}_dep.log 2>&1
+python deposition.py --name $name -i parameters.yml --debug --max-cores $cpus >> log/${name}_dep.log 2>&1
 EOF
 #84 56 28
