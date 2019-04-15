@@ -29,7 +29,7 @@ BASENAME_REMOVE_SUFFIX = lambda path: ".".join( basename(path) .split('.')[0:2])
 
 TOP_TEMPLATE = join(TEMPLATE_DIR, "topo.top.epy")
 
-GPP_TEMPLATE = "{GMX_PATH}{grompp} -f {MDP_FILE} -c {initial} -r {restraints} -n {index} -p {top} -o {tpr} "
+GPP_TEMPLATE = "{GMX_PATH}{grompp} -maxwarn 1 -f {MDP_FILE} -c {initial} -r {restraints} -n {index} -p {top} -o {tpr} "
 
 
 GROMPP = "grompp_d"
@@ -86,6 +86,8 @@ class Deposition(object):
 
         self.sampling_mixture = self.runConfig["mixture"]
         self.mixture = {}
+
+        self.new_residues = []
 
         self.mdp_template_file = self.runConfig['template']
         self.mdp_file = BASENAME_REMOVE_SUFFIX(self.mdp_template_file)
@@ -536,11 +538,11 @@ class Deposition(object):
         Lz = self.model.box[2][2]*10
         num_slabs = self.get_num_slabs()
         substrate = self.runConfig["substrate"]["res_name"]
-        residue_z = { residue.id:res_highest_z(residue) for residue in self.model.residues if not residue.resname == substrate }
+        residue_z = { residue.id:res_highest_z(residue) for residue in self.model.residues } #if not residue.resname == substrate }
         slab_strings = {b:StringIO() for b in range(num_slabs)}
         slab_atoms = {b:[] for b in range(num_slabs)}
         for atom in self.model.atoms:
-            if not atom.resname == substrate:
+            if not atom.resnr in self.new_residues:
                 slab_id = int(math.floor(residue_z[atom.resnr]/slab_width))
                 slab_atoms[slab_id].append(atom.id)
 
@@ -581,6 +583,17 @@ class Deposition(object):
                 if not residue.resname == substrate:
                     for atom in residue.atoms:
                         f.write("{}\n".format(atom.id))
+
+    def insert_residues(self):
+        # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
+        self.new_residues = []
+        for i in range(self.insertions_per_run):
+            nextMolecule = self.getNextMolecule()
+            last_residue = len(self.model.residues)
+            self.model.insert_residue(last_residue, nextMolecule.residues[0], " ")
+            self.genInitialVelocitiesLastResidue()
+            self.new_residues.append(len(self.model.residues))
+
 
 def res_highest_z(residue):
     return max(atom.x[2] for atom in residue.atoms)
@@ -719,11 +732,7 @@ def runDeposition(runConfigFile, name, max_cores, debug=DEBUG):
             deposition.removeResidues(leaving)
         logging.info("[DEPOSITION] Running deposition with parameters: {parameters_dict}".format(rid=deposition.run_ID, parameters_dict=deposition.runParameters()))
         # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
-        for i in range(deposition.insertions_per_run):
-            nextMolecule = deposition.getNextMolecule()
-            last_residue = len(deposition.model.residues)
-            deposition.model.insert_residue(last_residue, nextMolecule.residues[0], " ")
-            deposition.genInitialVelocitiesLastResidue()
+        deposition.insert_residues()
 
         # create run directory and run setup make file
         deposition.runSetup()
