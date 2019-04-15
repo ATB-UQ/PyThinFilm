@@ -46,14 +46,16 @@ K_B = 0.00831451 #kJ / (mol K)
 DEFAULT_PARAMETERS = {"lincs_order": 4,
               "lincs_iterations":1}
 
-ROOT_DIRS = ["topology", "trajectory", "log", "tpr", "energy", "restraints", "index", "checkpoint", "final-coordinates", "control", "input-coordinates", "stdout", "stderr"]
+ROOT_DIRS = ["topology", "trajectory", "log", "tpr", "energy", "restraints", "index", "checkpoint", "final-coordinates", "control", "input-coordinates", "stdout", "stderr", "deposition-log"]
 
 class Deposition(object):
 
     def __init__(self, name, runConfigFile,
             max_cores,
+            debug,
             ): # use runConfigFile by default
         self.name = name
+        self.debug=debug
         self.runConfig = yaml.load(open(runConfigFile))
         # Convert template paths in runConfig to be absolute
         recursiveCorrectPaths(self.runConfig, PROJECT_DIR)
@@ -67,7 +69,7 @@ class Deposition(object):
 
         self.run_ID = self.get_latest_run_ID()
         while self.last_run_failed() and self.run_ID > 1:
-            logging.debug("    Running failed. Deleting: '{0}'".format(self.run_ID))
+            #logging.debug("    Running failed. Deleting: '{0}'".format(self.run_ID))
             self.delete_run()
             self.run_ID = self.get_latest_run_ID()
 
@@ -107,6 +109,18 @@ class Deposition(object):
 
     def molecule_number(self):
         return len(self.model.residues)
+    
+    def setup_logging(self):
+        logfile = self.filename("deposition-log", "txt")
+        if self.debug:
+            verbosity = logging.DEBUG
+            format_log = '%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)'
+        else:
+            verbosity = logging.INFO
+            format_log = '%(asctime)s - [%(levelname)s] - %(message)s'
+        for handler in logging.root.handlers[:]:
+                logging.root.removeHandler(handler)
+        logging.basicConfig(filename=logfile, level=verbosity, format=format_log, datefmt='%d-%m-%Y %H:%M:%S')
 
     def get_latest_run_ID(self):
         logdir = os.path.join(self.rootdir, "log")
@@ -674,20 +688,13 @@ def cluster(resnameList):
     return clusterList
 
 def runDeposition(runConfigFile, name, max_cores, debug=DEBUG):
-    if debug:
-        verbosity = logging.DEBUG
-        format_log = '%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)'
-    else:
-        verbosity = logging.INFO
-        format_log = '%(asctime)s - [%(levelname)s] - %(message)s'
-    logging.basicConfig(level=verbosity, format=format_log, datefmt='%d-%m-%Y %H:%M:%S')
 
     deposition = Deposition(name,
                             runConfigFile,
             max_cores,
+            debug,
     )
     if deposition.run_ID == deposition.last_run_ID:
-        logging.error("No more depositions to run")
         raise Exception("No more depositions to run")
 
 
@@ -696,6 +703,7 @@ def runDeposition(runConfigFile, name, max_cores, debug=DEBUG):
     while deposition.run_ID < deposition.last_run_ID:
         # Increment run ID
         deposition.run_ID += 1
+        deposition.setup_logging()
         logging.debug("increment run_ID to '{0}'".format(deposition.run_ID))
 
         # Update the deposition step in case we enter a new deposition phase
