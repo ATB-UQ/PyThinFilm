@@ -9,7 +9,7 @@ nsteps                   = {{numberOfSteps}}                ; maximum number of 
 ; center of mass motion removal
 comm_mode               = linear                 ; remove center of mass translation
 nstcomm                 = 1000                     ; [steps] frequency of mass motion removal
-comm_grps               = substrate {{slabs}}                 ; group(s) for center of mass motion removal
+comm_grps               = {{slabs}}                 ; group(s) for center of mass motion removal
 
 
 ; output control
