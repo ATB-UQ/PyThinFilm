@@ -69,7 +69,7 @@ class Deposition(object):
 
         self.run_ID = self.get_latest_run_ID()
         while self.last_run_failed() and self.run_ID > 1:
-            #logging.debug("    Running failed. Deleting: '{0}'".format(self.run_ID))
+            print("Run failed. Deleting: '{0}'".format(self.run_ID))
             self.delete_run()
             self.run_ID = self.get_latest_run_ID()
 
@@ -123,9 +123,9 @@ class Deposition(object):
         logging.basicConfig(filename=logfile, level=verbosity, format=format_log, datefmt='%d-%m-%Y %H:%M:%S')
 
     def get_latest_run_ID(self):
-        logdir = os.path.join(self.rootdir, "log")
+        logdir = os.path.join(self.rootdir, "input-coordinates")
         if os.path.isdir(logdir):
-            log_files = os.listdir(os.path.join(self.rootdir, "log"))
+            log_files = os.listdir(os.path.join(self.rootdir, "input-coordinates"))
             num = [ int(f.rsplit('_', 1)[-1].split('.')[0]) for f in log_files if not ".bak." in f  ]
             return max(num) if len(num) > 0 else 0
         else:
@@ -516,7 +516,8 @@ class Deposition(object):
 
     def last_run_failed(self):
         log_filename = self.filename("log", "log")
-        if not os.path.isfile(log_filename):
+        final_gro_filename = self.filename("final-coordinates", "gro")
+        if not os.path.isfile(log_filename) or not os.path.isfile(final_gro_filename):
             return True
         else:
             proc = subprocess.Popen(['tail', '-n', "1", log_filename], stdout=subprocess.PIPE)
@@ -573,8 +574,9 @@ class Deposition(object):
             while not consolidated:
                 consolidated = True
                 for slab_id in range(1,num_slabs):
-                    if len(slab_atoms[slab_id]) < min_atoms_per_slab:
-                        slab_atoms[slab_id-1] = slab_atoms[slab_id-1] + slab_atoms[slab_id]
+                    atoms = slab_atoms[slab_id]
+                    if len(atoms)>0 and len(atoms) < min_atoms_per_slab:
+                        slab_atoms[slab_id-1] = slab_atoms[slab_id-1] + atoms
                         slab_atoms[slab_id] = []
                         consolidated = False
                 
