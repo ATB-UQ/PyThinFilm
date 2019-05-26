@@ -4,9 +4,9 @@ forcefield: '../../gromos54a7_atb.ff/forcefield.itp'
 insert_distance: 30.0 #angstrom 
 escape_tolerance: 9999.0 #angstrom 
 time_step: 0.004 #ps
-density_fraction_cutoff: 0.5
+density_fraction_cutoff: 0.0
 overhead_void_space: 60
-drift_velocity: 0.8 #nm/ps
+drift_velocity: 0.05 #nm/ps
 gmx_path: ""
 mdrun : "gmx_mpi mdrun" 
 grompp : "gmx_mpi grompp"
