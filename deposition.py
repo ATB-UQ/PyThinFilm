@@ -79,7 +79,10 @@ class Deposition(object):
         self.disambiguate_run_config()
 
         if self.run_ID == 0:
-            configurationPath = self.runConfig["substrate"]["pdb_file"]
+            if "initial_config_file" in self.runConfig:
+                configurationPath = self.runConfig["initial_config_file"]
+            else:
+                configurationPath = self.runConfig["substrate"]["pdb_file"]
         else:
             configurationPath = self.filename("final-coordinates","gro", prev_run=True)
 
