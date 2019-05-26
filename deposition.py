@@ -29,7 +29,7 @@ BASENAME_REMOVE_SUFFIX = lambda path: ".".join( basename(path) .split('.')[0:2])
 
 TOP_TEMPLATE = join(TEMPLATE_DIR, "topo.top.epy")
 
-GPP_TEMPLATE = "{GMX_PATH}{grompp} -maxwarn 1 -f {MDP_FILE} -c {initial} -r {restraints} -n {index} -p {top} -o {tpr} "
+GPP_TEMPLATE = "{GMX_PATH}{grompp} -maxwarn 1 -f {MDP_FILE} -c {initial} -r {restraints} -p {top} -o {tpr} "
 
 
 GROMPP = "grompp_d"
@@ -46,7 +46,7 @@ K_B = 0.00831451 #kJ / (mol K)
 DEFAULT_PARAMETERS = {"lincs_order": 4,
               "lincs_iterations":1}
 
-ROOT_DIRS = ["topology", "trajectory", "log", "tpr", "energy", "restraints", "index", "checkpoint", "final-coordinates", "control", "input-coordinates", "stdout", "stderr", "deposition-log"]
+ROOT_DIRS = ["topology", "trajectory", "log", "tpr", "energy", "restraints", "checkpoint", "final-coordinates", "control", "input-coordinates", "stdout", "stderr", "deposition-log"]
 
 class Deposition(object):
 
@@ -205,7 +205,6 @@ class Deposition(object):
                    "cpo": self.filename("checkpoint", "cpt"),
                    "initial": self.filename("input-coordinates", "gro"),
                    "final": self.filename("final-coordinates", "gro"),
-                   "index": self.filename("index", "ndx"),
                    "restraints": self.filename("restraints", "gro"),
                    "run_ID": self.run_ID,
                    "mpiRun":   mpiRun,
@@ -267,12 +266,9 @@ class Deposition(object):
             resList = [res_name for res_name, res in self.mixture.items() if res["count"] > 0]
             time_step = self.runConfig["time_step"]
             neighbor_list_time = self.runConfig["neighbor_list_time"]
-            num_slabs = self.get_num_slabs()
 
             fh.write(mdpTemplate.render(resList=resList, 
                     substrate=self.runConfig["substrate"], 
-                    slabs = " ".join(["slab{}".format(b) for b in range(num_slabs)]),
-                    num_slabs= num_slabs, 
                     timeStep=time_step, 
                     numberOfSteps=int(self.runConfig["run_time"]/time_step), 
                     temperature=self.runConfig["temperature"],
@@ -754,8 +750,6 @@ def runDeposition(runConfigFile, name, max_cores, debug=DEBUG):
 
         # Write updated model to run directory
         deposition.writeInitConfiguration()
-        logging.debug("creating index file")
-        deposition.write_index_file()
         logging.debug("creating restraints file")
         deposition.write_restraints_file() #NOTE! This modifies substrate positions in deposition.model.
 

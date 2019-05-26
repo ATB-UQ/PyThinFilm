@@ -9,7 +9,7 @@ nsteps                   = {{numberOfSteps}}                ; maximum number of 
 ; center of mass motion removal
 comm_mode               = linear                 ; remove center of mass translation
 nstcomm                 = 1000                     ; [steps] frequency of mass motion removal
-comm_grps               = {{slabs}}                 ; group(s) for center of mass motion removal
+comm_grps               = system                 ; group(s) for center of mass motion removal
 
 
 ; output control
@@ -51,12 +51,9 @@ rvdw                     = 1.4                   ; van der Waals cutoff [nm]
 
 ; temperature coupling
 tcoupl                   = Berendsen             ; temperature coupling with Berendsen-thermostat
-tc-grps                  = substrate film                ; groups to couple seperately to temperature bath
-tau_t                    = 0.1 0.1               ; [ps] time constant for coupling
-ref_t                    = 300 300              ; [K] reference temperature for coupling
-;tc-grps                  = {{slabs}}                ; groups to couple seperately to temperature bath
-;tau_t                    = {{"0.1 "*num_slabs}}                ; [ps] time constant for coupling
-;ref_t                    = {{"300 "*num_slabs}}                ; [K] reference temperature for coupling
+tc-grps                  = GRM G8LE CV4T                ; groups to couple seperately to temperature bath
+tau_t                    = 0.1 0.1 0.1               ; [ps] time constant for coupling
+ref_t                    = {{temperature}} {{temperature}} {{temperature}}              ; [K] reference temperature for coupling
 
 ;; pressure coupling
 ;Pcoupl                   = Berendsen
@@ -73,11 +70,11 @@ ref_t                    = 300 300              ; [K] reference temperature for 
 gen_vel                  = no                   ; generate velocities according to Maxwell distribution of temperature
 
 ; bonds
-constraints              = all-bonds
+constraints              = h-bonds
 constraint-algorithm     = lincs
 lincs-order              = 2
 lincs-iter               = 1
 lincs-warnangle          = 30
 continuation             = no            ; no = apply constraints to the start configuration
-;freezegrps               = GRM
-;freezedim                = Y Y Y
+freezegrps               = GRM
+freezedim                = Y Y Y
