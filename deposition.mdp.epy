@@ -51,7 +51,7 @@ rvdw                     = 1.4                   ; van der Waals cutoff [nm]
 
 ; temperature coupling
 tcoupl                   = Berendsen             ; temperature coupling with Berendsen-thermostat
-tc-grps                  = GRM G8LE CV4T                ; groups to couple seperately to temperature bath
+tc-grps                  = GRM G8LE DCV2                ; groups to couple seperately to temperature bath
 tau_t                    = 0.1 0.1 0.1               ; [ps] time constant for coupling
 ref_t                    = {{temperature}} {{temperature}} {{temperature}}              ; [K] reference temperature for coupling
 
