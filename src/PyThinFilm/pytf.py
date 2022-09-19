@@ -43,24 +43,24 @@ def run_deposition(run_config, name, max_cores, debug=False):
                        )
                        ]
             deposition.remove_residues(leaving)
-        logging.info("[DEPOSITION] Running deposition with parameters: {parameters_dict}".format(rid=deposition.run_ID, parameters_dict=deposition.runParameters()))
+        logging.info("[DEPOSITION] Running deposition with parameters: {parameters_dict}".format(rid=deposition.run_ID, parameters_dict=deposition.run_parameters()))
         # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
         deposition.insert_residues()
 
         # create run directory and run setup make file
-        deposition.runSetup()
+        deposition.init_gromacs_simulation()
 
         # deposition.zero_substrate_velocity()
 
         # Write updated model to run directory
         deposition.write_init_configuration()
         logging.debug("creating restraints file")
-        deposition.write_restraints_file() #NOTE! This modifies substrate positions in deposition.model.
+        deposition.write_restraints_file()
 
         actualMixture = ",".join([" {0}:{1}".format(r["res_name"], r["count"]) for r in deposition.mixture.values()])
         # Do first Run
         logging.info("    Current mixture is: {0}".format(actualMixture))
-        deposition.runSystem()
+        deposition.run_gromacs_simulation()
 
         # Increment run ID
         deposition.run_ID += 1

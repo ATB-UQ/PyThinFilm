@@ -67,31 +67,31 @@ def get_mass_dict(itpString):
     return massDict
 
 
-def cluster(resnameList):
-    clusterList = []
+def group_residues(resnames):
+    res_groups = []
     i = 0
-    current_resname = resnameList[0]
-    if not resnameList:
+    current_resname = resnames[0]
+    if not resnames:
         return ""
     while current_resname != '':
         count = 1
         try:
-            next_resname = resnameList[i+1]
+            next_resname = resnames[i + 1]
         except IndexError:
             next_resname = ""
         while next_resname == current_resname :
             count +=1
             try:
-                next_resname = resnameList[i+count]
+                next_resname = resnames[i + count]
             except IndexError:
                 next_resname = ""
-        clusterList.append("{0} {1}".format(current_resname, count))
+        res_groups.append("{0} {1}".format(current_resname, count))
         i += count
         try:
-            current_resname = resnameList[i]
+            current_resname = resnames[i]
         except IndexError:
             current_resname = ""
-    return clusterList
+    return res_groups
 
 
 def basename_remove_suffix(p):
@@ -111,7 +111,7 @@ def calc_exclusions(model):
         dx = dx + Lx if dx < -0.5 * Lx else dx
         dy = dy + Ly if dy < -0.5 * Ly else dy
         d = np.sqrt(dx * dx + dy * dy)
-        if d < 0.4:
+        if d < 0.3:
             # print(ai[0], aj[0], d)
             exclusions.append("{} {}".format(ai[0], aj[0]))
         # if len(exclusions) > 100:

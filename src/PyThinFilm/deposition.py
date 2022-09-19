@@ -13,10 +13,10 @@ import jinja2
 from time import time
 import numpy as np
 
-from PyThinFilm.helpers import res_highest_z, remove_residues, recursive_correct_paths, get_mass_dict, cluster, \
+from PyThinFilm.helpers import res_highest_z, remove_residues, recursive_correct_paths, get_mass_dict, group_residues, \
     basename_remove_suffix, foldnorm_mean, calc_exclusions
 
-from PyThinFilm.common import TOP_TEMPLATE, GPP_TEMPLATE, GMX_EXEC, GROMPP, MDRUN, MDRUN_TEMPLATE, \
+from PyThinFilm.common import GPP_TEMPLATE, GROMPP, MDRUN, MDRUN_TEMPLATE, \
     MDRUN_TEMPLATE_GPU, K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR
 
 
@@ -68,18 +68,18 @@ class Deposition(object):
         self.setup_logging()
 
         self.gmx_executable = self.run_config['gmx_executable'] \
-            if ("gmx_executable" in self.run_config and self.run_config['gmx_executable']) \
-            else GMX_EXEC
+            if self.n_cores == 1 \
+            else self.run_config['gmx_executable_mpi']
 
         if self.run_ID == 1:
             if "initial_config_file" in self.run_config:
-                configurationPath = self.run_config["initial_config_file"]
+                configuration_path = self.run_config["initial_config_file"]
             else:
-                configurationPath = self.run_config["substrate"]["pdb_file"]
+                configuration_path = self.run_config["substrate"]["pdb_file"]
         else:
-            configurationPath = self.filename("final-coordinates", "gro", prev_run=True)
+            configuration_path = self.filename("final-coordinates", "gro", prev_run=True)
 
-        self.model = pmx.Model(str(configurationPath))
+        self.model = pmx.Model(str(configuration_path))
         self.model.a2nm()
         # calc_exclusions(self.model)
         # raise
@@ -89,10 +89,9 @@ class Deposition(object):
         self.new_residues = []
         self.insertion_height = None
 
-        self.mdp_template_file = Path(self.run_config['mdp_template']) \
-            if Path(self.run_config['mdp_template']).exists() \
-            else TEMPLATE_DIR / self.run_config['mdp_template']
-        self.mdp_file = basename_remove_suffix(self.mdp_template_file)
+        self.mdp_template_file = Path(self.run_config['mdp_template'])
+        self.topo_template_file = Path(self.run_config['topo_template'])
+        self.init_gromacs_templates()
 
         self.insertions_per_run = self.run_config["insertions_per_run"]
 
@@ -102,6 +101,133 @@ class Deposition(object):
             if "remove_top_molecule" in self.run_config else 0
         self.solvent_name = self.run_config["solvent_name"] \
             if "solvent_name" in self.run_config else None
+
+    def init_gromacs_templates(self):
+        if not Path(self.run_config['mdp_template']).exists():
+            self.mdp_template_file = TEMPLATE_DIR / self.run_config['mdp_template']
+            if not self.mdp_template_file.exists():
+                raise Exception("Cannot find required file: {}. A GROMACS mdp file template is required.".format(
+                    self.run_config['mdp_template']))
+        if not Path(self.run_config['topo_template']).exists():
+            self.topo_template_file = TEMPLATE_DIR / self.run_config['topo_template']
+            if not self.topo_template_file.exists():
+                raise Exception("Cannot find required file: {}. A GROMACS topo file template is required.".format(
+                    self.run_config['topo_template']))
+
+    def run_gromacs_simulation(self):
+
+        arg_values = {"GMX_EXEC": self.gmx_executable,
+                      "MDP_FILE": self.filename("control", "mdp"),
+                      "tpr": self.filename("tpr", "tpr"),
+                      "xtc": self.filename("trajectory", "xtc"),
+                      "top": self.filename("topology", "top"),
+                      "log": self.filename("log", "log"),
+                      "edr": self.filename("energy", "edr"),
+                      "cpo": self.filename("checkpoint", "cpt"),
+                      "initial": self.filename("input-coordinates", "gro"),
+                      "final": self.filename("final-coordinates", "gro"),
+                      "restraints": self.filename("restraints", "gro"),
+                      "run_ID": self.run_ID,
+                      "mdrun": MDRUN,
+                      "grompp": GROMPP,
+                      }
+
+        if "use_gpu" in self.run_config and self.run_config["use_gpu"]:
+            mdrun_template = MDRUN_TEMPLATE_GPU
+        else:
+            mdrun_template = MDRUN_TEMPLATE
+
+        if self.n_cores > 1:
+            mdrun_template = "{} {}".format(self.run_config["mpi_template"], mdrun_template)
+            arg_values["n_cores"] = self.n_cores
+
+        # run grompp
+        self.run_subprocess(GPP_TEMPLATE, arg_values)
+
+        # run the md
+        self.run_subprocess(mdrun_template, arg_values)
+
+        configuration_path = self.filename("final-coordinates", "gro")
+
+        if not os.path.exists(configuration_path):
+            logging.error("MD run did not produce expected output file")
+
+        # now update model after run
+        self.model = pmx.Model(str(configuration_path))
+        self.model.a2nm()
+
+    def init_gromacs_simulation(self):
+
+        if not os.path.exists(self.rootdir):
+            os.mkdir(self.rootdir)
+
+        with open(self.topo_template_file) as fh:
+            top_template = jinja2.Template(fh.read())
+
+        with open(self.mdp_template_file) as fh:
+            mdp_template = jinja2.Template(fh.read())
+        residue_list = list(map(lambda x:x.resname, self.model.residues))
+        bulk_itps = [molecule["itp_file"] for molecule in self.mixture.values() if molecule["count"] > 0]
+        substrate_itps = [self.run_config["substrate"]["itp_file"]] if "substrate" in self.run_config else []
+        itp_files_include = ['#include "{}"'.format(f) for f in bulk_itps + substrate_itps]
+        with open(self.filename("topology", "top"), "w") as fh:
+            fh.write(
+                top_template.render(
+                    itp_files_include="\n".join(itp_files_include),
+                    forcefield=self.run_config["forcefield_file"],
+                    res_groups="\n".join(group_residues(residue_list)),
+                )
+            )
+        n_steps = int(self.run_config["run_time"] / self.run_config["time_step"])
+        if self.run_config["drift_velocity"] > 0.0:
+            # Remove center of mass motion every 2x number of steps required to reach existing layer. Prior to reaching
+            # the layer causes the molecule being deposited to be halted, particularly early in deposition simulations.
+            mean_flight_time = self.run_config["insert_distance"] / self.run_config["drift_velocity"]
+            nstcomm = 2*int(
+                mean_flight_time / self.run_config["time_step"]
+            )
+            if nstcomm < n_steps:
+                logging.debug(f"Center of mass motion will be removed every {mean_flight_time*2} ps (nstcomm={nstcomm})")
+            if nstcomm == n_steps:
+                # if nstcomm == n_steps (nsteps) then the deposited molecule's drift velocity is removed on the first step.
+                nstcomm -= 1
+                logging.debug(
+                    f"Center of mass motion will be removed every {nstcomm * self.run_config['time_step'] } ps (nstcomm={nstcomm})")
+            else:
+                logging.warning(f"Center of mass motion will not be removed since run_time "
+                                f"({self.run_config['run_time']} ps) is less than 2x average deposition time i.e. "
+                                f"insert_distance/drift_velocity = {mean_flight_time} ps.")
+        else:
+            nstcomm = 100
+        res_list = list(set(residue_list))
+        mdp = mdp_template.render(res_list=" ".join(res_list),
+                                  time_step=self.run_config["time_step"],
+                                  n_steps=n_steps,
+                                  nstcomm=nstcomm,
+                                  temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
+                                  tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
+                                  )
+        with open(self.filename("control", "mdp"), "w") as fh:
+            fh.write(mdp)
+
+    def run_subprocess(self, cli_template, inserts):
+
+        arg_list_template = cli_template.split()
+        arg_list = [arg.format(**inserts) for arg in arg_list_template]
+
+        log_filepath = self.filename("stdout", "txt")
+        err_filepath = self.filename("stderr", "txt")
+        with open(log_filepath, "a") as log_file, open(err_filepath, "a") as err_file:
+            logging.debug("    Running from: '{0}'".format(self.rootdir))
+            logging.debug("    Running command: '{0}'".format(" ".join(arg_list)))
+            logging.debug("    Process stderr ({}) and stdout ({})".format(err_filepath, log_filepath))
+            proc = subprocess.Popen(arg_list, cwd=self.rootdir, stdout=log_file, stderr=err_file, env=os.environ)
+            return_code = proc.wait()
+
+        if 0 < return_code:
+            msg = "Subprocess terminated with nonzero exit code: \n{0}\n\n{1}".format(" ".join(arg_list), format_exc())
+            logging.error(msg)
+            raise Exception(msg)
 
     def molecule_number(self):
         return len(self.model.residues)
@@ -130,10 +256,10 @@ class Deposition(object):
 
     def init_deposition_steps(self):
         # Get the list of all the deposition steps
-        self.last_run_ID = self.run_config["final_deposition_number"]
+        self.last_run_ID = self.run_config["n_cycles"]
         self.init_mixture_residue_counts()
 
-    def runParameters(self):
+    def run_parameters(self):
         return {
             'run_ID': "{0}/{1}".format(self.run_ID, self.last_run_ID),
             'temperature': "{0} K".format(self.run_config["temperature"]),
@@ -141,156 +267,20 @@ class Deposition(object):
             'drift_velocity': "{0} nm/ps".format(self.run_config["drift_velocity"]),
         }
 
-    def updateModel(self, configurationPath):
-        self.model = pmx.Model(str(configurationPath))
-        self.model.a2nm()
-
-    def reset_substrate_positions(self):
-        #WARNING! This modifies the model
-        #would be better to make a deep copy but slow for large systems
+    def write_restraints_file(self):
+        """Copy current configuration and reset substrate positions"""
+        restraints = self.model.copy()
         substrate = pmx.Model(str(self.run_config["substrate"]["pdb_file"]))
         substrate.a2nm()
         for i in range(len(substrate.atoms)):
-            self.model.atoms[i].x = substrate.atoms[i].x
-
-    def write_restraints_file(self):
-        self.reset_substrate_positions()
+            restraints.atoms[i].x = substrate.atoms[i].x
         restraints_path = join(self.rootdir, self.filename("restraints", "gro"))
-        self.model.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
+        restraints.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
 
     def filename(self, category, ext, prev_run=False, run_ID=None):
         run_ID = run_ID if run_ID is not None else self.run_ID
         run = run_ID - (1 if prev_run else 0)
         return join(self.rootdir, category, "{}_{}_{}.{}".format(self.name, category, run, ext))
-
-    def runSystem(self):
-
-        if "domain_decomposition" in self.run_config:
-            domain_decomposition = "-dd "+self.run_config["domain_decomposition"]
-        else:
-            domain_decomposition = ""
-        mdrun = self.run_config["mdrun"] \
-            if "mdrun" in self.run_config else MDRUN
-
-        grompp = self.run_config["grompp"] \
-                    if "grompp" in self.run_config else GROMPP
-
-        arg_values = {"GMX_EXEC": self.gmx_executable,
-                   "MDP_FILE": self.filename("control","mdp"),
-                   "tpr": self.filename("tpr", "tpr"),
-                   "xtc": self.filename("trajectory", "xtc"),
-                   "top": self.filename("topology", "top"),
-                   "log": self.filename("log", "log"),
-                   "edr": self.filename("energy", "edr"),
-                   "cpo": self.filename("checkpoint", "cpt"),
-                   "initial": self.filename("input-coordinates", "gro"),
-                   "final": self.filename("final-coordinates", "gro"),
-                   "restraints": self.filename("restraints", "gro"),
-                   "run_ID": self.run_ID,
-                   "mdrun": mdrun,
-                   "grompp": grompp,
-                   "domain_decomposition": domain_decomposition,
-                   }
-
-        if "use_gpu" in self.run_config and self.run_config["use_gpu"]:
-            time_step = self.run_config["time_step"]
-            neighbor_list_time = self.run_config["neighbor_list_time"]
-            arg_values["neighborUpdate"] = int(neighbor_list_time/time_step)
-            mdrun_template = MDRUN_TEMPLATE_GPU
-        else:
-            mdrun_template = MDRUN_TEMPLATE
-
-        if self.n_cores > 1:
-            mdrun_template = "{} {}".format(self.run_config["mpi_template"], mdrun_template)
-            arg_values["n_cores"] = self.n_cores
-
-        # run grompp 
-        self.runGPP(arg_values)
-
-        # run the md
-        self.run(mdrun_template, arg_values)
-
-        configurationPath = self.filename("final-coordinates", "gro")
-
-        if not os.path.exists(configurationPath):
-            logging.error("MD run did not produce expected output file")
-
-        # now update model after run
-        self.updateModel(configurationPath)
-
-    def runGPP(self, inserts):
-        self.run(GPP_TEMPLATE, inserts)
-
-    def runSetup(self):
-
-        if not os.path.exists(self.rootdir):
-            os.mkdir(self.rootdir)
-
-        with open(TOP_TEMPLATE) as fh:
-            topTemplate = jinja2.Template(fh.read())
-
-        with open(self.mdp_template_file) as fh:
-            mdp_template = jinja2.Template(fh.read())
-        residue_list = list(map(lambda x:x.resname, self.model.residues))
-        with open(self.filename("topology", "top"), "w") as fh:
-            fh.write(
-                topTemplate.render(
-                    resMixture = self.mixture,
-                    substrate = self.run_config["substrate"],
-                    forcefield = self.run_config["forcefield_file"],
-                    resnameClusters = cluster(residue_list),
-                )
-            )
-        n_steps = int(self.run_config["run_time"] / self.run_config["time_step"])
-        if self.run_config["drift_velocity"] > 0.0:
-            # Remove center of mass motion every 2x number of steps required to reach existing layer. Prior to reaching
-            # the layer causes the molecule being deposited to be halted, particularly early in deposition simulations.
-            mean_flight_time = self.run_config["insert_distance"] / self.run_config["drift_velocity"]
-            nstcomm = 2*int(
-                mean_flight_time / self.run_config["time_step"]
-            )
-            if nstcomm < n_steps:
-                logging.debug(f"Center of mass motion will be removed every {mean_flight_time*2} ps (nstcomm={nstcomm})")
-            if nstcomm == n_steps:
-                # if nstcomm == n_steps (nsteps) then the deposited molecule's drift velocity is removed on the first step.
-                nstcomm -= 1
-                logging.debug(
-                    f"Center of mass motion will be removed every {nstcomm * self.run_config['time_step'] } ps (nstcomm={nstcomm})")
-            else:
-                logging.warning(f"Center of mass motion will not be removed since run_time "
-                                f"({self.run_config['run_time']} ps) is less than 2x average deposition time i.e. "
-                                f"insert_distance/drift_velocity = {mean_flight_time} ps.")
-        else:
-            nstcomm = 100 #GROMACS default value
-        res_list = list(set(residue_list))
-        mdp = mdp_template.render(res_list=" ".join(res_list),
-                                  time_step=self.run_config["time_step"],
-                                  n_steps=n_steps,
-                                  nstcomm=nstcomm,
-                                  temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
-                                  tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
-                                  )
-        with open(self.filename("control", "mdp"),"w") as fh:
-            fh.write(mdp)
-
-    def run(self, cli_template, inserts):
-
-        arg_list_template = cli_template.split()
-        arg_list = [arg.format(**inserts) for arg in arg_list_template]
-
-        log_filepath = self.filename("stdout", "txt")
-        err_filepath = self.filename("stderr", "txt")
-        with open(log_filepath, "a") as log_file, open(err_filepath, "a") as err_file:
-            logging.debug("    Running from: '{0}'".format(self.rootdir))
-            logging.debug("    Running command: '{0}'".format(" ".join(arg_list)))
-            logging.debug("    Process stderr ({}) and stdout ({})".format(err_filepath, log_filepath))
-            proc = subprocess.Popen(arg_list, cwd=self.rootdir, stdout=log_file, stderr=err_file, env=os.environ)
-            return_code = proc.wait()
-
-        if 0 < return_code:
-            msg = "Subprocess terminated with nonzero exit code: \n{0}\n\n{1}".format(" ".join(arg_list), format_exc())
-            logging.error(msg)
-            raise Exception(msg)
 
     def get_insert_height(self):
         return self.max_layer_height() + self.run_config["insert_distance"]

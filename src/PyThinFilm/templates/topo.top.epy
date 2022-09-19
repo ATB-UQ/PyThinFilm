@@ -1,11 +1,8 @@
 ; Include forcefield parameters
 #include "{{forcefield}}"
 
-; Include chain topologies
-#include "{{substrate["itp_file"]}}"
-{%- for res in resMixture.values() %}
-{{'#include "{0}"'.format(res["itp_file"]) if res["count"] > 0}}
-{%- endfor %}
+; Include molecule specific parameter files
+{{itp_files_include}}
 
 [ system ]
 ; Name
@@ -13,6 +10,5 @@ System
 
 [ molecules ]
 ; Compound        #mols
-{%- for cluster in resnameClusters %}
-{{ cluster }}
-{%- endfor %}
+{{ res_groups }}
+

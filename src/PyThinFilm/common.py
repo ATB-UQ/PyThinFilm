@@ -6,12 +6,9 @@ PACKAGE_MAME = "PyThinFilm"
 TEMPLATE_DIR = Path(pkg_resources.resource_filename(PACKAGE_MAME, "templates"))
 RESOURCES_DIR = Path(pkg_resources.resource_filename(PACKAGE_MAME, "resources"))
 DEFAULT_SETTING = Path(pkg_resources.resource_filename(PACKAGE_MAME, "default_settings.yml"))
-TOP_TEMPLATE = TEMPLATE_DIR / "topo.top.epy"
-MDP_TEMPLATE = TEMPLATE_DIR / "deposition.mdp.epy"
 
 # grompp produces at least 1 dubious warning message related to the GROMOS force field
 GPP_TEMPLATE = "{GMX_EXEC} {grompp} -maxwarn 1 -f {MDP_FILE} -c {initial} -r {restraints} -p {top} -o {tpr} "
-GMX_EXEC = "gmx"
 GROMPP = "grompp"
 TPBCONV = "tpbconv"
 MDRUN = "mdrun"
