@@ -25,8 +25,12 @@ class TestVacuumDeposition(unittest.TestCase):
         run_config = self._test_setup("quicktest.yml")
         main(run_config, 1, debug=True)
 
-    def test_multicore(self):
+    def _test_multicore(self):
         run_config = self._test_setup("multicore_test.yml")
+        main(run_config, 8, debug=True)
+
+    def test_fullerene(self):
+        run_config = self._test_setup("fullerene_test.yml")
         main(run_config, 8, debug=True)
 
 

@@ -13,8 +13,9 @@ import jinja2
 from time import time
 import numpy as np
 
-from PyThinFilm.helpers import res_highest_z, remove_residues_faster, recursive_correct_paths, get_mass_dict, group_residues, \
-    foldnorm_mean
+from PyThinFilm.helpers import res_highest_z, remove_residues_faster, recursive_correct_paths, get_mass_dict, \
+    group_residues, \
+    foldnorm_mean, calc_exclusions
 
 from PyThinFilm.common import GPP_TEMPLATE, GROMPP, MDRUN, MDRUN_TEMPLATE, \
     MDRUN_TEMPLATE_GPU, K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR, SIMULATION_TYPES, SOLVENT_EVAPORATION
@@ -389,6 +390,19 @@ class Deposition(object):
             fmu = foldnorm_mean(0, sigma)
             atom.v[2] = -abs(random.gauss(0, sigma)) + fmu - target_velocity
             # logging.debug("Folded Normal Mean: {} nm/ps".format(fmu*10))
+
+        # If the net z-velocity is +ve, which can regularly occur for low deposition velocities,
+        # invert the sign of atom velocities until the mean is -ve.
+        mean_z = np.mean([a.v[2] for a in self.model.residues[-1].atoms])
+        if mean_z > 0:
+            logging.debug(f"Mean z velocity +ve: {mean_z}")
+            for a in self.model.residues[-1].atoms:
+                a.v[2] = -1*a.v[2]
+                mean_z = np.mean([a.v[2] for a in self.model.residues[-1].atoms])
+                if mean_z < 0:
+                    logging.debug(f"Mean z velocity is now -ve: {mean_z}")
+                    break
+
         logging.debug("Mean velocities (nm/ps): Vx={:.3f}, Vy={:.3f}, Vz={:.3f}".format(
             np.mean([a.v[0] for a in self.model.residues[-1].atoms]),
             np.mean([a.v[1] for a in self.model.residues[-1].atoms]),
@@ -397,7 +411,7 @@ class Deposition(object):
 
     def sample_mixture(self):
         if len(self.sampling_mixture) == 1:
-            return self.sampling_mixture.values()[0]
+            return list(self.sampling_mixture.values())[0]
         # exact composition no longer supported
         if "exact_composition" in self.run_config:
             raise Exception("parameter 'exact_composition' no longer supported")
@@ -405,11 +419,11 @@ class Deposition(object):
         num_residues = len(self.model.residues)
         generator = random.Random(num_residues * self.run_ID * self.run_config["seed"])
         random_num = generator.random()
-        ratioSum = sum([v["ratio"] for v in self.sampling_mixture.values()])
+        ratio_sum = sum([v["ratio"] for v in self.sampling_mixture.values()])
         cumulative = 0.0
         for v in self.sampling_mixture.values():
             cumulative += v["ratio"]
-            if random_num < cumulative/ratioSum:
+            if random_num < cumulative/ratio_sum:
                 return v
         raise Exception("If you are reading this something terrible has happened")
 
@@ -436,7 +450,7 @@ class Deposition(object):
         next_molecule.translate([x_pos, y_pos, insert_height])
         # logging.debug(f"Post translation COG of new molecule: {np.mean([a.x for a in next_molecule.atoms], axis=0)}")
         logging.debug(f"    Inserting molecule {next_molecule_resname['res_name']}: "
-                           f"{np.mean([a.x for a in next_molecule.atoms], axis=0)}")
+                      f"{np.mean([a.x for a in next_molecule.atoms], axis=0)}")
 
         return next_molecule
 

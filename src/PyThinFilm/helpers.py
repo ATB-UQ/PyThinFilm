@@ -111,7 +111,7 @@ def calc_exclusions(model):
         dx = dx + Lx if dx < -0.5 * Lx else dx
         dy = dy + Ly if dy < -0.5 * Ly else dy
         d = np.sqrt(dx * dx + dy * dy)
-        if d < 0.3:
+        if d < 0.4:
             # print(ai[0], aj[0], d)
             exclusions.append("{} {}".format(ai[0], aj[0]))
         # if len(exclusions) > 100:
