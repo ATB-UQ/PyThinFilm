@@ -16,12 +16,12 @@ def res_highest_z(residue):
     return max(atom.x[2] for atom in residue.atoms)
 
 
-def remove_residues(model,residues):
-    logging.debug("num  residue: {0} num chains {1}".format(len(model.chains), len(model.residues)))
+def remove_residues_faster(model, residues):
+
     assert len(model.chains) == 1
     chain = model.chains[0]
     for residue in residues:
-        logging.debug("Removing residue: {0}".format(residue.resname))
+        logging.debug("Removing residue with id: {} ({})".format(residue.id, residue.resname))
         idx = chain.residues.index(residue)
         try:
             midx = chain.model.residues.index(residue)

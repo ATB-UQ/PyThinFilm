@@ -6,28 +6,28 @@ from pathlib import Path
 import yaml
 from pkg_resources import resource_filename
 
-from PyThinFilm.pytf import run_deposition
+from PyThinFilm.pytf import main
 from PyThinFilm.common import PACKAGE_MAME
 
 
 class TestVacuumDeposition(unittest.TestCase):
 
-    def _quicktest_setup(self):
+    def _test_setup(self, test_config):
         test_dir = Path(resource_filename(PACKAGE_MAME, "test"))
-        run_config_file = test_dir / "quicktest.yml"
+        run_config_file = test_dir / test_config
         with open(run_config_file) as fh:
             run_config = yaml.safe_load(fh)
         if os.path.exists(run_config["work_directory"]):
             shutil.rmtree(run_config["work_directory"])
         return run_config
 
-    def _test_single_core(self):
-        run_config = self._quicktest_setup()
-        run_deposition(run_config, "quick_test", 1, debug=True)
+    def _test_quick_single_core(self):
+        run_config = self._test_setup("quicktest.yml")
+        main(run_config, 1, debug=True)
 
-    def test_multi_core(self):
-        run_config = self._quicktest_setup()
-        run_deposition(run_config, "quick_test", 8, debug=True)
+    def test_multicore(self):
+        run_config = self._test_setup("multicore_test.yml")
+        main(run_config, 8, debug=True)
 
 
 if __name__ == "__main__":

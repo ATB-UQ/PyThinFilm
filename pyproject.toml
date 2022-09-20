@@ -41,4 +41,4 @@ docs = [
 
 
 [project.scripts]
-pytf = 'PyThinFilm.pytf:parse_command_line'
+pytf = 'PyThinFilm.pytf:cli'

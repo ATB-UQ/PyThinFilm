@@ -1,90 +1,60 @@
-import argparse
 import logging
+import yaml
+import click
 
 from PyThinFilm.deposition import Deposition
+from PyThinFilm.common import VACUUM_DEPOSITION
 
 
-def run_deposition(run_config, name, max_cores, debug=False):
-    deposition = Deposition(name,
-                            run_config,
-                            max_cores,
-                            debug,
-                            )
+def main(config, n_cores, debug=False):
 
+    deposition = Deposition(config, n_cores, debug)
+    # First check to see if any simulation cycles are required.
     if deposition.run_ID > deposition.last_run_ID:
-        logging.info("{}/{} depositions completed, there are no more depositions to run".format(deposition.run_ID, deposition.last_run_ID))
+        logging.info("{}/{} depositions completed, there are no more depositions to run".format(deposition.run_ID,
+                                                                                                deposition.last_run_ID))
         return
 
     while deposition.run_ID <= deposition.last_run_ID:
-
+        # Some housekeeping for the new cycle.
         deposition.setup_logging()
-
-        initial_layer_height = deposition.max_layer_height(
-            density_fraction_cutoff = deposition.run_config["density_fraction_cutoff"],
-        )
-
-        for i in range(deposition.remove_top_molecule):
-            residue_id = deposition.top_molecule(deposition.solvent_name)
-            logging.info("removing top molecule {0}".format(residue_id))
-            deposition.remove_residue_with_id(residue_id)
-
+        logging.debug(f"Running cycle with parameters: \n{deposition.run_config_summary()}")
         deposition.resize_box()
 
-        if deposition.highest_z() > deposition.run_config["escape_tolerance"]:
-            # Iterate over the residues and remove the ones that have left the layer
-            layer_height = deposition.max_layer_height(density_fraction_cutoff=deposition.run_config['density_fraction_cutoff'])
-            logging.info("Layer height {0}".format(layer_height))
-            leaving = [ residue for residue in deposition.model.residues[1:] \
-                       if deposition.has_residue_left_layer(
-                               residue.id,
-                               minimum_layer_height=initial_layer_height,
-                               layer_height=layer_height,
-                               density_fraction_cutoff = deposition.run_config["density_fraction_cutoff"],
-                       )
-                       ]
-            deposition.remove_residues(leaving)
-        logging.info("[DEPOSITION] Running deposition with parameters: {parameters_dict}".format(rid=deposition.run_ID, parameters_dict=deposition.run_parameters()))
-        # Get the next molecule and insert it into the deposition model with random position, orientation and velocity
-        deposition.insert_residues()
+        # Remove molecules from the gas phase.
+        deposition.remove_gas_phase_residues()
 
-        # create run directory and run setup make file
+        if deposition.type == VACUUM_DEPOSITION:
+            # Get the next molecule and insert it into the deposition model with random position,
+            # orientation and velocity.
+            deposition.insert_residues()
+
+        # Create run directory and run setup gromacs simulation files.
         deposition.init_gromacs_simulation()
 
-        # deposition.zero_substrate_velocity()
-
-        # Write updated model to run directory
+        # Write updated model with modifications (insertions/deletions) if applicable
         deposition.write_init_configuration()
-        logging.debug("creating restraints file")
         deposition.write_restraints_file()
 
-        actualMixture = ",".join([" {0}:{1}".format(r["res_name"], r["count"]) for r in deposition.mixture.values()])
-        # Do first Run
-        logging.info("    Current mixture is: {0}".format(actualMixture))
+        # Perform MD simulation
         deposition.run_gromacs_simulation()
 
-        # Increment run ID
+        # Cycle complete, increment run ID.
         deposition.run_ID += 1
-        logging.debug("Run ID incremented: '{0}'".format(deposition.run_ID))
+        logging.debug(f"Run cycle completed, ID incremented: {deposition.run_ID}")
 
+    # The specified number of MD simulation cycles has been reached
     if deposition.run_ID > deposition.last_run_ID:
-        logging.info("Finished deposition of {0} molecules".format(deposition.last_run_ID))
+        logging.info("Finished {0} cycles".format(deposition.last_run_ID))
 
 
-def parse_command_line():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input')
-    parser.add_argument('-n', '--name', help="name of simulation.")
-    parser.add_argument('--debug', dest='debug', action='store_true')
-    parser.add_argument('--max-cores', dest='max_cores', default = 1, type=int,
-            help='{int} Provide the maximum number of cores to use with mpi.')
-    args = parser.parse_args()
-
-    run_deposition(args.input,
-                   args.name,
-                   args.max_cores,
-                   debug=args.debug,
-                   )
+@click.command(short_help="Run a PyThinFilm simulation protocol.")
+@click.argument('config', nargs=1, type=click.Path(exists=True))
+@click.option('-n', '--n_cores', default=1, help="Number of cores. Using n_cores > 1 requires MPI.")
+@click.option('-d', '--debug', default=False, help="Print debugging information.")
+def cli(config, n_cores, debug):
+    main(config, n_cores, debug)
 
 
 if __name__ == "__main__":
-    parse_command_line()
+    cli()

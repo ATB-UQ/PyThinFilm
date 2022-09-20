@@ -1,0 +1,30 @@
+work_directory: pytf_working
+name: PyThinFilm
+forcefield_file: gromos54a7_atb.ff/forcefield.itp
+mdp_template: deposition.mdp.epy
+topo_template: topo.top.epy
+description: "PyThinFilm Simulation"
+mpi_template : "mpirun -np {n_cores}"
+insert_distance: 5.0 #nm
+gmx_executable: gmx
+gmx_executable_mpi: gmx_mpi
+escape_tolerance: 5.0 #nm
+time_step: 0.002 #ps
+density_fraction_cutoff: 0.0
+overhead_void_space: 10.0 nm
+drift_velocity: 0.0 #nm/ps
+template: deposition.mdp.epy
+run_time: 100 #ps
+insertions_per_run: 1
+max_insertion_attempts: 100
+insertion_xy_radius: 2.0 #nm
+insertion_z_radius: 1.0 #nm
+seed: 489327835
+temperature: 300 #K
+tau_t: 0.1
+slab_width: 100
+min_atoms_per_slab: 1000
+remove_n_highest_molecules: 0
+solvent_name: None
+substrate: None
+mixture: None
