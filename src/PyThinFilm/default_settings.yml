@@ -11,8 +11,8 @@ gmx_executable_mpi: gmx_mpi
 escape_tolerance: 5.0 #nm
 time_step: 0.002 #ps
 density_fraction_cutoff: 0.0
-overhead_void_space: 10.0 nm
-drift_velocity: 0.0 #nm/ps
+overhead_void_space: 10.0 #nm
+deposition_velocity: 0.0 #nm/ps
 template: deposition.mdp.epy
 run_time: 100 #ps
 insertions_per_run: 1

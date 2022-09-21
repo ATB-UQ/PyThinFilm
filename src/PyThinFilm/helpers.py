@@ -1,4 +1,5 @@
 import logging
+import pathlib
 from itertools import combinations
 from pathlib import Path
 import numpy as np
@@ -57,14 +58,25 @@ def recursive_correct_paths(node):
             logging.debug(f"Path updated: {key} = {resource_path}")
 
 
-def get_mass_dict(itpString):
-    itpString = itpString.split("[ atoms ]")[1].split("[ bonds ]")[0]
-    massDict = {}
-    for line in itpString.splitlines():
+def recursive_convert_paths_to_str(node):
+    for key, value in node.items():
+        if isinstance(value, dict):
+            recursive_convert_paths_to_str(value)
+        elif isinstance(value, list):
+            for item in value:
+                recursive_convert_paths_to_str(item)
+        elif isinstance(value, pathlib.Path):
+            node[key] = value.as_posix()
+
+
+def get_mass_dict(itp_string):
+    itp_string = itp_string.split("[ atoms ]")[1].split("[ bonds ]")[0]
+    mass_dict = {}
+    for line in itp_string.splitlines():
         if not line or line.startswith(";"):
             continue
-        massDict[line.split()[4]] = float(line.split()[7])
-    return massDict
+        mass_dict[line.split()[4]] = float(line.split()[7])
+    return mass_dict
 
 
 def group_residues(resnames):

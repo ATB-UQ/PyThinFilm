@@ -1,7 +1,7 @@
 name: fullerene_test
 work_directory: /Users/uqmstroe/fullerene_test_working
 simulation_type: vacuum_deposition
-n_cycles: 3
+n_cycles: 1
 forcefield_file: gromos54a7_atb.ff/forcefield.itp
 insert_distance: 2.0 #nm
 escape_tolerance: 2.0 #nm
@@ -23,5 +23,5 @@ mixture:
     ratio: 1
 substrate:
   res_name: GRM
-  pdb_file: systems/GRM.pdb
-  itp_file: systems/GRM.itp
+  pdb_file: systems/GRM4x.pdb
+  itp_file: systems/GRM4x.itp

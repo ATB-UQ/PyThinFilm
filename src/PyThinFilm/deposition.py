@@ -1,5 +1,7 @@
 import subprocess
 import os
+import sys
+from copy import deepcopy
 from io import StringIO
 from os.path import join
 from pathlib import Path
@@ -15,7 +17,7 @@ import numpy as np
 
 from PyThinFilm.helpers import res_highest_z, remove_residues_faster, recursive_correct_paths, get_mass_dict, \
     group_residues, \
-    foldnorm_mean, calc_exclusions
+    foldnorm_mean, calc_exclusions, recursive_convert_paths_to_str
 
 from PyThinFilm.common import GPP_TEMPLATE, GROMPP, MDRUN, MDRUN_TEMPLATE, \
     MDRUN_TEMPLATE_GPU, K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR, SIMULATION_TYPES, SOLVENT_EVAPORATION
@@ -77,8 +79,8 @@ class Deposition(object):
             else self.run_config['gmx_executable_mpi']
 
         if self.run_ID == 1:
-            if "initial_config_file" in self.run_config:
-                configuration_path = self.run_config["initial_config_file"]
+            if "initial_structure_file" in self.run_config:
+                configuration_path = self.run_config["initial_structure_file"]
             else:
                 configuration_path = self.run_config["substrate"]["pdb_file"]
         else:
@@ -158,6 +160,7 @@ class Deposition(object):
             logging.error("MD run did not produce expected output file")
 
         # now update model after run
+        logging.debug("Update model with output structure from MD simulation.")
         self.model = pmx.Model(str(configuration_path))
         self.model.a2nm()
 
@@ -223,14 +226,15 @@ class Deposition(object):
         log_filepath = self.filename("stdout", "txt")
         err_filepath = self.filename("stderr", "txt")
         with open(log_filepath, "a") as log_file, open(err_filepath, "a") as err_file:
-            logging.debug("    Running from: '{0}'".format(self.rootdir))
-            logging.debug("    Running command: '{0}'".format(" ".join(arg_list)))
-            logging.debug("    Process stderr ({}) and stdout ({})".format(err_filepath, log_filepath))
+            logging.debug("    Running from: {0}".format(self.rootdir))
+            logging.debug("    Running command: {0}".format(" ".join(arg_list)))
+            logging.debug("    Subprocess stdout: {}".format(log_filepath))
+            logging.debug("    Subprocess stderr: {}".format(err_filepath))
             proc = subprocess.Popen(arg_list, cwd=self.rootdir, stdout=log_file, stderr=err_file, env=os.environ)
             return_code = proc.wait()
 
         if 0 < return_code:
-            msg = "Subprocess terminated with nonzero exit code: \n{0}\n\n{1}".format(" ".join(arg_list), format_exc())
+            msg = "Subprocess terminated with non-zero exit code: \n{0}".format(" ".join(arg_list))
             logging.error(msg)
             raise Exception(msg)
 
@@ -238,17 +242,23 @@ class Deposition(object):
         return len(self.model.residues)
     
     def setup_logging(self):
-        logfile = self.filename("deposition-log", "txt")
-        if self.debug:
-            verbosity = logging.DEBUG
-            format_log = '%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)'
-        else:
-            verbosity = logging.INFO
-            format_log = '%(asctime)s - [%(levelname)s] - %(message)s'
         for handler in logging.root.handlers[:]:
             handler.close()
             logging.root.removeHandler(handler)
-        logging.basicConfig(filename=logfile, level=verbosity, format=format_log, datefmt='%d-%m-%Y %H:%M:%S')
+
+        datefmt = "%d-%m-%Y %H:%M:%S"
+        logfile = self.filename("deposition-log", "txt")
+        format_log_debug = '%(asctime)s - [%(levelname)s] - %(message)s  -->  (%(module)s.%(funcName)s: %(lineno)d)'
+
+        logging.basicConfig(filename=logfile, level=logging.DEBUG, format=format_log_debug, datefmt=datefmt)
+        verbosity = logging.DEBUG if self.debug else logging.INFO
+        log_formatter = logging.Formatter(format_log_debug, datefmt=datefmt) \
+            if self.debug \
+            else logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s', datefmt=datefmt)
+        ch = logging.StreamHandler(stream=sys.stdout)
+        ch.setLevel(verbosity)
+        ch.setFormatter(log_formatter)
+        logging.root.addHandler(ch)
 
     def get_latest_run_ID(self):
         logdir = os.path.join(self.rootdir, "input-coordinates")
@@ -264,25 +274,47 @@ class Deposition(object):
         self.last_run_ID = self.run_config["n_cycles"]
         self.init_mixture_residue_counts()
 
-    def run_config_summary(self):
-        return yaml.dump({
+    def run_config_summary(self, minimal=False):
+        if minimal:
+            return yaml.dump({
             'simulation_type': self.type,
             'run_ID': "{0}/{1}".format(self.run_ID, self.last_run_ID),
             'temperature': "{0} K".format(self.run_config["temperature"]),
             'run_time': "{0} ps".format(self.run_config["run_time"]),
-            'deposition_velocity': "{0} nm/ps".format(self.run_config["deposition_velocity"]),
-        })
+            })
+        else:
+            config_copy = deepcopy(self.run_config)
+            recursive_convert_paths_to_str(config_copy)
+            return yaml.dump(config_copy)
 
     def write_restraints_file(self):
         """Copy current configuration and reset substrate positions"""
         logging.debug("Creating restraints file")
         restraints = self.model.copy()
-        substrate = pmx.Model(str(self.run_config["substrate"]["pdb_file"]))
-        substrate.a2nm()
-        for i in range(len(substrate.atoms)):
-            restraints.atoms[i].x = substrate.atoms[i].x
+        if "initial_structure_file" in self.run_config:
+            reference_structure = pmx.Model(str(self.run_config["initial_structure_file"]))
+        else:
+            reference_structure = pmx.Model(str(self.run_config["substrate"]["pdb_file"]))
+        reference_structure.a2nm()
+        self.reset_substrate_positions(restraints, reference_structure)
         restraints_path = join(self.rootdir, self.filename("restraints", "gro"))
         restraints.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
+        #substrate.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
+
+    def reset_substrate_positions(self, restraints, reference_structure):
+        substrate_resname = self.run_config["substrate"]["res_name"]
+        restraint_substrate_molecules = [r for r in restraints.residues if r.resname == substrate_resname]
+        reference_substrate_molecules = [r for r in reference_structure.residues if r.resname == substrate_resname]
+        assert len(restraint_substrate_molecules) > 0, \
+            f"Substrate res_name {substrate_resname} not found in simulated system"
+        assert len(reference_substrate_molecules) > 0, \
+            f"Substrate res_name {substrate_resname} not found in reference structure"
+        assert len(reference_substrate_molecules) == len(restraint_substrate_molecules), \
+            f"Number of substrate molecules in reference structure and simulated system do not match: " \
+            f"{len(reference_substrate_molecules)} !- {len(restraint_substrate_molecules)}"
+        for restraint_molecule, reference_molecule in zip(restraint_substrate_molecules, reference_substrate_molecules):
+            for i, a in enumerate(restraint_molecule.atoms):
+                a.x = reference_molecule.atoms[i].x
 
     def filename(self, category, ext, prev_run=False, run_ID=None):
         run_ID = run_ID if run_ID is not None else self.run_ID
@@ -352,13 +384,13 @@ class Deposition(object):
                            if atom_counts > density_fraction_cutoff * max_atom_density
                            }
         if len(bins_with_atoms) == 0:
-            logging.debug("    No atoms found")
+            logging.warning("No atoms found in layer")
         else:
             if len(bins_with_atoms) == atom_counts:
-                logging.warning("    No void above deposited layer found")
+                logging.warning("No void above deposited layer found")
             z_bin, atom_count = sorted(bins_with_atoms.items())[-1]
             binned_max_height = z_bin * bin_width
-            logging.debug("    Max layer height {:.3f} nm ({} atoms/bin)".format(binned_max_height, atom_count))
+            logging.debug("Max layer height {:.3f} nm ({} atoms/bin)".format(binned_max_height, atom_count))
         return binned_max_height
 
     def zero_substrate_velocity(self):
@@ -373,7 +405,7 @@ class Deposition(object):
     def has_residue_left_layer(self, residue, layer_height):
         mean_atom_height = np.mean([a.x[2] for a in residue.atoms])
         if mean_atom_height > layer_height + self.escape_tolerance:
-            logging.debug(f"    Molecule ({residue.id}) found in the gas phase, mean atom height ({mean_atom_height:.3f}) >"
+            logging.info(f"Molecule ({residue.id}) found in the gas phase, mean atom height ({mean_atom_height:.3f}) >"
                           f" layer_height ({layer_height} nm) + escape_tolerance ({self.escape_tolerance} nm)")
             return True
         else:
@@ -449,7 +481,7 @@ class Deposition(object):
         # logging.debug(f"Post rotation COG of new molecule: {np.mean([a.x for a in next_molecule.atoms], axis=0)}")
         next_molecule.translate([x_pos, y_pos, insert_height])
         # logging.debug(f"Post translation COG of new molecule: {np.mean([a.x for a in next_molecule.atoms], axis=0)}")
-        logging.debug(f"    Inserting molecule {next_molecule_resname['res_name']}: "
+        logging.debug(f"Inserting molecule {next_molecule_resname['res_name']}: "
                       f"{np.mean([a.x for a in next_molecule.atoms], axis=0)}")
 
         return next_molecule
@@ -467,7 +499,7 @@ class Deposition(object):
         if self.run_config["simulation_type"] == SOLVENT_EVAPORATION:
             excluded_resname = self.run_config["solvent_name"]
             solvent_excluded_layer_height = self.layer_height(excluded_resnames=[excluded_resname])
-            logging.info(f"Layer height excluding {excluded_resname} is {solvent_excluded_layer_height} nm")
+            logging.debug(f"Layer height excluding {excluded_resname} is {solvent_excluded_layer_height:.3f} nm")
             for residue in self.model.residues:
                 if residue.resname == self.run_config["solvent_name"]:
                     if self.has_residue_left_layer_solvent_evaporation(residue, solvent_excluded_layer_height):
@@ -490,7 +522,7 @@ class Deposition(object):
             #     else self.run_config["substrate"]["res_name"]
             layer_height = self.layer_height(#excluded_resnames=[substrate_resname],
                                              density_fraction_cutoff=density_fraction_cutoff)
-            logging.info(f"Layer height with density threshold {100*density_fraction_cutoff}% of maximum "
+            logging.debug(f"Layer height with density threshold {100*density_fraction_cutoff}% of maximum "
                          f"is {layer_height} nm")
             for residue in self.model.residues:
                 if self.has_residue_left_layer(residue, layer_height):
@@ -522,14 +554,14 @@ class Deposition(object):
 
     def n_highest_solvent_molecules(self):
         highest_residues = self.top_molecule_n_molecules(self.solvent_name)
-        logging.debug(f"Highest {self.remove_n_highest_molecules} solvent ({self.solvent_name}) "
+        logging.info(f"Highest {self.remove_n_highest_molecules} solvent ({self.solvent_name}) "
                       f"molecules will be removed")
         return highest_residues
 
     def remove_residue_with_id(self, residue_id):
         residue = self.model.residue(residue_id)
         self.model.remove_residue(residue)
-        logging.debug("Removing residue with ID: {0}".format(residue.id))
+        logging.info("Removing residue with ID: {0}".format(residue.id))
         # Decrease the mixture counts
         self.mixture[residue.resname]["count"] -= 1
 
@@ -559,7 +591,7 @@ class Deposition(object):
         # for atom in self.model.atoms:
         #     if atom.resname == self.run_config["substrate"]["res_name"] and atom.x[2] > half_old_Lz:
         #         atom.x[2] -= old_Lz
-        logging.debug("    Box size changed from z={0} nm to z={1} nm".format(old_Lz, self.model.box[2][2]))
+        logging.debug("Box size changed from z={0} nm to z={1} nm".format(old_Lz, self.model.box[2][2]))
 
     def write_init_configuration(self):
         self.model.write(self.filename("input-coordinates", "gro"),
@@ -677,6 +709,6 @@ class Deposition(object):
             self.model.insert_residue(last_residue, next_molecule.residues[0], " ")
             self.gen_initial_velocities_last_residue()
             self.new_residues.append(len(self.model.residues))
-        logging.info("    Current composition: " + ",".join([" {0}:{1}".format(r["res_name"], r["count"])
+        logging.info("Current system composition: " + ", ".join([" {0}:{1}".format(r["res_name"], r["count"])
                                                              for r in self.mixture.values()])
                      )

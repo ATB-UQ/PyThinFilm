@@ -18,7 +18,8 @@ def main(config, n_cores, debug=False):
     while deposition.run_ID <= deposition.last_run_ID:
         # Some housekeeping for the new cycle.
         deposition.setup_logging()
-        logging.debug(f"Running cycle with parameters: \n{deposition.run_config_summary()}")
+        logging.info(f"Running {deposition.type} cycle {deposition.run_ID}")
+        logging.debug(f"Settings: \n{deposition.run_config_summary()}")
         deposition.resize_box()
 
         # Remove molecules from the gas phase.
@@ -41,7 +42,7 @@ def main(config, n_cores, debug=False):
 
         # Cycle complete, increment run ID.
         deposition.run_ID += 1
-        logging.debug(f"Run cycle completed, ID incremented: {deposition.run_ID}")
+        logging.info(f"Run cycle completed, ID incremented: {deposition.run_ID}")
 
     # The specified number of MD simulation cycles has been reached
     if deposition.run_ID > deposition.last_run_ID:

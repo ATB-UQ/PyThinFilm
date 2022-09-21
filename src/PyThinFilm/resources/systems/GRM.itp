@@ -2740,7 +2740,7 @@ GRM      3
  2717     C    1     GRM      C 2717    0.0000  12.0110 
  2718     C    1     GRM      C 2718    0.0000  12.0110 
  2719     C    1     GRM      C 2719    0.0000  12.0110 
- 2720     C    1     GRM      C 2720    0.0000  12.0110 
+ 2720     C    1     GRM      C 2720    0.0000  12.0110
 [ bonds ]
 ;  ai   aj  funct   c0         c1
 [ pairs ]
@@ -2748,12 +2748,9 @@ GRM      3
 [ angles ]
 ;  ai   aj   ak  funct   angle     fc
 [ dihedrals ]
-; GROMOS improper dihedrals
-;  ai   aj   ak   al  funct   angle     fc
-[ dihedrals ]
 ;  ai   aj   ak   al  funct    ph0      cp     mult
 [ exclusions ]
-;  ai   aj  funct  ;  GROMOS 1-4 exclusions
+;  ai   aj  funct
 1 2
 1 3
 1 4
