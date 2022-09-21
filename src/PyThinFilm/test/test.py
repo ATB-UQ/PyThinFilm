@@ -21,21 +21,21 @@ class TestVacuumDeposition(unittest.TestCase):
             shutil.rmtree(run_config["work_directory"])
         return run_config
 
-    def _test_quick_single_core(self):
+    def test_quick_single_core(self):
         run_config = self._test_setup("quick_test.yml")
         main(run_config, 1)
 
-    def _test_multicore(self):
+    def test_multicore(self):
         run_config = self._test_setup("multicore_test.yml")
         main(run_config, 8)
 
-    def _test_fullerene(self):
+    def test_fullerene(self):
         run_config = self._test_setup("fullerene_test.yml")
         main(run_config, 8)
 
     def test_solvent(self):
         run_config = self._test_setup("solvent_test.yml")
-        main(run_config, 8, debug=True)
+        main(run_config, 8)
 
 
 if __name__ == "__main__":

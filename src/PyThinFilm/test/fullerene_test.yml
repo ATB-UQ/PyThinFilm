@@ -16,10 +16,10 @@ insertion_z_radius: 1.0 #nm
 seed: 489327835
 temperature: 100 #K
 mixture:
-  G8LE:
-    res_name: G8LE
-    pdb_file: systems/c60.pdb
-    itp_file: systems/c60.itp
+  FULL:
+    res_name: FULL
+    pdb_file: systems/FULL.pdb
+    itp_file: systems/FULL.itp
     ratio: 1
 substrate:
   res_name: GRM
