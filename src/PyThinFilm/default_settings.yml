@@ -13,7 +13,6 @@ time_step: 0.002 #ps
 density_fraction_cutoff: 0.0
 overhead_void_space: 10.0 #nm
 deposition_velocity: 0.0 #nm/ps
-template: deposition.mdp.epy
 run_time: 100 #ps
 insertions_per_run: 1
 max_insertion_attempts: 100

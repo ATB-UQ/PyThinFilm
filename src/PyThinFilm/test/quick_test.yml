@@ -1,5 +1,5 @@
 name: quick_test
-work_directory: /Users/uqmstroe/quicktest_working
+work_directory: quicktest_working
 simulation_type: vacuum_deposition
 n_cycles: 2
 forcefield_file: gromos54a7_atb.ff/forcefield.itp

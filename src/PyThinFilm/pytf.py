@@ -11,8 +11,7 @@ def main(config, n_cores, debug=False):
     deposition = Deposition(config, n_cores, debug)
     # First check to see if any simulation cycles are required.
     if deposition.run_ID > deposition.last_run_ID:
-        logging.info("{}/{} depositions completed, there are no more depositions to run".format(deposition.run_ID,
-                                                                                                deposition.last_run_ID))
+        logging.info(f"{deposition.run_ID - 1}/{deposition.last_run_ID} depositions completed, there are no more depositions to run")
         return
 
     while deposition.run_ID <= deposition.last_run_ID:
@@ -52,7 +51,7 @@ def main(config, n_cores, debug=False):
 @click.command(short_help="Run a PyThinFilm simulation protocol.")
 @click.argument('config', nargs=1, type=click.Path(exists=True))
 @click.option('-n', '--n_cores', default=1, help="Number of cores. Using n_cores > 1 requires MPI.")
-@click.option('-d', '--debug', default=False, help="Print debugging information.")
+@click.option('-d', '--debug', is_flag=True, default=False, help="Print debugging information.")
 def cli(config, n_cores, debug):
     main(config, n_cores, debug)
 

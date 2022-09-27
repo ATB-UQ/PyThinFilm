@@ -1,5 +1,5 @@
 name: fullerene_test
-work_directory: /Users/uqmstroe/fullerene_test_working
+work_directory: fullerene_test_working
 simulation_type: vacuum_deposition
 n_cycles: 1
 forcefield_file: gromos54a7_atb.ff/forcefield.itp
@@ -9,7 +9,7 @@ density_fraction_cutoff: 0.05
 overhead_void_space: 5.0 # nm
 deposition_velocity: 0.1 # nm/ps
 description: "Fullerene vacuum deposition test"
-run_time: 50.0 #ps
+run_time: 20.0 #ps
 insertions_per_run: 2
 insertion_xy_radius: 2.0 #nm
 insertion_z_radius: 1.0 #nm

@@ -2,12 +2,15 @@ import os
 import shutil
 import unittest
 from pathlib import Path
+import multiprocessing
 
 import yaml
 from pkg_resources import resource_filename
 
 from PyThinFilm.pytf import main
 from PyThinFilm.common import PACKAGE_MAME
+
+N_CORES = multiprocessing.cpu_count()
 
 
 class TestVacuumDeposition(unittest.TestCase):
@@ -27,15 +30,15 @@ class TestVacuumDeposition(unittest.TestCase):
 
     def test_multicore(self):
         run_config = self._test_setup("multicore_test.yml")
-        main(run_config, 8)
+        main(run_config, N_CORES)
 
     def test_fullerene(self):
         run_config = self._test_setup("fullerene_test.yml")
-        main(run_config, 8)
+        main(run_config, N_CORES)
 
     def test_solvent(self):
         run_config = self._test_setup("solvent_test.yml")
-        main(run_config, 8)
+        main(run_config, N_CORES)
 
 
 if __name__ == "__main__":

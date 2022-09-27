@@ -49,10 +49,9 @@ class Deposition(object):
 
         self.rootdir = os.path.abspath(self.run_config["work_directory"])
         # Create the 'work_directory' if it doesn't exist
-        if not os.path.exists(self.rootdir):
-            os.makedirs(self.rootdir)
-            for d in ROOT_DIRS:
-                os.makedirs(os.path.join(self.rootdir, d))
+        os.makedirs(self.rootdir, exist_ok=True)
+        for d in ROOT_DIRS:
+            os.makedirs(os.path.join(self.rootdir, d), exist_ok=True)
 
         # initialise logging temporarily for run_ID=0
         self.setup_logging()
