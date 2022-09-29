@@ -7,6 +7,7 @@ n_cycles: 1
 forcefield_file: gromos54a7_atb.ff/forcefield.itp
 description: 'Test solvent evaporation of CBP/IPS/CCL3'
 run_time: 0.01 #ps
+nstout: 5
 seed: 142271835
 temperature: 310 #K
 mixture:

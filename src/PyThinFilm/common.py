@@ -7,8 +7,9 @@ TEMPLATE_DIR = Path(pkg_resources.resource_filename(PACKAGE_MAME, "templates"))
 RESOURCES_DIR = Path(pkg_resources.resource_filename(PACKAGE_MAME, "resources"))
 DEFAULT_SETTING = Path(pkg_resources.resource_filename(PACKAGE_MAME, "default_settings.yml"))
 
-# grompp produces at least 1 dubious warning message related to the GROMOS force field
-GPP_TEMPLATE = "{GMX_EXEC} {grompp} -maxwarn 1 -f {MDP_FILE} -c {initial} -r {restraints} -p {top} -o {tpr} "
+# grompp produces a dubious warning message related to the GROMOS force field
+# and one for default epsilon-rf = epsilon-r = 1, hence -maxwarn 2
+GPP_TEMPLATE = "{GMX_EXEC} {grompp} -maxwarn 2 -f {MDP_FILE} -c {initial} -r {restraints} -p {top} -o {tpr} "
 GROMPP = "grompp"
 TPBCONV = "tpbconv"
 MDRUN = "mdrun"

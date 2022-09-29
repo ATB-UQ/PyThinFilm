@@ -15,7 +15,7 @@ N_CORES = multiprocessing.cpu_count()
 
 class TestVacuumDeposition(unittest.TestCase):
 
-    def _test_setup(self, test_config):
+    def setup_test(self, test_config):
         test_dir = Path(resource_filename(PACKAGE_MAME, "test"))
         run_config_file = test_dir / test_config
         with open(run_config_file) as fh:
@@ -25,19 +25,23 @@ class TestVacuumDeposition(unittest.TestCase):
         return run_config
 
     def test_quick_single_core(self):
-        run_config = self._test_setup("quick_test.yml")
+        run_config = self.setup_test("quick_test.yml")
         main(run_config, 1)
 
     def test_multicore(self):
-        run_config = self._test_setup("multicore_test.yml")
+        run_config = self.setup_test("multicore_test.yml")
         main(run_config, N_CORES)
 
     def test_fullerene(self):
-        run_config = self._test_setup("fullerene_test.yml")
+        run_config = self.setup_test("fullerene_test.yml")
         main(run_config, N_CORES)
 
     def test_solvent(self):
-        run_config = self._test_setup("solvent_test.yml")
+        run_config = self.setup_test("solvent_test.yml")
+        main(run_config, N_CORES)
+
+    def test_annealing(self):
+        run_config = self.setup_test("annealing_test.yml")
         main(run_config, N_CORES)
 
 

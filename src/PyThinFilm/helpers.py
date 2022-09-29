@@ -48,7 +48,8 @@ def recursive_correct_paths(node):
             recursive_correct_paths(value)
         elif isinstance(value, list):
             for item in value:
-                recursive_correct_paths(item)
+                if isinstance(item, dict):
+                    recursive_correct_paths(item)
         elif "_file" in key:
             orig_path = Path(value)
             if orig_path.exists():
@@ -67,7 +68,8 @@ def recursive_convert_paths_to_str(node):
             recursive_convert_paths_to_str(value)
         elif isinstance(value, list):
             for item in value:
-                recursive_convert_paths_to_str(item)
+                if isinstance(item, dict):
+                    recursive_convert_paths_to_str(item)
         elif isinstance(value, pathlib.Path):
             node[key] = value.as_posix()
 

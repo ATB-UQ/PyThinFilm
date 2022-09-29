@@ -10,50 +10,37 @@ nstcomm                  = {{nstcomm}}            ; [steps] frequency of mass mo
 comm_grps                = system                 ; group(s) for center of mass motion removal
 
 ; output control
-nstxout-compressed       = 100
+nstxout-compressed       = {{nstout}}
 compressed-x-grps        = system                 ; group(s) to write to xtc trajectory
 
-; Completly disable .trr, except for last frame which is mandatory
 nstxout                  = 0
 nstvout                  = 0
 nstfout                  = 0
-nstlog                   = 100                   ; [steps] freq to write energies to log file
-nstenergy                = 100                   ; [steps] freq to write energies to energy file
+nstlog                   = {{nstout}}                   ; [steps] freq to write energies to log file
+nstenergy                = {{nstout}}                   ; [steps] freq to write energies to energy file
 
 ; neighbor searching
 pbc                      = xyz                   ; periodic boundary conditions in all directions
-rlist                    = 1.4                   ; [nm] short-range cutoff for making neighbor list
+rlist                    = {{cutoff}}            ; [nm] short-range cutoff for making neighbor list
 periodic_molecules       = yes                   ; for systems with mols that couple to themselves through pbc
 
 ; electrostatics
 coulombtype              = reaction-field        ; rxn field electrostatics
-rcoulomb                 = 1.4                   ; [nm] Coulomb cutoff
-epsilon-rf               = 10
+rcoulomb                 = {{cutoff}}            ; [nm] Coulomb cutoff
+epsilon-rf               = {{dielectric_constant}}
 
 ; vdW
-vdwtype                  = cut-off               ; twin-range cut-off with rlist where rvdw >= rlist
-rvdw                     = 1.4                   ; van der Waals cutoff [nm]
+vdwtype                  = cut-off
+rvdw                     = {{cutoff}}            ; van der Waals cutoff [nm]
 
 ; temperature coupling
 tcoupl                   = v-rescale             ; temperature coupling with Berendsen-thermostat
 tc-grps                  = {{res_list}}          ; groups to couple seperately to temperature bath
-tau_t                    = {{tau_t_list}}        ; [ps] time constant for coupling
-ref_t                    = {{temperature_list}}  ; [K] reference temperature for coupling
-
-; pressure coupling
-;Pcoupl                   = Berendsen
-;Pcoupltype               = isotropic
-;tau_p                    = 1.0
-;compressibility          = 4.5e-5
-;ref_p                    = 1.0
-
-;Pcoupltype               = anisotropic
-;ref_p                    = 1.0 1.0 0.0 0.0 0.0 0.0
-;compressibility          = 4.5e-5 4.5e-5 0.0 0.0 0.0 0.0
-;tau_p                    = 1.0
+tau_t                    = {{termostat_tau_t_list}}        ; [ps] time constant for coupling
+ref_t                    = {{termostat_temperature_list}}  ; [K] reference temperature for coupling
 
 ; velocity generation
-gen_vel                  = no                   ; generate velocities according to Maxwell distribution of temperature
+gen_vel                  = no                    ; generate velocities according to Maxwell distribution of temperature
 
 ; bonds
 constraints              = h-bonds

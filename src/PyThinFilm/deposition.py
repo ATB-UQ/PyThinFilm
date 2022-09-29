@@ -18,7 +18,8 @@ from PyThinFilm.helpers import res_highest_z, remove_residues_faster, recursive_
     group_residues, foldnorm_mean, recursive_convert_paths_to_str
 
 from PyThinFilm.common import GPP_TEMPLATE, GROMPP, MDRUN, MDRUN_TEMPLATE, \
-    MDRUN_TEMPLATE_GPU, K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR, SIMULATION_TYPES, SOLVENT_EVAPORATION
+    MDRUN_TEMPLATE_GPU, K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR, SIMULATION_TYPES, SOLVENT_EVAPORATION, \
+    THERMAL_ANNEALING
 
 
 class Deposition(object):
@@ -57,21 +58,22 @@ class Deposition(object):
         # Convert file paths in run_config to be absolute where files in resources directory are used
         recursive_correct_paths(self.run_config)
 
-        self.last_run_ID = self.get_latest_run_ID()
-        if self.last_run_ID > 0 and self.has_run_failed(self.last_run_ID):
-            logging.warning("Last run {} failed, associated files will be moved out of the way".format(self.last_run_ID))
-            self.delete_run(self.last_run_ID)
-            if self.last_run_ID == 1:
+        self.prev_run_ID = self.get_latest_run_ID()
+
+        if self.prev_run_ID > 0 and self.has_run_failed(self.prev_run_ID):
+            logging.warning("Previous run {} failed, associated files will be moved out of the way".format(self.prev_run_ID))
+            self.delete_run(self.prev_run_ID)
+            if self.prev_run_ID == 1:
                 # Failed on the first step, reinitialise
                 self.run_ID = 1
             else:
-                self.run_ID = self.last_run_ID - 1
-                if self.last_run_ID > 0 and self.has_run_failed(self.get_latest_run_ID()):
+                self.run_ID = self.prev_run_ID - 1
+                if self.prev_run_ID > 0 and self.has_run_failed(self.get_latest_run_ID()):
                     raise Exception("The previous 2 runs were found to have not completed successfully: {} and {}".format(
-                        self.last_run_ID, self.last_run_ID - 1)
+                        self.prev_run_ID, self.prev_run_ID - 1)
                     )
         else:
-            self.run_ID = self.last_run_ID + 1
+            self.run_ID = self.prev_run_ID + 1
 
         self.setup_logging()
 
@@ -107,7 +109,18 @@ class Deposition(object):
             if self.n_cores == 1 \
             else self.run_config['gmx_executable_mpi']
 
-        self.init_deposition_steps()
+        if self.type == THERMAL_ANNEALING:
+            if "temperature_list" not in self.run_config or not self.run_config["temperature_list"]:
+                msg = "Thermal annealing simulations required that a temperature_list is provided in the run config"
+                logging.error(msg)
+                raise Exception(msg)
+            if self.run_config["n_cycles"] is not None:
+                logging.warning("The n_cycles parameter is ignored for thermal_annealing run types.")
+            self.last_run_ID = len(self.run_config["temperature_list"])
+        else:
+            self.last_run_ID = self.run_config["n_cycles"]
+
+        self.init_mixture_residue_counts()
 
     def init_gromacs_templates(self):
         if not Path(self.run_config['mdp_template']).exists():
@@ -209,14 +222,18 @@ class Deposition(object):
             nstcomm = 100
         res_list = list(set(residue_list))
         mdp = mdp_template.render(res_list=" ".join(res_list),
-                                  time_step=self.run_config["time_step"],
                                   n_steps=n_steps,
                                   nstcomm=nstcomm,
-                                  temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
-                                  tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
+                                  termostat_temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
+                                  termostat_tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
+                                  **self.run_config
                                   )
         with open(self.filename("control", "mdp"), "w") as fh:
             fh.write(mdp)
+
+        # Write updated model with modifications (insertions/deletions) if applicable
+        self.write_init_configuration()
+        self.write_restraints_file()
 
     def run_subprocess(self, cli_template, inserts):
 
@@ -271,11 +288,6 @@ class Deposition(object):
             return max(num) if len(num) > 0 else 0
         else:
             return 0
-
-    def init_deposition_steps(self):
-        # Get the list of all the deposition steps
-        self.last_run_ID = self.run_config["n_cycles"]
-        self.init_mixture_residue_counts()
 
     def run_config_summary(self, minimal=False):
         if minimal:
@@ -494,7 +506,7 @@ class Deposition(object):
     def remove_gas_phase_residues(self):
         # Iterate over the residues and remove the ones that have left the layer
         gas_phase_residues = []
-        if self.run_config["simulation_type"] == SOLVENT_EVAPORATION:
+        if self.type == SOLVENT_EVAPORATION:
             excluded_resname = self.run_config["solvent_name"]
             solvent_excluded_layer_height = self.layer_height(excluded_resnames=[excluded_resname])
             logging.debug(f"Layer height excluding {excluded_resname} is {solvent_excluded_layer_height:.3f} nm")
@@ -707,3 +719,16 @@ class Deposition(object):
         logging.info("Current system composition: " + ", ".join([" {0}:{1}".format(r["res_name"], r["count"])
                                                              for r in self.mixture.values()])
                      )
+
+    def set_temperature_thermal_annealing(self):
+        """For thermal annealing, the temperature of a given cycle is set according to the value at index
+        self.run_ID - 1 within the temperature_list provided in the run config."""
+
+        temperature_index = self.run_ID - 1
+        if temperature_index > len(self.run_config["temperature_list"]):
+            msg = f"Temperature value not provided in temperature_list for run {self.run_ID} ({self.run_config['temperature_list']})"
+            logging.error(msg)
+            raise Exception(msg)
+
+        self.run_config["temperature"] = self.run_config["temperature_list"][temperature_index]
+        logging.info(f"Temperature set to: {self.run_config['temperature']}")

@@ -1,5 +1,6 @@
 work_directory: pytf_working
 name: PyThinFilm
+n_cycles: None
 forcefield_file: gromos54a7_atb.ff/forcefield.itp
 mdp_template: deposition.mdp.epy
 topo_template: topo.top.epy
@@ -10,6 +11,9 @@ gmx_executable: gmx
 gmx_executable_mpi: gmx_mpi
 escape_tolerance: 5.0 #nm
 time_step: 0.002 #ps
+dielectric_constant: 1
+cutoff: 1.4 #nm
+nstout: 5000
 density_fraction_cutoff: 0.0
 overhead_void_space: 10.0 #nm
 deposition_velocity: 0.0 #nm/ps

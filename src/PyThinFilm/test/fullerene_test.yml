@@ -10,6 +10,7 @@ overhead_void_space: 5.0 # nm
 deposition_velocity: 0.1 # nm/ps
 description: "Fullerene vacuum deposition test"
 run_time: 20.0 #ps
+nstout: 100
 insertions_per_run: 2
 insertion_xy_radius: 2.0 #nm
 insertion_z_radius: 1.0 #nm
