@@ -1,6 +1,6 @@
 work_directory: pytf_working
 name: PyThinFilm
-n_cycles: None
+n_cycles: 1
 forcefield_file: gromos54a7_atb.ff/forcefield.itp
 mdp_template: deposition.mdp.epy
 topo_template: topo.top.epy
@@ -22,7 +22,7 @@ insertions_per_run: 1
 max_insertion_attempts: 100
 insertion_xy_radius: 2.0 #nm
 insertion_z_radius: 1.0 #nm
-seed: 489327835
+seed: 0
 temperature: 300 #K
 tau_t: 0.1
 slab_width: 100

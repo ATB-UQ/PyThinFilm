@@ -122,6 +122,12 @@ class Deposition(object):
 
         self.init_mixture_residue_counts()
 
+    def init_cycle(self):
+        self.setup_logging()
+        logging.info(f"Running {self.type} simulation #{self.run_ID}")
+        logging.debug(f"Settings: \n{self.run_config_summary()}")
+        self.resize_box()
+
     def init_gromacs_templates(self):
         if not Path(self.run_config['mdp_template']).exists():
             self.mdp_template_file = TEMPLATE_DIR / self.run_config['mdp_template']
@@ -135,6 +141,8 @@ class Deposition(object):
                     self.run_config['topo_template']))
 
     def run_gromacs_simulation(self):
+        # Create run directory and run setup gromacs simulation files.
+        self.init_gromacs_simulation()
 
         arg_values = {"GMX_EXEC": self.gmx_executable,
                       "MDP_FILE": self.filename("control", "mdp"),
@@ -454,9 +462,6 @@ class Deposition(object):
     def sample_mixture(self):
         if len(self.sampling_mixture) == 1:
             return list(self.sampling_mixture.values())[0]
-        # exact composition no longer supported
-        if "exact_composition" in self.run_config:
-            raise Exception("parameter 'exact_composition' no longer supported")
 
         num_residues = len(self.model.residues)
         generator = random.Random(num_residues * self.run_ID * self.run_config["seed"])
@@ -467,7 +472,6 @@ class Deposition(object):
             cumulative += v["ratio"]
             if random_num < cumulative/ratio_sum:
                 return v
-        raise Exception("If you are reading this something terrible has happened")
 
     def get_next_molecule(self, layer_height=None):
         next_molecule_resname = self.sample_mixture()
@@ -732,3 +736,8 @@ class Deposition(object):
 
         self.run_config["temperature"] = self.run_config["temperature_list"][temperature_index]
         logging.info(f"Temperature set to: {self.run_config['temperature']}")
+
+    def equilibration(self):
+        """Not much to do... just run MD"""
+        logging.info(f"Running {self.run_config['run_time']} ps "
+                     f"of MD @ {self.run_config['temperature']} K.")

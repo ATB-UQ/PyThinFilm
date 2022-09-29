@@ -2,7 +2,7 @@ import logging
 import click
 
 from PyThinFilm.deposition import Deposition
-from PyThinFilm.common import VACUUM_DEPOSITION, THERMAL_ANNEALING
+from PyThinFilm.common import VACUUM_DEPOSITION, THERMAL_ANNEALING, EQUILIBRATION
 
 
 def main(config, n_cores, debug=False):
@@ -16,10 +16,7 @@ def main(config, n_cores, debug=False):
 
     while deposition.run_ID <= deposition.last_run_ID:
         # Some housekeeping for the new cycle.
-        deposition.setup_logging()
-        logging.info(f"Running {deposition.type} simulation #{deposition.run_ID}")
-        logging.debug(f"Settings: \n{deposition.run_config_summary()}")
-        deposition.resize_box()
+        deposition.init_cycle()
 
         # Remove molecules from the gas phase; in some cases molecules can remain in the gas phase
         # during vacuum deposition.
@@ -32,9 +29,8 @@ def main(config, n_cores, debug=False):
         elif deposition.type == THERMAL_ANNEALING:
             # Set temperature based on temperature_list
             deposition.set_temperature_thermal_annealing()
-
-        # Create run directory and run setup gromacs simulation files.
-        deposition.init_gromacs_simulation()
+        elif deposition.type == EQUILIBRATION:
+            deposition.equilibration()
 
         # Perform MD simulation
         deposition.run_gromacs_simulation()
