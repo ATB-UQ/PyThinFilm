@@ -1,6 +1,5 @@
 import logging
 import pathlib
-from itertools import combinations
 from pathlib import Path
 import numpy as np
 from math import erf
@@ -50,12 +49,16 @@ def recursive_correct_paths(node):
         elif isinstance(value, list):
             for item in value:
                 recursive_correct_paths(item)
-        elif "_file" in key and not Path(value).exists():
-            resource_path = RESOURCES_DIR/value
-            if not resource_path.exists():
-                logging.warning(f"File not found: {key} = {value}")
-            node[key] = resource_path
-            logging.debug(f"Path updated: {key} = {resource_path}")
+        elif "_file" in key:
+            orig_path = Path(value)
+            if orig_path.exists():
+                node[key] = orig_path.absolute()
+            else:
+                resource_path = RESOURCES_DIR/value
+                if not resource_path.exists():
+                    logging.warning(f"File not found: {key} = {value}")
+                node[key] = resource_path
+                logging.debug(f"Path updated: {key} = {resource_path}")
 
 
 def recursive_convert_paths_to_str(node):
@@ -105,29 +108,3 @@ def group_residues(resnames):
             current_resname = ""
     return res_groups
 
-
-def basename_remove_suffix(p):
-    return ".".join(Path(p).name.split('.')[0:2])
-
-
-def calc_exclusions(model):
-    Lx = model.box[0][0]
-    Ly = model.box[1][1]
-    exclusions = []
-    atoms = [(a.id, np.array(a.x)) for residue in model.residues for a in residue.atoms]
-    for ai, aj in combinations(atoms, 2):
-        dx = ai[1][0] - aj[1][0]
-        dy = ai[1][1] - aj[1][1]
-        dx = dx - Lx if dx > 0.5 * Lx else dx
-        dy = dy - Ly if dy > 0.5 * Ly else dy
-        dx = dx + Lx if dx < -0.5 * Lx else dx
-        dy = dy + Ly if dy < -0.5 * Ly else dy
-        d = np.sqrt(dx * dx + dy * dy)
-        if d < 0.4:
-            # print(ai[0], aj[0], d)
-            exclusions.append("{} {}".format(ai[0], aj[0]))
-        # if len(exclusions) > 100:
-        #     break
-
-    with open("excl.txt", "w") as fh:
-        fh.write("\n".join(exclusions))

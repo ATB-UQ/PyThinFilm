@@ -5,7 +5,6 @@ from copy import deepcopy
 from io import StringIO
 from os.path import join
 from pathlib import Path
-from traceback import format_exc
 import pmx
 import random
 import logging
@@ -16,8 +15,7 @@ from time import time
 import numpy as np
 
 from PyThinFilm.helpers import res_highest_z, remove_residues_faster, recursive_correct_paths, get_mass_dict, \
-    group_residues, \
-    foldnorm_mean, calc_exclusions, recursive_convert_paths_to_str
+    group_residues, foldnorm_mean, recursive_convert_paths_to_str
 
 from PyThinFilm.common import GPP_TEMPLATE, GROMPP, MDRUN, MDRUN_TEMPLATE, \
     MDRUN_TEMPLATE_GPU, K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR, SIMULATION_TYPES, SOLVENT_EVAPORATION
@@ -63,19 +61,19 @@ class Deposition(object):
         if self.last_run_ID > 0 and self.has_run_failed(self.last_run_ID):
             logging.warning("Last run {} failed, associated files will be moved out of the way".format(self.last_run_ID))
             self.delete_run(self.last_run_ID)
-            self.run_ID = self.last_run_ID - 1
-            if self.last_run_ID > 0 and self.has_run_failed(self.get_latest_run_ID()):
-                raise Exception("The previous 2 runs were found to have not completed successfully: {} and {}".format(
-                    self.last_run_ID, self.last_run_ID - 1)
-                )
+            if self.last_run_ID == 1:
+                # Failed on the first step, reinitialise
+                self.run_ID = 1
+            else:
+                self.run_ID = self.last_run_ID - 1
+                if self.last_run_ID > 0 and self.has_run_failed(self.get_latest_run_ID()):
+                    raise Exception("The previous 2 runs were found to have not completed successfully: {} and {}".format(
+                        self.last_run_ID, self.last_run_ID - 1)
+                    )
         else:
             self.run_ID = self.last_run_ID + 1
 
         self.setup_logging()
-
-        self.gmx_executable = self.run_config['gmx_executable'] \
-            if self.n_cores == 1 \
-            else self.run_config['gmx_executable_mpi']
 
         if self.run_ID == 1:
             if "initial_structure_file" in self.run_config:
@@ -87,8 +85,7 @@ class Deposition(object):
 
         self.model = pmx.Model(str(configuration_path))
         self.model.a2nm()
-        # calc_exclusions(self.model)
-        # raise
+
         self.sampling_mixture = self.run_config["mixture"]
         self.mixture = {}
 
@@ -105,6 +102,10 @@ class Deposition(object):
         self.remove_n_highest_molecules = self.run_config["remove_n_highest_molecules"]
 
         self.solvent_name = self.run_config["solvent_name"]
+
+        self.gmx_executable = self.run_config['gmx_executable'] \
+            if self.n_cores == 1 \
+            else self.run_config['gmx_executable_mpi']
 
         self.init_deposition_steps()
 
@@ -234,12 +235,15 @@ class Deposition(object):
 
         if 0 < return_code:
             msg = "Subprocess terminated with non-zero exit code: \n{0}".format(" ".join(arg_list))
+            with open(err_filepath, "r") as fh:
+                details = fh.read()
             logging.error(msg)
+            logging.error("Process stderr output:\n" + details)
             raise Exception(msg)
 
     def molecule_number(self):
         return len(self.model.residues)
-    
+
     def setup_logging(self):
         for handler in logging.root.handlers[:]:
             handler.close()
@@ -391,11 +395,6 @@ class Deposition(object):
             binned_max_height = z_bin * bin_width
             logging.debug("Max layer height {:.3f} nm ({} atoms/bin)".format(binned_max_height, atom_count))
         return binned_max_height
-
-    def zero_substrate_velocity(self):
-        for atom in self.model.atoms:
-            if atom.resname == self.run_config["substrate"]["res_name"]:
-                atom.v = [0.0, 0.0, 0.0]
 
     def has_residue_left_layer_solvent_evaporation(self, residue, solvent_excluded_layer_height):
         min_atom_height = np.min([a.x[2] for a in residue.atoms])
@@ -570,9 +569,6 @@ class Deposition(object):
             self.mixture[residue.resname]["count"] -= 1
         remove_residues_faster(self.model, residues)
 
-    def remove_residue(self, residue):
-        self.remove_residue_with_id(residue.id)
-
     def highest_z(self):
         return max(a.x[2] for a in self.model.atoms)
 
@@ -676,7 +672,7 @@ class Deposition(object):
                         slab_atoms[slab_id-1] = slab_atoms[slab_id-1] + atoms
                         slab_atoms[slab_id] = []
                         consolidated = False
-                
+
         ndx_path = self.filename("index", "ndx")
         with open(ndx_path,"w") as f:
             for slab_id in range(num_slabs):
