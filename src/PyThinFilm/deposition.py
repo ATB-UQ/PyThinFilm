@@ -416,15 +416,13 @@ class Deposition(object):
             logging.debug("Max layer height {:.3f} nm ({} atoms/bin)".format(binned_max_height, atom_count))
         return binned_max_height
 
-    def has_residue_left_layer_solvent_evaporation(self, residue, solvent_excluded_layer_height):
-        min_atom_height = np.min([a.x[2] for a in residue.atoms])
-        return min_atom_height > solvent_excluded_layer_height
-
-    def has_residue_left_layer(self, residue, layer_height):
+    def has_residue_left_layer(self, residue, layer_height, warn=False):
         mean_atom_height = np.mean([a.x[2] for a in residue.atoms])
         if mean_atom_height > layer_height + self.escape_tolerance:
-            logging.info(f"Molecule ({residue.id}) found in the gas phase, mean atom height ({mean_atom_height:.3f}) >"
-                          f" layer_height ({layer_height} nm) + escape_tolerance ({self.escape_tolerance} nm)")
+            if warn:
+                logging.warning(f"Molecule ({residue.id}) found in the gas phase, mean atom height "
+                                f"({mean_atom_height:.3f}) > layer_height ({layer_height} nm) + "
+                                f"escape_tolerance ({self.escape_tolerance} nm)")
             return True
         else:
             return False
@@ -516,7 +514,7 @@ class Deposition(object):
             logging.debug(f"Layer height excluding {excluded_resname} is {solvent_excluded_layer_height:.3f} nm")
             for residue in self.model.residues:
                 if residue.resname == self.run_config["solvent_name"]:
-                    if self.has_residue_left_layer_solvent_evaporation(residue, solvent_excluded_layer_height):
+                    if self.has_residue_left_layer(residue, solvent_excluded_layer_height):
                         gas_phase_residues.append(residue)
         else:
             # For non-solvent evaporation simulations we may also need to remove molecules from gas phase,
@@ -539,7 +537,7 @@ class Deposition(object):
             logging.debug(f"Layer height with density threshold {100*density_fraction_cutoff}% of maximum "
                          f"is {layer_height} nm")
             for residue in self.model.residues:
-                if self.has_residue_left_layer(residue, layer_height):
+                if self.has_residue_left_layer(residue, layer_height, warn=True):
                     gas_phase_residues.append(residue)
 
         # A solvent evaporation speedup can be applied whereby a given number of molecules are
