@@ -17,8 +17,7 @@ import numpy as np
 from PyThinFilm.helpers import res_highest_z, remove_residues_faster, recursive_correct_paths, get_mass_dict, \
     group_residues, foldnorm_mean, recursive_convert_paths_to_str
 
-from PyThinFilm.common import GPP_TEMPLATE, GROMPP, MDRUN, MDRUN_TEMPLATE, \
-    MDRUN_TEMPLATE_GPU, K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR, SIMULATION_TYPES, SOLVENT_EVAPORATION, \
+from PyThinFilm.common import K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR, SIMULATION_TYPES, SOLVENT_EVAPORATION, \
     THERMAL_ANNEALING
 
 
@@ -109,6 +108,9 @@ class Deposition(object):
             if self.n_cores == 1 \
             else self.run_config['gmx_executable_mpi']
 
+        self.mdrun_template = self.run_config['mdrun_template']
+        self.grompp_template = self.run_config['grompp_template']
+
         if self.type == THERMAL_ANNEALING:
             if "temperature_list" not in self.run_config or not self.run_config["temperature_list"]:
                 msg = "Thermal annealing simulations required that a temperature_list is provided in the run config"
@@ -156,21 +158,18 @@ class Deposition(object):
                       "final": self.filename("final-coordinates", "gro"),
                       "restraints": self.filename("restraints", "gro"),
                       "run_ID": self.run_ID,
-                      "mdrun": MDRUN,
-                      "grompp": GROMPP,
                       }
 
-        if "use_gpu" in self.run_config and self.run_config["use_gpu"]:
-            mdrun_template = MDRUN_TEMPLATE_GPU
-        else:
-            mdrun_template = MDRUN_TEMPLATE
+        #if "use_gpu" in self.run_config and self.run_config["use_gpu"]:
 
         if self.n_cores > 1:
-            mdrun_template = "{} {}".format(self.run_config["mpi_template"], mdrun_template)
+            mdrun_template = "{} {}".format(self.run_config["mpi_template"], self.mdrun_template)
             arg_values["n_cores"] = self.n_cores
+        else:
+            mdrun_template = self.mdrun_template
 
         # run grompp
-        self.run_subprocess(GPP_TEMPLATE, arg_values)
+        self.run_subprocess(self.grompp_template, arg_values)
 
         # run the md
         self.run_subprocess(mdrun_template, arg_values)

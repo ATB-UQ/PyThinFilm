@@ -5,7 +5,6 @@ forcefield_file: gromos54a7_atb.ff/forcefield.itp
 mdp_template: deposition.mdp.epy
 topo_template: topo.top.epy
 description: "PyThinFilm Simulation"
-mpi_template : "mpirun -np {n_cores}"
 insert_distance: 5.0 #nm
 gmx_executable: gmx
 gmx_executable_mpi: gmx_mpi
@@ -31,3 +30,6 @@ remove_n_highest_molecules: 0
 solvent_name: None
 substrate: None
 mixture: None
+mpi_template : "mpirun -np {n_cores}"
+grompp_template: "{GMX_EXEC} grompp -maxwarn 2 -f {MDP_FILE} -c {initial} -r {restraints} -p {top} -o {tpr}"
+mdrun_template: "{GMX_EXEC} mdrun -s {tpr} -x {xtc} -e {edr} -g {log} -cpo {cpo} -c {final}"
