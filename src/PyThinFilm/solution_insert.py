@@ -14,7 +14,7 @@ def accept_residue(min_h, max_h, res):
     return True
 
 # Handler class
-class GroHandler(object):
+class InsertionHandler(object):
 
     def __init__(self, model, layer_height = 0.5, from_model = False):
         if from_model:
@@ -48,7 +48,7 @@ class GroHandler(object):
             if key != resname:
                 c += self.counts[b][key]
         if float(c)/(c+self.counts[b][resname]) > thresh:
-            #logging.debug("{0}% non solvent atoms > {1}".format(100*float(c)/(c+self.counts[b][resName]), thresh))
+            #logging.debug(f"{100*float(c)/(c+self.counts[b][resName])}% non solvent atoms > {thresh}")
             return False
         else:
             return True
@@ -69,7 +69,7 @@ class GroHandler(object):
         b = 1 if b < 1 else b
         last_b = int(math.ceil(max_h/self.layer_height))
         last_b = len(self.counts)-1 if last_b >= len(self.counts) else last_b
-        logging.debug("Searching from indices {0} to {1} of {2}".format(b, last_b, len(self.counts)-1))
+        logging.debug(f"Searching from indices {b} to {last_b} of {len(self.counts)-1}")
         while b <= last_b:
             # Require two consecutive layers that contain only the specified residue (or nothing at all)
             if not self.is_valid_split(b, resname, thresh):
@@ -85,15 +85,15 @@ class GroHandler(object):
 
     # Find all splits between minH and maxH that gives the desired height within +/- tolerance
     def get_best_splits(self, resname, min_h, max_h, split_h, tol, thresh):
-        assert (max_h - min_h) >= split_h * (1-tol), "Not enough space between {0} and {1} for a layer of height {2}".format(min_h, max_h, split_h)
+        assert (max_h - min_h) >= split_h * (1-tol), f"Not enough space between {min_h} and {max_h} for a layer of height {split_h}"
         valid_splits = self.analyse_splits(resname, min_h, max_h, thresh)
 
         if len(valid_splits) <= 1:
-            msg = "No possible splits found between {0} and {1}".format(min_h, max_h)
+            msg = f"No possible splits found between {min_h} and {max_h}"
             logging.error(msg)
             raise AssertionError(msg)
         if (max(valid_splits) - min(valid_splits)) < split_h * (1-tol):
-            msg = "No valid splits large enough! Maximum available is height is {0}".format(max(valid_splits) - min(valid_splits))
+            msg = f"No valid splits large enough! Maximum available is height is {max(valid_splits) - min(valid_splits)}"
             logging.error(msg)
             raise AssertionError(msg)
 
@@ -111,7 +111,7 @@ class GroHandler(object):
                 ranked_splits.append([z_min, z_max, abs((z_max-z_min) - split_h)])
 
         assert len(ranked_splits) > 0, "No valid splits found"
-        logging.info("Found {0} possible splits".format(len(ranked_splits)))
+        logging.info(f"Found {len(ranked_splits)} possible splits")
 
         # TODO: rank by closest to desired solute ratio?
         ranked_splits.sort(key=lambda x:x[2])
@@ -131,7 +131,7 @@ class GroHandler(object):
     def insert(self, insert_h, input_model, min_h, max_h, substrate, extra_space = 0.1): #, topSpace = 1):
         # Make space in system
         self.model.box[2][2] += (max_h - min_h + 2*extra_space) * 0.1
-        logging.debug("    Making {0} A of space".format(max_h - min_h + 2*extra_space))
+        logging.debug(f"    Making {max_h - min_h + 2*extra_space} A of space")
         res_to_remove = []
         for res in self.model.residues:
             # Move any substrate atoms clipping through z boundary to account for change in box size
@@ -169,9 +169,9 @@ class GroHandler(object):
         # Find residues in range
         logging.debug("    Finding residues and inserting")
         total = len(input_model.residues)
-        logging.debug("        {0} residues to check".format(total))
+        logging.debug(f"        {total} residues to check")
         res_to_add = [r for r, keep in zip(input_model.residues, map(partial(accept_residue, min_h, max_h), input_model.residues)) if keep]
-        logging.debug("        {0} residues to add".format(len(res_to_add)))
+        logging.debug(f"        {len(res_to_add)} residues to add")
 
 
         # Add residues to model
@@ -184,11 +184,11 @@ class GroHandler(object):
         return delta_mixture
 
 def run_soln_insertion(config, model=None, write_output=True):
-    logging.debug("Sourcing from {0} to {1} A".format(config["input_min"], config["input_max"]))
-    logging.debug("Inserting between {0} to {1} A".format(config["insert_min"], config["insert_max"]))
+    logging.debug(f"Sourcing from {config['input_min']} to {config['input_max']} A")
+    logging.debug(f"Inserting between {config['insert_min']} to {config['insert_max']} A")
 
     # Find slab to insert
-    source_GRO = GroHandler(config["input_gro"], layer_height=config["search_bin_size"])
+    source_GRO = InsertionHandler(config["input_gro"], layer_height=config["search_bin_size"])
     chosen_split = source_GRO.choose_split(
         source_GRO.get_best_splits(config["solvent"],
                                config["input_min"],
@@ -198,17 +198,17 @@ def run_soln_insertion(config, model=None, write_output=True):
                                config["max_non_solvent_atoms"]
                                ),
         best=True if not "randomise" in config else not config["randomise"])
-    logging.info("Taking layer from {0} to {1} A of source".format(chosen_split[0], chosen_split[1]))
+    logging.info(f"Taking layer from {chosen_split[0]} to {chosen_split[1]} A of source")
 
     # Find insertion height
-    main_GRO = GroHandler(model if model != None else config["system_gro"], layer_height=config["search_bin_size"], from_model=(model != None))
+    main_GRO = InsertionHandler(model if model is not None else config["system_gro"], layer_height=config["search_bin_size"], from_model=(model != None))
     valid_splits = main_GRO.analyse_splits(config["solvent"], config["insert_min"], config["insert_max"], config["max_non_solvent_atoms"])
     if len(valid_splits) == 0:
         msg = "No valid insertion points found in system! Try using a smaller bin size"
         logging.error(msg)
         raise AssertionError(msg)
     insert_h = random.sample(valid_splits, 1)[0]
-    logging.info("Inserting at {0} A with extra {1} A above and below".format(insert_h, config["extra_space"]))
+    logging.info(f"Inserting at {insert_h} A with extra {config['extra_space']} A above and below")
 
     # Insert
     if not config.has_key("extra_space"): config["extra_space"] = 1.5
@@ -216,7 +216,7 @@ def run_soln_insertion(config, model=None, write_output=True):
 
     # Finalise
     if write_output:
-        logging.debug("Writing output: {0}".format(config["output_gro"]))
+        logging.debug(f"Writing output: {config['output_gro']}")
         main_GRO.model.write(config["output_gro"], title=main_GRO.model.title)
         logging.debug("Done")
 
