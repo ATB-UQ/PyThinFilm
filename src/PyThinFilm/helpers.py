@@ -41,6 +41,25 @@ def remove_residues_faster(model, residues):
     model.renumber_residues()
     chain.make_residue_tree()
 
+def insert_residues_faster(model, residues):
+    """Faster insertion of multiple residues"""
+    assert len(model.chains) == 1
+    chain = model.chains[0]
+    for res in residues:
+        chain.residues.append(res)
+        chain.model.residues.append(res)
+    model.atoms = []
+    for r in model.residues:
+        for a in r.atoms:
+            model.atoms.append(a)
+    chain.atoms = []
+    for r in chain.residues:
+        for a in r.atoms:
+            chain.atoms.append(a)
+    model.renumber_atoms()
+    model.renumber_residues()
+    chain.make_residue_tree()
+
 
 def recursive_correct_paths(node):
     for key, value in node.items():

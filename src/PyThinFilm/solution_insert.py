@@ -1,74 +1,22 @@
-import sys
 import pmx
 import yaml
 import argparse
 import math
 import random
 import logging
-#import multiprocessing as mp
 from functools import partial
 from itertools import imap
+from PyThinFilm.helpers import insert_residues_faster, remove_residues_faster
 
 # Definition here required for parallel residue checking
 def acceptResidue(minH, maxH, res):
-        for a in res.atoms:
-            if a.x[2] < minH or a.x[2] > maxH: return False
-        return True
-
-# Inserting using pmx method is VERY slow when doing
-# large numbers of consecutive insertions. This function
-# reduces typical required time from >30min to <2s for a
-# 17x17x5 nm insertion
-def bulk_insert_residues(model, residues):
-    assert len(model.chains) == 1
-    chain = model.chains[0]
-    for res in residues:
-        chain.residues.append(res)
-        chain.model.residues.append(res)
-    model.atoms = []
-    for r in model.residues:
-        for a in r.atoms:
-            model.atoms.append(a)
-    chain.atoms = []
-    for r in chain.residues:
-        for a in r.atoms:
-            chain.atoms.append(a)
-    model.renumber_atoms()
-    model.renumber_residues()
-    chain.make_residue_tree()
-
-#this is needed because removing one by one is very slow in large systems
-# (one by one takes 4s for 1.8 million atoms)
-#modified from pmx code
-def bulk_remove_residues(model,residues):
-    logging.debug("num  residue: {0} num chains {1}".format(len(model.chains), len(model.residues)))
-    assert len(model.chains) == 1
-    chain = model.chains[0]
-    for residue in residues:
-        logging.info("Removing residue: {0}".format(residue.resname))
-        idx = chain.residues.index(residue)
-        try:
-            midx = chain.model.residues.index(residue)
-        except:
-            midx = -1
-        del chain.residues[idx]
-        del chain.model.residues[midx]
-    model.atoms = []
-    for r in model.residues:
-        for atom in r.atoms:
-            model.atoms.append(atom)
-    chain.atoms = []
-    for r in chain.residues:
-        for atom in r.atoms:
-            chain.atoms.append(atom)
-    model.renumber_atoms()
-    model.renumber_residues()
-    chain.make_residue_tree()
-
+    for a in res.atoms:
+        if a.x[2] < minH or a.x[2] > maxH: return False
+    return True
 
 # Handler class
 class groHandler(object):
-    
+
     def __init__(self, model, layerHeight = 0.5, fromModel = False):
         if fromModel:
             self.model = model
@@ -78,7 +26,7 @@ class groHandler(object):
         self.counts = []
         self.layerHeight = layerHeight
         self.getCounts()
-        
+
     # Find number of atoms from each residue type in each layer
     def getCounts(self):
         numBins = int(math.ceil(self.model.box[2][2]*10/self.layerHeight))
@@ -88,7 +36,7 @@ class groHandler(object):
             if not self.counts[b].has_key(a.resname):
                 self.counts[b][a.resname] = 0
             self.counts[b][a.resname] += 1
-    
+
     # Helper function to check for layers that contain
     # < thresh of undesired residue atoms
     def isValidSplit(self, b, resName, thresh):
@@ -105,7 +53,7 @@ class groHandler(object):
             return False
         else:
             return True
-    
+
     # Search for consecutive layers that only include resName
     # and return a list of z values at the midpoint between 
     # those layers
@@ -115,9 +63,9 @@ class groHandler(object):
             logging.error(msg)
             raise AssertionError(msg)
         validSplits = []
-        
+
         #validLayer = lambda b: len(self.counts[b]) == 0 or (len(self.counts[b])==1 and self.counts[b].has_key(resName))
-        
+
         b = int(math.floor(minH/self.layerHeight))
         b = 1 if b < 1 else b
         lastB = int(math.ceil(maxH/self.layerHeight))
@@ -129,18 +77,18 @@ class groHandler(object):
                 b += 2
             elif not self.isValidSplit(b-1, resName, thresh):
                 b += 1
-            else: 
-            	validSplits.append(b*self.layerHeight)
-            	b += 1
-            
+            else:
+                validSplits.append(b*self.layerHeight)
+                b += 1
+
         return validSplits
-    
-    
+
+
     # Find all splits between minH and maxH that gives the desired height within +/- tolerance
     def getBestSplit(self, resName, minH, maxH, splitH, tol, thresh):
         assert (maxH - minH) >= splitH * (1-tol), "Not enough space between {0} and {1} for a layer of height {2}".format(minH, maxH, splitH)
         validSplits = self.analyseSplits(resName, minH, maxH, thresh)
-        
+
         if len(validSplits) <= 1:
             msg = "No possible splits found between {0} and {1}".format(minH, maxH)
             logging.error(msg)
@@ -149,7 +97,7 @@ class groHandler(object):
             msg = "No valid splits large enough! Maximum available is height is {0}".format(max(validSplits) - min(validSplits))
             logging.error(msg)
             raise AssertionError(msg)
-        
+
         rankedSplits = []
         lastMin = 1
         for zMin in validSplits:
@@ -160,18 +108,18 @@ class groHandler(object):
                     lastMin = i_zMax
                     continue
                 if (zMax - zMin) > splitH * (1+tol): break
-                
+
                 rankedSplits.append([zMin, zMax, abs((zMax-zMin) - splitH)])
-        
+
         assert len(rankedSplits) > 0, "No valid splits found"
         logging.info("Found {0} possible splits".format(len(rankedSplits)))
-        
+
         # TODO: rank by closest to desired solute ratio?
         rankedSplits.sort(key=lambda x:x[2])
-        
+
         return rankedSplits
-    
-    
+
+
     # Choose either a random split or the best split
     def chooseSplit(self, rankedSplits, best = True):
         if best:
@@ -212,47 +160,47 @@ class groHandler(object):
         deltaMixture = {}
         # Remove residues that collide with inserted layer
         if len(resToRemove) > 0:
-            bulk_remove_residues(self.model, resToRemove)
+            remove_residues_faster(self.model, resToRemove)
             for res in resToRemove:
                 if not deltaMixture.has_key(res.resname):
                     deltaMixture[res.resname] = 0
                 deltaMixture[res.resname] -= 1
-                    
-            
+
+
         # Find residues in range
         logging.debug("    Finding residues and inserting")
         total = len(inputModel.residues)
         logging.debug("        {0} residues to check".format(total))
         resToAdd = [r for r, keep in zip(inputModel.residues, imap(partial(acceptResidue, minH, maxH), inputModel.residues)) if keep]
         logging.debug("        {0} residues to add".format(len(resToAdd)))
-        
-        
+
+
         # Add residues to model
-        for res in resToAdd: 
+        for res in resToAdd:
             res.translate([0, 0, insertH - minH + extraSpace])
             if not deltaMixture.has_key(res.resname):
                 deltaMixture[res.resname] = 0
             deltaMixture[res.resname] += 1
-        bulk_insert_residues(self.model, resToAdd)
+        insert_residues_faster(self.model, resToAdd)
         return deltaMixture
 
 def runSolnInsertion(config, model=None, writeOutput=True):
     logging.debug("Sourcing from {0} to {1} A".format(config["input_min"], config["input_max"]))
     logging.debug("Inserting between {0} to {1} A".format(config["insert_min"], config["insert_max"]))
-    
+
     # Find slab to insert
     sourceGRO = groHandler(config["input_gro"], layerHeight=config["search_bin_size"])
     chosenSplit = sourceGRO.chooseSplit(
-        sourceGRO.getBestSplit(config["solvent"], 
-                               config["input_min"], 
-                               config["input_max"], 
+        sourceGRO.getBestSplit(config["solvent"],
+                               config["input_min"],
+                               config["input_max"],
                                config["insert_thickness"],
                                config["thickness_tol"],
                                config["max_non_solvent_atoms"]
                                ),
         best=True if not "randomise" in config else not config["randomise"])
     logging.info("Taking layer from {0} to {1} A of source".format(chosenSplit[0], chosenSplit[1]))
-    
+
     # Find insertion height
     mainGRO = groHandler(model if model != None else config["system_gro"], layerHeight=config["search_bin_size"], fromModel=(model != None))
     validSplits = mainGRO.analyseSplits(config["solvent"], config["insert_min"], config["insert_max"], config["max_non_solvent_atoms"])
@@ -262,17 +210,17 @@ def runSolnInsertion(config, model=None, writeOutput=True):
         raise AssertionError(msg)
     insertH = random.sample(validSplits, 1)[0]
     logging.info("Inserting at {0} A with extra {1} A above and below".format(insertH, config["extra_space"]))
-    
+
     # Insert
     if not config.has_key("extra_space"): config["extra_space"] = 1.5
     deltaMixture = mainGRO.insert(insertH, sourceGRO.model, chosenSplit[0], chosenSplit[1], config["substrate"], config["extra_space"])
-    
+
     # Finalise
     if writeOutput:
         logging.debug("Writing output: {0}".format(config["output_gro"]))
         mainGRO.model.write(config["output_gro"], title=mainGRO.model.title)
         logging.debug("Done")
-    
+
     return deltaMixture
 
 
@@ -283,17 +231,17 @@ def parseCmd():
     parser.add_argument('-o', '--output', help='.gro file to save output to.')
     parser.add_argument('-l', '--log', help='Log file')
     args = parser.parse_args()
-    
+
     logging.basicConfig(filename=args.log, level=logging.DEBUG, format='%(asctime)s - [%(levelname)s] - %(message)s', datefmt='%d-%m-%Y %H:%M:%S')
-    
+
     ymlInput = yaml.safe_load(open(args.input))
     config = ymlInput["solution_layer_insert"]  # Containing in one node to use as input from deposition simulation in future
-    
+
     config['system_gro'] = args.source
     config['output_gro'] = args.output
     if config.has_key('use_self') and config['use_self'] == True:
         config['input_gro'] = args.source
-    
+
     runSolnInsertion(config)
 if __name__ == "__main__":
     parseCmd()
