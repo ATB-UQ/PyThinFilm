@@ -66,7 +66,7 @@ class Deposition(object):
                 # Failed on the first step, reinitialise
                 self.run_ID = 1
             else:
-                self.run_ID = self.prev_run_ID - 1
+                self.run_ID = self.prev_run_ID
                 if self.prev_run_ID > 0 and self.has_run_failed(self.get_latest_run_ID()):
                     raise Exception("The previous 2 runs were found to have not completed successfully: {} and {}".format(
                         self.prev_run_ID, self.prev_run_ID - 1)
