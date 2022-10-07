@@ -607,6 +607,7 @@ class Deposition(object):
                 logging.warning(f"No available geometry to take slab from. {'Aborting mdrun.' if self.should_abort else 'Skipping insertion.'}")
                 return
 
+        input_gro = str(input_gro) # Need to convert to str for comparison to work
         if use_self or self.aux_solution is None or self.aux_solution.gro_file != input_gro:
             # Should be faster to use already loaded model if using self than
             # to reload from file, but can't cache valid residues to insert in
