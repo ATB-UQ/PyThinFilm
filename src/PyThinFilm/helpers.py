@@ -129,3 +129,25 @@ def group_residues(resnames):
             current_resname = ""
     return res_groups
 
+def mean_x(mol):
+    """Calculate geometric center of a molecule."""
+    return np.sum([a.x for a in mol.atoms], axis=0)/len(mol.atoms)
+
+def mol_distance(mol1, mol2, box):
+    """Calculate distance between geometric center of two molecules."""
+    x1 = mean_x(mol1)
+    x2 = mean_x(mol2)
+    dx = [abs(p1 - p2) for p1, p2 in zip(x1, x2)]
+    dx = [d if d < box[i][i]/2 else box[i][i] - d for i, d in enumerate(dx)]
+    return np.sqrt(sum([d**2 for d in dx]))
+
+def atomic_density(model, bin_sz, exclude_residues: list):
+    """Calculate atomic density profile using bins of `bin_sz`, excluding atoms with resname in `exclude_residues`"""
+    n_bins = int(np.ceil(model.box[2][2]/bin_sz))
+    prof = np.zeros((n_bins+1,))
+    for a in model.atoms:
+        if a.resname not in exclude_residues:
+            b = int(np.floor(a.x[2]/bin_sz))
+            prof[b] += 1
+    prof /= model.box[0][0]*model.box[1][1] * bin_sz
+    return prof

@@ -1,246 +1,270 @@
 import pmx
-import yaml
-import argparse
 import math
-import random
 import logging
 from functools import partial
-from PyThinFilm.helpers import insert_residues_faster, remove_residues_faster
+from PyThinFilm.helpers import atomic_density, insert_residues_faster, remove_residues_faster
+import numpy as np
 
-# Definition here required for parallel residue checking
-def accept_residue(min_h, max_h, res):
+# Helper function for choosing which residues to insert
+# Only accept residues with all atoms between min_z and max_z
+def accept_residue(min_z, max_z, res):
     for a in res.atoms:
-        if a.x[2] < min_h or a.x[2] > max_h: return False
+        if a.x[2] < min_z or a.x[2] > max_z:
+            return False
     return True
 
 # Handler class
 class InsertionHandler(object):
 
-    def __init__(self, model, layer_height = 0.5, from_model = False):
-        if from_model:
+    def __init__(self, model, split_min, split_max, density_thresh, bin_sz, split_ht=0, split_ht_tol=0):
+        if isinstance(model, str):
+            self.gro_file = model
+            self.reload_model()
+        else:
+            self.gro_file = None
             self.model = model
+        self.density_profile = None
+        self.split_min = split_min
+        self.split_max = split_max
+        self._valid_residues_cache = None
+        self.density_thresh = density_thresh
+        self.bin_sz = bin_sz
+        self.split_ht = split_ht
+        self.split_ht_tol = split_ht_tol
+        self.ranked_layers = None
+        self._residues_translated = None
+
+    def reload_model(self):
+        logging.debug(f"Loading insertion handler model from file: {self.gro_file}")
+        self.model = pmx.Model(self.gro_file)
+        self.model.a2nm()
+
+    def calc_density_profile(self, exclude_residues: list=[], set_profile=None):
+        """
+        Calculate and cache atomic density profile of solute.
+        If `set_profile` is not `None`, density profile is set directly to that instead of calculating."
+        """
+        if set_profile is None:
+            logging.debug("Calculating density profile")
+            self.density_profile = atomic_density(self.model, self.bin_sz, exclude_residues)
         else:
-            self.model = pmx.Model(model)
-            self.model.nm2a()
-        self.counts = []
-        self.layer_height = layer_height
-        self.get_counts()
+            self.density_profile = set_profile
 
-    # Find number of atoms from each residue type in each layer
-    def get_counts(self):
-        numBins = int(math.ceil(self.model.box[2][2]*10/self.layer_height))
-        self.counts = list({} for _ in range(numBins+1))
-        for a in self.model.atoms:
-            b = int(math.floor(a.x[2]/self.layer_height))
-            if a.resname not in self.counts[b]:
-                self.counts[b][a.resname] = 0
-            self.counts[b][a.resname] += 1
+    def analyse_splits(self):
+        """
+        Search for consecutive bins between `self.split_min` and
+        `self.split_max` with a solute density lower than the threshold and
+        return a list of their z values (or an empty list if no valid splits
+        are found).
 
-    # Helper function to check for layers that contain
-    # < thresh of undesired residue atoms
-    def is_valid_split(self, b, resname, thresh):
-        if len(self.counts[b]) == 0:
-            return True
-        elif resname not in self.counts[b]:
-            return False
-        c = 0
-        for key in self.counts[b]:
-            if key != resname:
-                c += self.counts[b][key]
-        if float(c)/(c+self.counts[b][resname]) > thresh:
-            #logging.debug(f"{100*float(c)/(c+self.counts[b][resName])}% non solvent atoms > {thresh}")
-            return False
-        else:
-            return True
+        Requires that `calc_density_profile()` has been called.
+        """
+        if self.split_max <= self.split_min:
+            logging.error("Invalid height range for splitting points")
+            return []
 
-    # Search for consecutive layers that only include resname
-    # and return a list of z values at the midpoint between 
-    # those layers
-    def analyse_splits(self, resname, min_h, max_h, thresh):
-        if max_h <= min_h:
-            msg = "Invalid height range"
-            logging.error(msg)
-            raise AssertionError(msg)
-        validSplits = []
+        valid_splits = []
+        assert(self.density_profile is not None)
 
-        #validLayer = lambda b: len(self.counts[b]) == 0 or (len(self.counts[b])==1 and self.counts[b].has_key(resName))
-
-        b = int(math.floor(min_h/self.layer_height))
+        b = int(math.floor(self.split_min/self.bin_sz))
         b = 1 if b < 1 else b
-        last_b = int(math.ceil(max_h/self.layer_height))
-        last_b = len(self.counts)-1 if last_b >= len(self.counts) else last_b
-        logging.debug(f"Searching from indices {b} to {last_b} of {len(self.counts)-1}")
+        last_b = int(math.ceil(self.split_max/self.bin_sz))
+        last_b = len(self.density_profile)-1 if last_b >= len(self.density_profile) else last_b
+        logging.debug(f"Looking for splitting points between indices {b} and {last_b} of {len(self.density_profile)-1}")
         while b <= last_b:
-            # Require two consecutive layers that contain only the specified residue (or nothing at all)
-            if not self.is_valid_split(b, resname, thresh):
+            # Require two consecutive bins that contain only the specified
+            # residue (or nothing at all).
+            # Splitting point is between the two bins
+            if not self.density_profile[b] < self.density_thresh:
                 b += 2
-            elif not self.is_valid_split(b-1, resname, thresh):
+            elif not self.density_profile[b-1] < self.density_thresh:
                 b += 1
             else:
-                validSplits.append(b*self.layer_height)
+                valid_splits.append(b*self.bin_sz)
                 b += 1
+        return valid_splits
 
-        return validSplits
+    def get_best_layers(self):
+        """
+        Find all combinations of splitting points that give the desired height within +/- tolerance,
+        where the tolerance is `self.split_ht_tol * self.split_ht`.
 
+        Output is a sorted list of tuples containing `(layer_bottom, layer_top, rating)`, where
+        `rating` is the absolute difference between the layer height and `self.split_ht`
+        """
+        if self.ranked_layers is None:
+            if self.split_max - self.split_min < self.split_ht * (1-self.split_ht_tol):
+                logging.error(f"Not enough space between {self.split_min} and {self.split_max} to create a layer of height {self.split_ht}.")
+                return []
 
-    # Find all splits between minH and maxH that gives the desired height within +/- tolerance
-    def get_best_splits(self, resname, min_h, max_h, split_h, tol, thresh):
-        assert (max_h - min_h) >= split_h * (1-tol), f"Not enough space between {min_h} and {max_h} for a layer of height {split_h}"
-        valid_splits = self.analyse_splits(resname, min_h, max_h, thresh)
+            valid_splits = self.analyse_splits()
+            if len(valid_splits) <= 1:
+                logging.error(f"No possible layers found between {self.split_min} and {self.split_max}")
+                return []
+            if (max(valid_splits) - min(valid_splits)) < self.split_ht * (1-self.split_ht_tol):
+                logging.error(f"No valid layers large enough. Maximum available is height is {max(valid_splits) - min(valid_splits)}")
+                return []
 
-        if len(valid_splits) <= 1:
-            msg = f"No possible splits found between {min_h} and {max_h}"
-            logging.error(msg)
-            raise AssertionError(msg)
-        if (max(valid_splits) - min(valid_splits)) < split_h * (1-tol):
-            msg = f"No valid splits large enough! Maximum available is height is {max(valid_splits) - min(valid_splits)}"
-            logging.error(msg)
-            raise AssertionError(msg)
+            # Find combinations of values in valid_splits that give
+            # a height within tolerance of split_ht
+            ranked_layers = []
+            last_min = 1
+            split_zmax = max(valid_splits)
+            for z_min in valid_splits:
+                if (split_zmax - z_min) < self.split_ht * (1-self.split_ht_tol): break
+                for i_zmax in range(last_min, len(valid_splits)):
+                    z_max = valid_splits[i_zmax]
+                    if (z_max - z_min) < self.split_ht * (1-self.split_ht_tol):
+                        last_min = i_zmax
+                        continue
+                    if (z_max - z_min) > self.split_ht * (1+self.split_ht_tol):
+                        break
 
-        ranked_splits = []
-        last_min = 1
-        for z_min in valid_splits:
-            if (max(valid_splits) - z_min) < split_h * (1-tol): break
-            for i_zMax in range(last_min, len(valid_splits)):
-                z_max = valid_splits[i_zMax]
-                if (z_max - z_min) < split_h * (1-tol):
-                    last_min = i_zMax
-                    continue
-                if (z_max - z_min) > split_h * (1+tol): break
+                    ranked_layers.append( (z_min, z_max, abs((z_max-z_min) - self.split_ht)) )
 
-                ranked_splits.append([z_min, z_max, abs((z_max-z_min) - split_h)])
+            logging.debug(f"Found {len(ranked_layers)} possible layers for insertion")
+            if len(ranked_layers) == 0:
+                return []
 
-        assert len(ranked_splits) > 0, "No valid splits found"
-        logging.info(f"Found {len(ranked_splits)} possible splits")
+            ranked_layers.sort(key=lambda x:x[2])
+            self.ranked_layers = ranked_layers
+        return self.ranked_layers
 
-        # TODO: rank by closest to desired solute ratio?
-        ranked_splits.sort(key=lambda x:x[2])
-
-        return ranked_splits
-
-
-    # Choose either a random split or the best split
-    def choose_split(self, ranked_splits, best = True):
-        if best:
-            return ranked_splits[0]
+    def choose_random_layer(self, rng, strategy="weighted"):
+        """Choose a random layer between two split points using the specified strategy."""
+        if strategy == "best":
+            return self.get_best_layers()[0]
+        elif strategy == "random":
+            layers = self.get_best_layers()
+            return rng.sample(layers, 1)[0]
         else:
-            return random.sample(ranked_splits, k=1)[0]
+            if strategy != "weighted":
+                logging.warning(f"Unknown layer insertion strategy \"{strategy}\". Defaulting to \"weighted\".")
+            layers = self.get_best_layers()
+            weights = np.array(layers)[:,2]
+            max_wt = np.max(weights)
+            if max_wt == 0:
+                max_wt = 1
+            weights = max_wt - weights
+            weights = np.cumsum(weights)
+            weights /= weights[-1]
+            random_num = rng.random()
+            layer_id = 0
+            while weights[layer_id] < random_num:
+                layer_id += 1
+            return layers[layer_id]
 
-    # Insert all residues in model between minH and maxH 
-    # into a gap created at insertH
-    def insert(self, insert_h, input_model, min_h, max_h, substrate, extra_space = 0.1): #, topSpace = 1):
+    def get_valid_residues(self):
+        """Return and cache residues between `self.split_min` and `self.split_max`"""
+        if self._valid_residues_cache is None:
+            # This loops over all residues so could be very slow.
+            # Using map so that it can parallelise easily later if needed (e.g. with multiprocessing)
+            # Deep copy residues in case using self
+            self._valid_residues_cache = \
+                [r for r, keep in zip(
+                    self.model.residues,
+                    map(partial(accept_residue,
+                                self.split_min,
+                                self.split_max),
+                                self.model.residues)
+                    ) if keep
+                 ]
+        return self._valid_residues_cache
+
+    def insert(self, insert_z, aux_solution, layer_min, layer_max, substrate, extra_space = 0.1):
+        """Insert all residues in `input_model` between `layer_min` and `layer_max` into a gap created above insert_z."""
+        # Restore model in case this isn't the first insertion from it.
+        aux_solution.restore_model()
+
+        # Find residues in slab to be inserted. Do this first in case using self.
+        # Loop over only cached residues to save time
+        logging.debug("Finding valid residues for insertion")
+        valid_residues = aux_solution.get_valid_residues()
+        logging.debug("Filtering residues for insertion")
+        res_to_add = \
+            [r for r, keep in zip(
+                valid_residues,
+                map(partial(accept_residue,
+                            layer_min,
+                            layer_max),
+                    valid_residues)
+                ) if keep
+            ]
+        logging.debug(f"Found {len(res_to_add)} residues to add")
+
         # Make space in system
-        self.model.box[2][2] += (max_h - min_h + 2*extra_space) * 0.1
-        logging.debug(f"    Making {max_h - min_h + 2*extra_space} A of space")
+        space = layer_max - layer_min + 2*extra_space
+        self.model.box[2][2] += space
+        logging.debug(f"    Making {space} nm of space")
         res_to_remove = []
         for res in self.model.residues:
-            # Move any substrate atoms clipping through z boundary to account for change in box size
             if res.resname == substrate:
+                # Move any substrate atoms clipping through z boundary to
+                # account for change in box size
                 for atom in res.atoms:
-                    if atom.x[2] >= insert_h:
-                        atom.translate([0, 0, max_h - min_h + 2*extra_space])
+                    # This test could cause issues if insert_z is very close to
+                    # the substrate, but that wouldn't be desired anyway since
+                    # there are probably interesting things going on in that region
+                    if atom.x[2] >= insert_z:
+                        atom.translate([0, 0, space])
             else:
-                # Move any residue that has an atom higher than the insertion height, so extraSpace can be small (~ 2xVDW radius)
-                moveRes = False
+                # Move any residue that has an atom higher than the insertion
+                # height, so extra_space can be small (~ 2xVDW radius)
+                move_res = False
                 for atom in res.atoms:
-                    if atom.x[2] >= insert_h:
-                        moveRes = True
+                    if atom.x[2] >= insert_z:
+                        move_res = True
                         break
-                if moveRes:
-                    res.translate([0, 0, max_h - min_h + 2*extra_space])
+                if move_res:
+                    # Remove any residues that cross the plane and translate those above it
                     remove = False
                     for atom in res.atoms:
-                        if atom.x[2] < insert_h + max_h - min_h + 2*extra_space:
+                        if atom.x[2] < insert_z:
                             remove = True
+                            res_to_remove.append(res)
                             break
-                    if remove:
-                        res_to_remove.append(res)
+                    if not remove:
+                        res.translate([0, 0, space])
 
         delta_mixture = {}
-        # Remove residues that collide with inserted layer
         if len(res_to_remove) > 0:
+            logging.debug(f"Removing residues that cross the plane z = {insert_z}")
             remove_residues_faster(self.model, res_to_remove)
             for res in res_to_remove:
                 if res.resname not in delta_mixture:
                     delta_mixture[res.resname] = 0
                 delta_mixture[res.resname] -= 1
 
-
-        # Find residues in range
-        logging.debug("    Finding residues and inserting")
-        total = len(input_model.residues)
-        logging.debug(f"        {total} residues to check")
-        res_to_add = [r for r, keep in zip(input_model.residues, map(partial(accept_residue, min_h, max_h), input_model.residues)) if keep]
-        logging.debug(f"        {len(res_to_add)} residues to add")
-
-
-        # Add residues to model
+        # Translate residues to the correct z
+        delta_z =  insert_z - layer_min + extra_space
         for res in res_to_add:
-            res.translate([0, 0, insert_h - min_h + extra_space])
+            res.translate([0, 0, delta_z])
             if res.resname not in delta_mixture:
                 delta_mixture[res.resname] = 0
             delta_mixture[res.resname] += 1
+
+        # Register the change in the auxilliary system so we can undo it later.
+        # Much faster to do this than to reload model from file.
+        aux_solution.register_change(res_to_add, delta_z)
+
+        # Insert the new residues
         insert_residues_faster(self.model, res_to_add)
+
         return delta_mixture
 
-def run_soln_insertion(config, model=None, write_output=True):
-    logging.debug(f"Sourcing from {config['input_min']} to {config['input_max']} A")
-    logging.debug(f"Inserting between {config['insert_min']} to {config['insert_max']} A")
+    def register_change(self, residues_translated, delta_z):
+        """Register translation of molecules due to an insertion"""
+        self._residues_translated = {
+            "residues": residues_translated,
+            "delta_z": delta_z
+        }
 
-    # Find slab to insert
-    source_GRO = InsertionHandler(config["input_gro"], layer_height=config["search_bin_size"])
-    chosen_split = source_GRO.choose_split(
-        source_GRO.get_best_splits(config["solvent"],
-                               config["input_min"],
-                               config["input_max"],
-                               config["insert_thickness"],
-                               config["thickness_tol"],
-                               config["max_non_solvent_atoms"]
-                               ),
-        best=True if not "randomise" in config else not config["randomise"])
-    logging.info(f"Taking layer from {chosen_split[0]} to {chosen_split[1]} A of source")
+    def restore_model(self):
+        """Restore translations due to a previous insertion"""
+        if self._residues_translated is None:
+            return
+        delta_z = -self._residues_translated["delta_z"]
+        for res in self._residues_translated["residues"]:
+            res.translate([0, 0, delta_z])
+        self._residues_translated = None
 
-    # Find insertion height
-    main_GRO = InsertionHandler(model if model is not None else config["system_gro"], layer_height=config["search_bin_size"], from_model=(model != None))
-    valid_splits = main_GRO.analyse_splits(config["solvent"], config["insert_min"], config["insert_max"], config["max_non_solvent_atoms"])
-    if len(valid_splits) == 0:
-        msg = "No valid insertion points found in system! Try using a smaller bin size"
-        logging.error(msg)
-        raise AssertionError(msg)
-    insert_h = random.sample(valid_splits, 1)[0]
-    logging.info(f"Inserting at {insert_h} A with extra {config['extra_space']} A above and below")
-
-    # Insert
-    if not config.has_key("extra_space"): config["extra_space"] = 1.5
-    delta_mixture = main_GRO.insert(insert_h, source_GRO.model, chosen_split[0], chosen_split[1], config["substrate"], config["extra_space"])
-
-    # Finalise
-    if write_output:
-        logging.debug(f"Writing output: {config['output_gro']}")
-        main_GRO.model.write(config["output_gro"], title=main_GRO.model.title)
-        logging.debug("Done")
-
-    return delta_mixture
-
-
-def parse_cmd():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input', help='YAML input configuration file')
-    parser.add_argument('-s', '--source', help='Source .gro file to insert slab into')
-    parser.add_argument('-o', '--output', help='.gro file to save output to.')
-    parser.add_argument('-l', '--log', help='Log file')
-    args = parser.parse_args()
-
-    logging.basicConfig(filename=args.log, level=logging.DEBUG, format='%(asctime)s - [%(levelname)s] - %(message)s', datefmt='%d-%m-%Y %H:%M:%S')
-
-    ymlInput = yaml.safe_load(open(args.input))
-    config = ymlInput["solution_layer_insert"]  # Containing in one node to use as input from deposition simulation in future
-
-    config['system_gro'] = args.source
-    config['output_gro'] = args.output
-    if config.has_key('use_self') and config['use_self'] == True:
-        config['input_gro'] = args.source
-
-    run_soln_insertion(config)
-if __name__ == "__main__":
-    parse_cmd()

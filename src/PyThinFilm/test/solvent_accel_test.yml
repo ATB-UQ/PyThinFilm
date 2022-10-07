@@ -1,0 +1,128 @@
+name: solvent_accel_test
+work_directory: solvent_accel_test_working
+initial_structure_file: systems/test_solvent_evaporation.gro
+simulation_type: solvent_evaporation
+solvent_name: CCL3
+n_cycles: 3
+forcefield_file: gromos54a7_atb.ff/forcefield.itp
+description: 'Test solvent evaporation of CBP/IPS/CCL3 with layer insertion and random deletion.'
+run_time: 0.05 #ps
+nstout: 5
+seed: 1718831
+temperature: 310 #K
+mixture:
+  CBP:
+    res_name: CBP
+    itp_file: systems/CBP.itp
+  IPS:
+    res_name: IPAS
+    itp_file: systems/IPAS.itp
+  IPR:
+    res_name: IPAR
+    itp_file: systems/IPAR.itp
+  CCL3:
+    res_name: CCL3
+    itp_file: systems/CHCL3.itp
+substrate: 
+    res_name: GRM
+    itp_file: systems/GRM.itp
+
+# Should insert a slab in the first 2 cycles, but not the 3rd.
+# Should delete some solvent molecules (up to 10) in each cycle.
+solution_acceleration:
+  # Bin size to use when analysing density profile for skin detection and layer insertion
+  density_prof_bin: 0.25 # nm
+
+  insert:
+    # Flag to enable/disable insertion.
+    # Useful to quickly toggle without commenting everything out.
+    enabled: true   # (optional - default true)
+
+    # System to source inserted layer from. Can be left out if using use_self option.
+    # Will fallback to initial_structure_file if unset and use_self not set,
+    # but this generates a warning since the mixture ratio can drift if
+    # initial_structure_file is one that hasn't been equilibrated yet (combined
+    # factors of periodic replication and alternating layers of high and low
+    # solute concentration)
+    input_gro_file: systems/test_solvent_evaporation.gro
+
+    # Set true to use own geometry (between input_min_z and input_max_z) to find new layers
+    #use_self: true # (optional - default false)
+
+    # min and max z values between which the inserted layer should be sourced from
+    source_min_z: 45 # nm
+    source_max_z: 60 # nm
+
+    # min and max z values of the point at which to split the main system
+    insert_min_z: 45 # nm
+    insert_max_z: 55 # nm
+
+    # Insertion will be performed if the bottom of the skin is below this height.
+    # Generally want this to be a bit higher than insert_max_z to make sure the
+    # density gradient isn't interfered with.
+    min_skin_height: 70 # nm
+
+    # (optional) Insertion will only be performed if layer_height - bottom_of_skin is less than this value
+    max_skin_thickness: 20 # nm
+
+    insert_thickness: 10  # nm - Thickness of inserted layer
+    thickness_tol: 0.2    # Fractional tolerance for insert_thickness
+                          # (e.g. 0.2 = accept layers within +/- 20% of insert_thickness)
+
+    # Concentration above which `consecutive_bins` bins in a row will be used
+    # to detect the bottom of the skin
+    skin_density_thresh: 10 # solute atoms per nm^3
+    consecutive_bins: 8
+
+    # Maximum density of solute atoms in a slab that could be selected for
+    # splitting the system. Two consecutive slabs below this density are
+    # searched for, and the plane between them is where the split occurs.
+    # Molecules that cross the plane are deleted, so this number can be used to
+    # avoid deleting too many solute molecules.
+    max_solute_density: 15 # Atoms per nm^3
+
+    # Strategy to use when choosing a layer to insert.
+    # Options are:
+    #  * 'best':     Choose the layer with a height closest to insert_thickness.
+    #  * 'weighted': Randomly choose a layer with a higher weighting for those
+    #                 that are closer in height to insert_thickness.
+    #  * 'random':   Randomly choose a layer with equal weighting.
+    strategy: weighted # (optional - default 'weighted')
+
+    # Void space to leave between existing system and inserted layer.
+    # Added both above and below inserted layer.
+    # Should be large enough to account for ~max. van der Waals radius.
+    # Will default to 0.15 with a warning if unset
+    extra_space: 0.2 # nm
+
+    # Set true to abort mdrun and exit if insertion fails
+    exit_on_failure: false
+  
+  solvent_delete:
+    # As above, useful for convenient toggling
+    enabled: true # (optional - default true)
+
+    # Solute concentration above which `consecutive_bins` bins in a row will be
+    # used to determine the top of the slab to delete solvent molecules from.
+    # Could be different to layer insertion skin_densith_thresh to allow fine-tuning.
+    # (e.g. may want a slightly larger value to remove solvent from the lower
+    # portion of the region with a solute density gradient, or a much larger
+    # value later in the simulation to help remove the last solvent molecules)
+    density_thresh: 20 # solute atoms per nm^3
+    consecutive_bins: 4
+
+    #  Height of slab to randomly remove solvent molecules from
+    slab_height: 20 # nm
+
+    # Minimum z value of bottom of slab
+    slab_lower_limit: 5 # nm
+
+    # Number of solvent molecules to delete 
+    number: 10
+
+    # Minimum distance between chosen molecules
+    min_separation: 5 # nm
+
+    # Set true to abort mdrun and exit if no candidates for deletion.
+    # Useful to know when to begin the next stage of a simulation.
+    exit_on_impossible: true
