@@ -243,7 +243,7 @@ class InsertionHandler(object):
                 delta_mixture[res.resname] = 0
             delta_mixture[res.resname] += 1
 
-        # Register the change in the auxilliary system so we can undo it later.
+        # Register the change in the auxiliary system so we can undo it later.
         # Much faster to do this than to reload model from file.
         aux_solution.register_change(res_to_add, delta_z)
 

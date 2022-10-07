@@ -114,7 +114,7 @@ class Deposition(object):
         # Cached density profile
         self._solute_density_profile = {"run_ID": -1, "profile": None}
 
-        # Cached auxilliary system for insertion
+        # Cached auxiliary system for insertion
         self.aux_solution = None
 
         # Cache of layer height calculations
@@ -628,7 +628,7 @@ class Deposition(object):
                 self.aux_solution.calc_density_profile(
                     exclude_residues=[self.run_config["substrate"]["res_name"]] + self.solvent_name
                 )
-            logging.debug(f"Loaded new auxilliary system for solution insertion: {input_gro}")
+            logging.debug(f"Loaded new auxiliary system for solution insertion: {input_gro}")
 
         # Choose a random layer to insert based on user-defined strategy
         strategy = insert_config["strategy"].lower() if "strategy" in insert_config else "weighted"
