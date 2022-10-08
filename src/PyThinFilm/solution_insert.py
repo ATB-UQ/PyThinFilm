@@ -5,16 +5,18 @@ from functools import partial
 from PyThinFilm.helpers import atomic_density, insert_residues_faster, remove_residues_faster
 import numpy as np
 
-# Helper function for choosing which residues to insert
-# Only accept residues with all atoms between min_z and max_z
+
 def accept_residue(min_z, max_z, res):
+    """Helper function for choosing which residues to insert.
+    Only accept residues with all atoms between min_z and max_z"""
     for a in res.atoms:
         if a.x[2] < min_z or a.x[2] > max_z:
             return False
     return True
 
-# Handler class
+
 class InsertionHandler(object):
+    """Handler class"""
 
     def __init__(self, model, split_min, split_max, density_thresh, bin_sz, split_ht=0, split_ht_tol=0):
         if isinstance(model, str):
@@ -39,11 +41,12 @@ class InsertionHandler(object):
         self.model = pmx.Model(self.gro_file)
         self.model.a2nm()
 
-    def calc_density_profile(self, exclude_residues: list=[], set_profile=None):
+    def calc_density_profile(self, exclude_residues: list = None, set_profile=None):
         """
         Calculate and cache atomic density profile of solute.
         If `set_profile` is not `None`, density profile is set directly to that instead of calculating."
         """
+        exclude_residues = [] if exclude_residues is None else exclude_residues
         if set_profile is None:
             logging.debug("Calculating density profile")
             self.density_profile = atomic_density(self.model, self.bin_sz, exclude_residues)
@@ -171,7 +174,7 @@ class InsertionHandler(object):
                  ]
         return self._valid_residues_cache
 
-    def insert(self, insert_z, aux_solution, layer_min, layer_max, substrate, extra_space = 0.1):
+    def insert(self, insert_z, aux_solution, layer_min, layer_max, substrate, extra_space=0.1):
         """Insert all residues in `input_model` between `layer_min` and `layer_max` into a gap created above insert_z."""
         # Restore model in case this isn't the first insertion from it.
         aux_solution.restore_model()
@@ -267,4 +270,3 @@ class InsertionHandler(object):
         for res in self._residues_translated["residues"]:
             res.translate([0, 0, delta_z])
         self._residues_translated = None
-

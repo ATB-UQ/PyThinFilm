@@ -41,6 +41,7 @@ def remove_residues_faster(model, residues):
     model.renumber_residues()
     chain.make_residue_tree()
 
+
 def insert_residues_faster(model, residues):
     """Faster insertion of multiple residues"""
     assert len(model.chains) == 1
@@ -129,9 +130,11 @@ def group_residues(resnames):
             current_resname = ""
     return res_groups
 
+
 def mean_x(mol):
     """Calculate geometric center of a molecule."""
     return np.sum([a.x for a in mol.atoms], axis=0)/len(mol.atoms)
+
 
 def mol_distance(mol1, mol2, box):
     """Calculate distance between geometric center of two molecules."""
@@ -140,6 +143,7 @@ def mol_distance(mol1, mol2, box):
     dx = [abs(p1 - p2) for p1, p2 in zip(x1, x2)]
     dx = [d if d < box[i][i]/2 else box[i][i] - d for i, d in enumerate(dx)]
     return np.sqrt(sum([d**2 for d in dx]))
+
 
 def atomic_density(model, bin_sz, exclude_residues: list):
     """Calculate atomic density profile using bins of `bin_sz`, excluding atoms with resname in `exclude_residues`"""
