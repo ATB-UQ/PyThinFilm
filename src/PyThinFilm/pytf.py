@@ -2,7 +2,7 @@ import logging
 import click
 
 from PyThinFilm.deposition import Deposition
-from PyThinFilm.common import VACUUM_DEPOSITION, THERMAL_ANNEALING, EQUILIBRATION
+from PyThinFilm.common import VACUUM_DEPOSITION, SOLVENT_EVAPORATION, THERMAL_ANNEALING, EQUILIBRATION
 
 
 def main(config, n_cores, debug=False):
@@ -31,6 +31,18 @@ def main(config, n_cores, debug=False):
             deposition.set_temperature_thermal_annealing()
         elif deposition.type == EQUILIBRATION:
             deposition.equilibration()
+        elif deposition.type == SOLVENT_EVAPORATION:
+            # Delete solvent molecules from lower section of the skin if enabled
+            deposition.solvent_delete()
+            # Insert extra slab of solution below the skin if enabled and
+            # conditions are met.
+            if not deposition.should_abort:
+                deposition.insert_soln_layer()
+            # Either of the above may set the should_abort flag, in which case
+            # mdrun should be aborted.
+            if deposition.should_abort:
+                logging.info(f"Aborting mdrun on ID: {deposition.run_ID}")
+                break
 
         # Perform MD simulation
         deposition.run_gromacs_simulation()
