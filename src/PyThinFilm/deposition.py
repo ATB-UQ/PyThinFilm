@@ -238,8 +238,10 @@ class Deposition(object):
         with open(self.filename("control", "mdp"), "w") as fh:
             fh.write(mdp)
 
-        # Write updated model with modifications (insertions/deletions) if applicable
+        # Write input model with modifications (insertions/deletions) for MD simulation
         self.write_init_configuration()
+        # Note that self.write_restraints_file() modifies the model (resets substrate positions) so the input must be
+        # written before the restraint file is generated.
         self.write_restraints_file()
 
     def run_subprocess(self, cli_template, inserts):
@@ -310,22 +312,25 @@ class Deposition(object):
             return yaml.dump(config_copy)
 
     def write_restraints_file(self):
-        """Copy current configuration and reset substrate positions"""
+        """Current implementation is a bit slow due to iterating over the entire model. The end goal is simply to have a
+        gro file that contains the same number of atoms as the input-coordinates, with substrate atoms in their
+        starting position. This could be achieved with simply text file handling rather than dealing with the overhead
+        of the entire pmx model."""
+
         logging.debug("Creating restraints file")
-        restraints = self.model.copy()
+
         if "initial_structure_file" in self.run_config:
             reference_structure = pmx.Model(str(self.run_config["initial_structure_file"]))
         else:
             reference_structure = pmx.Model(str(self.run_config["substrate"]["pdb_file"]))
         reference_structure.a2nm()
-        self.reset_substrate_positions(restraints, reference_structure)
+        self.reset_substrate_positions(reference_structure)
         restraints_path = join(self.rootdir, self.filename("restraints", "gro"))
-        restraints.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
-        #substrate.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
+        self.model.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
 
-    def reset_substrate_positions(self, restraints, reference_structure):
+    def reset_substrate_positions(self, reference_structure):
         substrate_resname = self.run_config["substrate"]["res_name"]
-        restraint_substrate_molecules = [r for r in restraints.residues if r.resname == substrate_resname]
+        restraint_substrate_molecules = [r for r in self.model.residues if r.resname == substrate_resname]
         reference_substrate_molecules = [r for r in reference_structure.residues if r.resname == substrate_resname]
         assert len(restraint_substrate_molecules) > 0, \
             f"Substrate res_name {substrate_resname} not found in simulated system"
