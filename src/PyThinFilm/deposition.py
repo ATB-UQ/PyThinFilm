@@ -483,6 +483,7 @@ class Deposition(object):
                 [self.run_config["substrate"]["res_name"]] + self.solvent_name
             )
             self._solute_density_profile["run_ID"] = self.run_ID
+        return self._solute_density_profile["profile"]
 
     def solvent_delete(self):
         """Randomly delete solvent molecules in the lower portion of the density profile"""
@@ -497,15 +498,15 @@ class Deposition(object):
         layer_height = self.layer_height(excluded_resnames=self.solvent_name)
         z = layer_height
         thresh = del_config["density_thresh"]
-        self.solute_density_profile()
+        density_profile = self.solute_density_profile()
         bin_sz = self.run_config["solution_acceleration"]["density_prof_bin"]
-        for i, v in enumerate(np.convolve(self._solute_density_profile["profile"] >= thresh, np.ones((del_config["consecutive_bins"],)), "valid")):
+        for i, v in enumerate(np.convolve(density_profile >= thresh, np.ones((del_config["consecutive_bins"],)), "valid")):
             if v == del_config["consecutive_bins"]:
                 z = i * bin_sz
                 break
 
         # Log whether a skin was found, or just using the top of the layer.
-        max_found = np.max(self._solute_density_profile["profile"])
+        max_found = np.max(density_profile)
         if max_found < thresh:
             logging.info(f"Density threshold not met - using layer height as slab top ({z} nm)")
         else:
