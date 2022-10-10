@@ -51,7 +51,7 @@ solution_acceleration:
     # initial_structure_file is one that hasn't been equilibrated yet (combined
     # factors of periodic replication and alternating layers of high and low
     # solute concentration)
-    input_gro_file: None
+    input_gro_file: ~
 
     # min and max z values of the point at which to split the main system
     insert_min_z: 45 # nm - System specific.

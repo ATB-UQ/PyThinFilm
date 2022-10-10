@@ -71,6 +71,8 @@ def recursive_correct_paths(node):
                 if isinstance(item, dict):
                     recursive_correct_paths(item)
         elif "_file" in key:
+            if value is None:
+                continue
             orig_path = Path(value)
             if orig_path.exists():
                 node[key] = orig_path.absolute()
