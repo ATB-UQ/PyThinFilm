@@ -871,7 +871,8 @@ class Deposition(object):
         `exclude_residues`: Container[str]|None
         """
         exclude_residues = [] if exclude_residues is None else exclude_residues
-        return max(a.x[2] for a in self.model.atoms if a.resname not in exclude_residues)
+        zvals = [a.x[2] for a in self.model.atoms if a.resname not in exclude_residues]
+        return max(zvals) if len(zvals) > 0 else 0.0
 
     def resize_box(self):
         """Adjust z box dimension to maintain specified overhead void size, minimum increment 1 nm"""
