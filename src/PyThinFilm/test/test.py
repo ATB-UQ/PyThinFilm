@@ -2,7 +2,7 @@ import os
 import shutil
 import unittest
 from pathlib import Path
-import multiprocessing
+from psutil import cpu_count
 
 import yaml
 from pkg_resources import resource_filename
@@ -10,7 +10,7 @@ from pkg_resources import resource_filename
 from PyThinFilm.pytf import main
 from PyThinFilm.common import PACKAGE_MAME
 
-N_CORES = multiprocessing.cpu_count()
+N_CORES = cpu_count(logical=False)
 
 
 def setup_test(test_config):
@@ -49,6 +49,13 @@ class TestPyThinFilm(unittest.TestCase):
         run_config = setup_test("equilibration_test.yml")
         main(run_config, N_CORES)
 
+    def test_solvent_accel(self):
+        run_config = setup_test("solvent_accel_test.yml")
+        main(run_config, N_CORES)
+
+    def test_solvent_self_insert(self):
+        run_config = setup_test("solvent_self_insert_test.yml")
+        main(run_config, N_CORES)
 
 if __name__ == "__main__":
     unittest.main()
