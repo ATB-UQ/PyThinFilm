@@ -60,6 +60,7 @@ def main(config, n_cores, debug=False):
 @click.argument('config', nargs=1, type=click.Path(exists=True))
 @click.option('-n', '--n_cores', default=1, help="Number of cores. Using n_cores > 1 requires MPI.")
 @click.option('-d', '--debug', is_flag=True, default=False, help="Print debugging information.")
+@click.help_option("--help", "-h")
 def cli(config, n_cores, debug):
     main(config, n_cores, debug)
 
