@@ -124,11 +124,10 @@ class Deposition(object):
         self.should_abort = False
 
         # A naive implementation of the regeneration of restraints files (after the addition/subtraction of molecules)
-        # is highly inefficient. The efficiency can be improved by storing the reference structure, reference substrate
-        # molecules and the indexes of substrate molecules in the updated model.
+        # is highly inefficient. The efficiency can be improved by storing the reference structure and reference substrate
+        # molecules.
         self.reference_structure = None
         self.reference_substrate_molecules = None
-        self.substrate_molecules_indexes = None
 
         self.gmx_executable = self.run_config['gmx_executable'] \
             if self.n_cores == 1 \
@@ -365,9 +364,7 @@ class Deposition(object):
         substrate_resname = self.run_config["substrate"]["res_name"]
         # Substrate molecules may not be first in the list, so their indices
         # could be invalidated by removal of other molecules
-        self.substrate_molecules_indexes = [i for i, r in enumerate(self.model.residues)
-                                            if r.resname == substrate_resname]
-        substrate_molecules = [self.model.residues[i] for i in self.substrate_molecules_indexes]
+        substrate_molecules = [r for r in self.model.residues if r.resname == substrate_resname]
         if self.reference_substrate_molecules is None:
             self.reference_substrate_molecules = [r for r in self.reference_structure.residues
                                                   if r.resname == substrate_resname]
