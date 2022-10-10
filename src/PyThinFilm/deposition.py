@@ -356,13 +356,17 @@ class Deposition(object):
         self.model.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
 
     def reset_substrate_positions(self):
-        """We can assume substrate molecules in both the reference structure and updated model remain the same
-        and therefor they can be cached."""
+        """Adjust the positions of the substrate molecules in `self.model` to
+        those of the reference system. We can assume substrate molecules in the
+        reference structure remain the same and therefore they can be cached.
+        It is also assumed that the order of atoms that are part of substrate
+        molecules is the same as that of the reference system."""
         logging.debug("Setting substrate positions to be those of the reference structure")
         substrate_resname = self.run_config["substrate"]["res_name"]
-        if self.substrate_molecules_indexes is None:
-            self.substrate_molecules_indexes = [i for i, r in enumerate(self.model.residues)
-                                                if r.resname == substrate_resname]
+        # Substrate molecules may not be first in the list, so their indices
+        # could be invalidated by removal of other molecules
+        self.substrate_molecules_indexes = [i for i, r in enumerate(self.model.residues)
+                                            if r.resname == substrate_resname]
         substrate_molecules = [self.model.residues[i] for i in self.substrate_molecules_indexes]
         if self.reference_substrate_molecules is None:
             self.reference_substrate_molecules = [r for r in self.reference_structure.residues
