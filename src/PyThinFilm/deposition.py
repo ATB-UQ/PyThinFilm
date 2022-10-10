@@ -426,10 +426,15 @@ class Deposition(object):
                     return True
         return False
 
-    def layer_height(self, excluded_resnames: list[str] = None, density_fraction_cutoff=None, bin_width=0.2):
-        """Find the top of the deposited layer. In some cases it is useful to define the top of the layer as the
+    def layer_height(self, excluded_resnames=None, density_fraction_cutoff=None, bin_width=0.2):
+        """
+        Find the top of the deposited layer. In some cases it is useful to define the top of the layer as the
          as first z-bin with an atom number density less than a specified fraction of the maximum density e.g.
         `density_fraction_cutoff` 0.1 corresponds to a density of 10% of the maximum (including substrate).
+        *Types*
+        `excluded_resnames`:        Container[str]|None
+        `density_fraction_cutoff`:  float|None
+        `bin_width`:                float
         """
         excluded_resnames = [] if excluded_resnames is None else excluded_resnames
         # List isn't hashable, so join the strings to get a hash key.
@@ -858,7 +863,13 @@ class Deposition(object):
             self.mixture[residue.resname]["count"] -= 1
         remove_residues_faster(self.model, residues)
 
-    def highest_z(self, exclude_residues: list[str] = None):
+    def highest_z(self, exclude_residues = None):
+        """
+        Maximum z coordinates of all atoms whose residue name is not in
+        `exclude_residues`.
+        *Types*
+        `exclude_residues`: Container[str]|None
+        """
         exclude_residues = [] if exclude_residues is None else exclude_residues
         return max(a.x[2] for a in self.model.atoms if a.resname not in exclude_residues)
 

@@ -41,10 +41,14 @@ class InsertionHandler(object):
         self.model = pmx.Model(self.gro_file)
         self.model.a2nm()
 
-    def calc_density_profile(self, exclude_residues: list = None, set_profile=None):
+    def calc_density_profile(self, exclude_residues = None, set_profile=None):
         """
         Calculate and cache atomic density profile of solute.
-        If `set_profile` is not `None`, density profile is set directly to that instead of calculating."
+        If `set_profile` is not `None`, density profile is set directly to the
+        provided array instead of calculating."
+        *Types*
+        `exclude_residues`: Container[str]|None
+        `set_profile`:      NDArray[float]|None
         """
         exclude_residues = [] if exclude_residues is None else exclude_residues
         if set_profile is None:
@@ -134,7 +138,12 @@ class InsertionHandler(object):
         return self.ranked_layers
 
     def choose_random_layer(self, rng, strategy="weighted"):
-        """Choose a random layer between two split points using the specified strategy."""
+        """
+        Choose a random layer between two split points using the specified strategy.
+        *Types*
+        `rng`:      Random
+        `strategy`: Literal["best"]|Literal["weighted"]|Literal["random"]
+        """
         if strategy == "best":
             return self.get_best_layers()[0]
         elif strategy == "random":
@@ -175,7 +184,19 @@ class InsertionHandler(object):
         return self._valid_residues_cache
 
     def insert(self, insert_z, aux_solution, layer_min, layer_max, substrate, extra_space=0.1):
-        """Insert all residues in `input_model` between `layer_min` and `layer_max` into a gap created above insert_z."""
+        """
+        Insert all residues in `input_model` between `layer_min` and
+        `layer_max` into a gap created above insert_z. Requires name of
+        substrate residue so that atoms from it that cross the z periodic
+        boundary can be correctly adjusted.
+        *Types*
+        `insert_z`:     float
+        `aux_solution`: InsertionHandler
+        `layer_min`:    float
+        `layer_max`:    float
+        `substrate`:    str
+        `extra_space`:  float
+        """
         # Restore model in case this isn't the first insertion from it.
         aux_solution.restore_model()
 
