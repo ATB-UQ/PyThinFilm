@@ -19,27 +19,56 @@ class InsertionHandler(object):
     """Handler class"""
 
     def __init__(self, model, split_min, split_max, density_thresh, bin_sz, split_ht=0, split_ht_tol=0):
+        """
+        *Types*
+        `model`:          str|pmx.Model
+        `split_min`:      float
+        `split_max`:      float
+        `density_thresh`: float
+        `bin_sz`:         float
+        `split_ht`:       float
+        `split_ht_tol`:   float
+        """
+        self.gro_file = None
+        self.model_valid = False
         if isinstance(model, str):
-            self.gro_file = model
-            self.reload_model()
+            self.update_model(model)
         else:
-            self.gro_file = None
             self.model = model
-        self.density_profile = None
         self.split_min = split_min
         self.split_max = split_max
-        self._valid_residues_cache = None
         self.density_thresh = density_thresh
         self.bin_sz = bin_sz
         self.split_ht = split_ht
         self.split_ht_tol = split_ht_tol
-        self.ranked_layers = None
-        self._residues_translated = None
 
-    def reload_model(self):
-        logging.debug(f"Loading insertion handler model from file: {self.gro_file}")
-        self.model = pmx.Model(self.gro_file)
-        self.model.a2nm()
+        # Cached values:
+        self.density_profile = None
+        self.ranked_layers = None
+        self._valid_residues_cache = None
+
+    def load_model(self):
+        """Restore model since it gets invalidated by insertion"""
+        if not self.model_valid:
+            logging.debug(f"Loading insertion handler model from file: {self.gro_file}")
+            self.model = pmx.Model(self.gro_file)
+            self.model.a2nm()
+            self.model_valid = True
+
+    def update_model(self, gro_file):
+        """
+        Update model to new gro_file and invalidate cached values if necessary.
+        *Types*
+        `gro_file`: str
+        """
+        if self.gro_file == gro_file:
+            return
+        self.gro_file = gro_file
+        self.model_valid = False
+        self.load_model()
+        self.density_profile = None
+        self.ranked_layers = None
+        self._valid_residues_cache = None
 
     def calc_density_profile(self, exclude_residues = None, set_profile=None):
         """
@@ -167,18 +196,19 @@ class InsertionHandler(object):
             return layers[layer_id]
 
     def get_valid_residues(self):
-        """Return and cache residues between `self.split_min` and `self.split_max`"""
+        """
+        Return and cache indices of residues between `self.split_min` and
+        `self.split_max`
+        """
         if self._valid_residues_cache is None:
             # This loops over all residues so could be very slow.
             # Using map so that it can parallelise easily later if needed (e.g. with multiprocessing)
-            # Deep copy residues in case using self
             self._valid_residues_cache = \
-                [r for r, keep in zip(
-                    self.model.residues,
+                [i for i, keep in enumerate(
                     map(partial(accept_residue,
                                 self.split_min,
                                 self.split_max),
-                                self.model.residues)
+                        self.model.residues)
                     ) if keep
                  ]
         return self._valid_residues_cache
@@ -198,12 +228,12 @@ class InsertionHandler(object):
         `extra_space`:  float
         """
         # Restore model in case this isn't the first insertion from it.
-        aux_solution.restore_model()
+        aux_solution.load_model()
 
         # Find residues in slab to be inserted. Do this first in case using self.
         # Loop over only cached residues to save time
         logging.debug("Finding valid residues for insertion")
-        valid_residues = aux_solution.get_valid_residues()
+        valid_residues = [aux_solution.model.residues[i] for i in aux_solution.get_valid_residues()]
         logging.debug("Filtering residues for insertion")
         res_to_add = \
             [r for r, keep in zip(
@@ -267,27 +297,12 @@ class InsertionHandler(object):
                 delta_mixture[res.resname] = 0
             delta_mixture[res.resname] += 1
 
-        # Register the change in the auxiliary system so we can undo it later.
-        # Much faster to do this than to reload model from file.
-        aux_solution.register_change(res_to_add, delta_z)
-
         # Insert the new residues
         insert_residues_faster(self.model, res_to_add)
 
+        # Invalidate aux. model, since it's now linked to the main system's
+        # model and calls to updateGRO by main deposition code will break
+        # things.
+        aux_solution.model_valid = False
+
         return delta_mixture
-
-    def register_change(self, residues_translated, delta_z):
-        """Register translation of molecules due to an insertion"""
-        self._residues_translated = {
-            "residues": residues_translated,
-            "delta_z": delta_z
-        }
-
-    def restore_model(self):
-        """Restore translations due to a previous insertion"""
-        if self._residues_translated is None:
-            return
-        delta_z = -self._residues_translated["delta_z"]
-        for res in self._residues_translated["residues"]:
-            res.translate([0, 0, delta_z])
-        self._residues_translated = None

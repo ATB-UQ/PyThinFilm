@@ -637,11 +637,8 @@ class Deposition(object):
                 return
 
         input_gro = str(input_gro) # Need to convert to str for comparison to work
-        if use_self or self.aux_solution is None or self.aux_solution.gro_file != input_gro:
-            # Should be faster to use already loaded model if using self than
-            # to reload from file, but can't cache valid residues to insert in
-            # that case so maybe still slower than using a fixed separate system.
-            del self.aux_solution
+        if self.aux_solution is None:
+            # If this is the first insertion, set up a new insertion handler
             self.aux_solution = InsertionHandler(
                 str(input_gro), # File path must be str, otherwise interpreted as pmx model
                 split_min=insert_config["source_min_z"],
@@ -651,14 +648,16 @@ class Deposition(object):
                 split_ht=insert_config["insert_thickness"],
                 split_ht_tol=insert_config["thickness_tol"]
             )
-            # Generate/cache density profile
-            if use_self:
-                self.aux_solution.calc_density_profile(set_profile=self.solute_density_profile())
-            else:
-                self.aux_solution.calc_density_profile(
-                    exclude_residues=[self.run_config["substrate"]["res_name"]] + self.solvent_name
-                )
-            logging.debug(f"Loaded new auxiliary system for solution insertion: {input_gro}")
+        else:
+            # Otherwise just load the new model if necessary
+            self.aux_solution.update_model(input_gro)
+        # Generate/cache density profile
+        if use_self:
+            self.aux_solution.calc_density_profile(set_profile=self.solute_density_profile())
+        else:
+            self.aux_solution.calc_density_profile(
+                exclude_residues=[self.run_config["substrate"]["res_name"]] + self.solvent_name
+            )
 
         # Choose a random layer to insert based on user-defined strategy
         strategy = insert_config["strategy"].lower() if "strategy" in insert_config else "weighted"
