@@ -71,6 +71,6 @@ html_context = {
     "conf_py_path": "/docs/source/", # Path in the checkout to the docs root
 }
 
-html_css_files = [
-    'css/theme_overrides.css',
-]
+#html_css_files = [
+#    'css/theme_overrides.css',
+#]

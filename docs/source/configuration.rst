@@ -1,12 +1,32 @@
-.. _Configuring csc-tools:
+.. _Configuring PyThinFilm:
 
-Configuring csc-tools
-=====================
+Configuring PyThinFilm
+======================
 
-Now that csc-tools has been successfully installed, configuration is required before the program can be used to validate datasets.  
+Default Configuration Settings
+------------------------------
 
-Initializing the  Configuration File
-------------------------------------
+Default configuration settings are specified in default_settings.yml
+
+Any of the default configuration settings can be overridden by specifying values for them in the relevant YAML file
+
+Configuration Settings
+----------------------
+
+:code:`work_directory`: path (either absolute or relative to the PyThinFilm install directory path) where output files will be written.  default: :code:`pytf_working`
+
+:code:`name`: a name for a particular simulation which will prefix the names of output files.  default: :code:`PyThinFilm`
+
+
+
+
+mpi/cuda/etc prereqs
+
+argument differences
+
+PyThinFilm includes
+
+PyThinFilm
 
 Before csc-tools configuration options can be set, the csc-tools configuration file must be initialized.  To do this, execute the following command:
 

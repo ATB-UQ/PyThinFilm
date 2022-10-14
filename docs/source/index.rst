@@ -3,32 +3,18 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-ACSC - Australasian Computational and Simulation Commons
-======================================================
+PyThinFilm - Python Thin-Film Deposition Simulation using GROMACS
+=================================================================
 
-The ACSC is a repository for molecular simulation data, comprising of data contributed by a network of researchers linked through Australian Research Data Commons (ARDC).
+PyThinFilm is a `Python <https://www.python.org/>`_ tool designed to assist users with configuring and running molecular dynamics simulations of thin-film deposition processes in `GROMACS <https://www.gromacs.org/>`_.
 
-This document explains the procedure for contributing data to the ACSC.
+This document explains the procedure for installing, configuring, and running PyThinFilm.
 
 .. toctree::
    :maxdepth: -1
    :caption: Getting Started
    
    prerequisites
-   installing_csct
-   configuring_csct
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Preparing Datasets
-   
-   dataset_structure
-   dataset_metadata
-
-.. toctree::
-   :maxdepth: -1
-   :caption: Processing Datasets
-
-   validating
-   exporting  
-   uploading 
+   installing
+   configuration
+   commandline
