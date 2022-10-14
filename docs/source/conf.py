@@ -59,9 +59,9 @@ html_theme_options = {
 html_static_path = ['_static']
 
 #logo
-html_logo = '_static/images/logo.png'
+#html_logo = 
 #favicon
-html_favicon = '_static/images/fav.ico'
+#html_favicon = 
 
 html_context = {
     "display_github": True, # Integrate GitHub
