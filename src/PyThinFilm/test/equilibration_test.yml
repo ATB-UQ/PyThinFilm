@@ -1,0 +1,21 @@
+name: equilibration_test
+work_directory: equilibration_test_working
+initial_structure_file: systems/test_annealing.gro
+simulation_type: equilibration
+forcefield_file: gromos54a7_atb.ff/forcefield.itp
+description: 'Test equilibration on GRM/CBP/IPS(R) system'
+run_time: 10.0 #ps
+temperature: 300
+mixture:
+  CBP:
+    res_name: CBP
+    itp_file: systems/CBP.itp
+  IPS:
+    res_name: IPAS
+    itp_file: systems/IPAS.itp
+  IPR:
+    res_name: IPAR
+    itp_file: systems/IPAR.itp
+substrate: 
+    res_name: GRM
+    itp_file: systems/GRM.itp

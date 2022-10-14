@@ -5,7 +5,6 @@ from copy import deepcopy
 from io import StringIO
 from os.path import join
 from pathlib import Path
-from traceback import format_exc
 import pmx
 import random
 import logging
@@ -15,12 +14,13 @@ import jinja2
 from time import time
 import numpy as np
 
-from PyThinFilm.helpers import res_highest_z, remove_residues_faster, recursive_correct_paths, get_mass_dict, \
-    group_residues, \
-    foldnorm_mean, calc_exclusions, recursive_convert_paths_to_str
+from PyThinFilm.helpers import atomic_density, res_highest_z, remove_residues_faster, recursive_correct_paths, \
+    get_mass_dict, group_residues, foldnorm_mean, recursive_convert_paths_to_str, mol_distance
 
-from PyThinFilm.common import GPP_TEMPLATE, GROMPP, MDRUN, MDRUN_TEMPLATE, \
-    MDRUN_TEMPLATE_GPU, K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR, SIMULATION_TYPES, SOLVENT_EVAPORATION
+from PyThinFilm.common import K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR, SIMULATION_TYPES, SOLVENT_EVAPORATION, \
+    THERMAL_ANNEALING
+
+from PyThinFilm.solution_insert import InsertionHandler
 
 
 class Deposition(object):
@@ -49,10 +49,9 @@ class Deposition(object):
 
         self.rootdir = os.path.abspath(self.run_config["work_directory"])
         # Create the 'work_directory' if it doesn't exist
-        if not os.path.exists(self.rootdir):
-            os.makedirs(self.rootdir)
-            for d in ROOT_DIRS:
-                os.makedirs(os.path.join(self.rootdir, d))
+        os.makedirs(self.rootdir, exist_ok=True)
+        for d in ROOT_DIRS:
+            os.makedirs(os.path.join(self.rootdir, d), exist_ok=True)
 
         # initialise logging temporarily for run_ID=0
         self.setup_logging()
@@ -60,23 +59,24 @@ class Deposition(object):
         # Convert file paths in run_config to be absolute where files in resources directory are used
         recursive_correct_paths(self.run_config)
 
-        self.last_run_ID = self.get_latest_run_ID()
-        if self.last_run_ID > 0 and self.has_run_failed(self.last_run_ID):
-            logging.warning("Last run {} failed, associated files will be moved out of the way".format(self.last_run_ID))
-            self.delete_run(self.last_run_ID)
-            self.run_ID = self.last_run_ID - 1
-            if self.last_run_ID > 0 and self.has_run_failed(self.get_latest_run_ID()):
-                raise Exception("The previous 2 runs were found to have not completed successfully: {} and {}".format(
-                    self.last_run_ID, self.last_run_ID - 1)
-                )
+        self.prev_run_ID = self.get_latest_run_ID()
+
+        if self.prev_run_ID > 0 and self.has_run_failed(self.prev_run_ID):
+            logging.warning("Previous run {} failed, associated files will be moved out of the way".format(self.prev_run_ID))
+            self.delete_run(self.prev_run_ID)
+            if self.prev_run_ID == 1:
+                # Failed on the first step, reinitialise
+                self.run_ID = 1
+            else:
+                self.run_ID = self.prev_run_ID
+                if self.prev_run_ID > 0 and self.has_run_failed(self.get_latest_run_ID()):
+                    raise Exception("The previous 2 runs were found to have not completed successfully: {} and {}".format(
+                        self.prev_run_ID, self.prev_run_ID - 1)
+                    )
         else:
-            self.run_ID = self.last_run_ID + 1
+            self.run_ID = self.prev_run_ID + 1
 
         self.setup_logging()
-
-        self.gmx_executable = self.run_config['gmx_executable'] \
-            if self.n_cores == 1 \
-            else self.run_config['gmx_executable_mpi']
 
         if self.run_ID == 1:
             if "initial_structure_file" in self.run_config:
@@ -88,8 +88,7 @@ class Deposition(object):
 
         self.model = pmx.Model(str(configuration_path))
         self.model.a2nm()
-        # calc_exclusions(self.model)
-        # raise
+
         self.sampling_mixture = self.run_config["mixture"]
         self.mixture = {}
 
@@ -107,7 +106,54 @@ class Deposition(object):
 
         self.solvent_name = self.run_config["solvent_name"]
 
-        self.init_deposition_steps()
+        # Convert single solvent type to a list for convenience
+        if not isinstance(self.solvent_name, list):
+            self.solvent_name = [self.solvent_name]
+
+        # Cached density profile
+        self._solute_density_profile = {"run_ID": -1, "profile": None}
+
+        # Cached auxiliary system for insertion
+        self.aux_solution = None
+
+        # Cache of layer height calculations
+        self._layer_height_cache = {}
+
+        # Flag set if user config calls for exiting when impossible to delete solvent molecules.
+        # Useful for knowing when to begin next phase of simulation.
+        self.should_abort = False
+
+        # A naive implementation of the regeneration of restraints files (after the addition/subtraction of molecules)
+        # is highly inefficient. The efficiency can be improved by storing the reference structure and reference substrate
+        # molecules.
+        self.reference_structure = None
+        self.reference_substrate_molecules = None
+
+        self.gmx_executable = self.run_config['gmx_executable'] \
+            if self.n_cores == 1 \
+            else self.run_config['gmx_executable_mpi']
+
+        self.mdrun_template = self.run_config['mdrun_template']
+        self.grompp_template = self.run_config['grompp_template']
+
+        if self.type == THERMAL_ANNEALING:
+            if "temperature_list" not in self.run_config or not self.run_config["temperature_list"]:
+                msg = "Thermal annealing simulations required that a temperature_list is provided in the run config"
+                logging.error(msg)
+                raise Exception(msg)
+            if self.run_config["n_cycles"] is not None:
+                logging.warning("The n_cycles parameter is ignored for thermal_annealing run types.")
+            self.last_run_ID = len(self.run_config["temperature_list"])
+        else:
+            self.last_run_ID = self.run_config["n_cycles"]
+
+        self.init_mixture_residue_counts()
+
+    def init_cycle(self):
+        self.setup_logging()
+        logging.info(f"Running {self.type} simulation #{self.run_ID}")
+        logging.debug(f"Settings: \n{self.run_config_summary()}")
+        self.resize_box()
 
     def init_gromacs_templates(self):
         if not Path(self.run_config['mdp_template']).exists():
@@ -122,6 +168,8 @@ class Deposition(object):
                     self.run_config['topo_template']))
 
     def run_gromacs_simulation(self):
+        # Create run directory and run setup gromacs simulation files.
+        self.init_gromacs_simulation()
 
         arg_values = {"GMX_EXEC": self.gmx_executable,
                       "MDP_FILE": self.filename("control", "mdp"),
@@ -135,21 +183,18 @@ class Deposition(object):
                       "final": self.filename("final-coordinates", "gro"),
                       "restraints": self.filename("restraints", "gro"),
                       "run_ID": self.run_ID,
-                      "mdrun": MDRUN,
-                      "grompp": GROMPP,
                       }
 
-        if "use_gpu" in self.run_config and self.run_config["use_gpu"]:
-            mdrun_template = MDRUN_TEMPLATE_GPU
-        else:
-            mdrun_template = MDRUN_TEMPLATE
+        #if "use_gpu" in self.run_config and self.run_config["use_gpu"]:
 
         if self.n_cores > 1:
-            mdrun_template = "{} {}".format(self.run_config["mpi_template"], mdrun_template)
+            mdrun_template = "{} {}".format(self.run_config["mpi_template"], self.mdrun_template)
             arg_values["n_cores"] = self.n_cores
+        else:
+            mdrun_template = self.mdrun_template
 
         # run grompp
-        self.run_subprocess(GPP_TEMPLATE, arg_values)
+        self.run_subprocess(self.grompp_template, arg_values)
 
         # run the md
         self.run_subprocess(mdrun_template, arg_values)
@@ -161,7 +206,7 @@ class Deposition(object):
 
         # now update model after run
         logging.debug("Update model with output structure from MD simulation.")
-        self.model = pmx.Model(str(configuration_path))
+        self.model.updateGRO(str(configuration_path))
         self.model.a2nm()
 
     def init_gromacs_simulation(self):
@@ -209,14 +254,20 @@ class Deposition(object):
             nstcomm = 100
         res_list = list(set(residue_list))
         mdp = mdp_template.render(res_list=" ".join(res_list),
-                                  time_step=self.run_config["time_step"],
                                   n_steps=n_steps,
                                   nstcomm=nstcomm,
-                                  temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
-                                  tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
+                                  termostat_temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
+                                  termostat_tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
+                                  **self.run_config
                                   )
         with open(self.filename("control", "mdp"), "w") as fh:
             fh.write(mdp)
+
+        # Write input model with modifications (insertions/deletions) for MD simulation
+        self.write_init_configuration()
+        # Note that self.write_restraints_file() modifies the model (resets substrate positions) so the input must be
+        # written before the restraint file is generated.
+        self.write_restraints_file()
 
     def run_subprocess(self, cli_template, inserts):
 
@@ -235,12 +286,15 @@ class Deposition(object):
 
         if 0 < return_code:
             msg = "Subprocess terminated with non-zero exit code: \n{0}".format(" ".join(arg_list))
+            with open(err_filepath, "r") as fh:
+                details = fh.read()
             logging.error(msg)
+            logging.error("Process stderr output:\n" + details)
             raise Exception(msg)
 
     def molecule_number(self):
         return len(self.model.residues)
-    
+
     def setup_logging(self):
         for handler in logging.root.handlers[:]:
             handler.close()
@@ -269,11 +323,6 @@ class Deposition(object):
         else:
             return 0
 
-    def init_deposition_steps(self):
-        # Get the list of all the deposition steps
-        self.last_run_ID = self.run_config["n_cycles"]
-        self.init_mixture_residue_counts()
-
     def run_config_summary(self, minimal=False):
         if minimal:
             return yaml.dump({
@@ -288,31 +337,45 @@ class Deposition(object):
             return yaml.dump(config_copy)
 
     def write_restraints_file(self):
-        """Copy current configuration and reset substrate positions"""
-        logging.debug("Creating restraints file")
-        restraints = self.model.copy()
-        if "initial_structure_file" in self.run_config:
-            reference_structure = pmx.Model(str(self.run_config["initial_structure_file"]))
-        else:
-            reference_structure = pmx.Model(str(self.run_config["substrate"]["pdb_file"]))
-        reference_structure.a2nm()
-        self.reset_substrate_positions(restraints, reference_structure)
-        restraints_path = join(self.rootdir, self.filename("restraints", "gro"))
-        restraints.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
-        #substrate.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
+        """Current implementation is a bit slow due to iterating over the entire model. The end goal is simply to have a
+        gro file that contains the same number of atoms as the input-coordinates, with substrate atoms in their
+        starting position. This could be achieved with simply text file handling rather than dealing with the overhead
+        of the entire pmx model."""
 
-    def reset_substrate_positions(self, restraints, reference_structure):
+        logging.debug("Creating restraints file")
+        if self.reference_structure is None:
+            logging.debug("Loading reference structure model")
+            if "initial_structure_file" in self.run_config:
+                self.reference_structure = pmx.Model(str(self.run_config["initial_structure_file"]))
+            else:
+                self.reference_structure = pmx.Model(str(self.run_config["substrate"]["pdb_file"]))
+            self.reference_structure.a2nm()
+        self.reset_substrate_positions()
+        restraints_path = join(self.rootdir, self.filename("restraints", "gro"))
+        self.model.write(restraints_path, "restraints for run {0}".format(self.run_ID), 0)
+
+    def reset_substrate_positions(self):
+        """Adjust the positions of the substrate molecules in `self.model` to
+        those of the reference system. We can assume substrate molecules in the
+        reference structure remain the same and therefore they can be cached.
+        It is also assumed that the order of atoms that are part of substrate
+        molecules is the same as that of the reference system."""
+        logging.debug("Setting substrate positions to be those of the reference structure")
         substrate_resname = self.run_config["substrate"]["res_name"]
-        restraint_substrate_molecules = [r for r in restraints.residues if r.resname == substrate_resname]
-        reference_substrate_molecules = [r for r in reference_structure.residues if r.resname == substrate_resname]
-        assert len(restraint_substrate_molecules) > 0, \
+        # Substrate molecules may not be first in the list, so their indices
+        # could be invalidated by removal of other molecules
+        substrate_molecules = [r for r in self.model.residues if r.resname == substrate_resname]
+        if self.reference_substrate_molecules is None:
+            self.reference_substrate_molecules = [r for r in self.reference_structure.residues
+                                                  if r.resname == substrate_resname]
+        assert len(substrate_molecules) > 0, \
             f"Substrate res_name {substrate_resname} not found in simulated system"
-        assert len(reference_substrate_molecules) > 0, \
+        assert len(self.reference_substrate_molecules) > 0, \
             f"Substrate res_name {substrate_resname} not found in reference structure"
-        assert len(reference_substrate_molecules) == len(restraint_substrate_molecules), \
+        assert len(self.reference_substrate_molecules) == len(substrate_molecules), \
             f"Number of substrate molecules in reference structure and simulated system do not match: " \
-            f"{len(reference_substrate_molecules)} !- {len(restraint_substrate_molecules)}"
-        for restraint_molecule, reference_molecule in zip(restraint_substrate_molecules, reference_substrate_molecules):
+            f"{len(self.reference_substrate_molecules)} !- {len(substrate_molecules)}"
+        for restraint_molecule, reference_molecule in zip(substrate_molecules, self.reference_substrate_molecules):
             for i, a in enumerate(restraint_molecule.atoms):
                 a.x = reference_molecule.atoms[i].x
 
@@ -361,14 +424,25 @@ class Deposition(object):
         return False
 
     def layer_height(self, excluded_resnames=None, density_fraction_cutoff=None, bin_width=0.2):
-        """Find the top of the deposited layer. In some cases it is useful to define the top of the layer as the
+        """
+        Find the top of the deposited layer. In some cases it is useful to define the top of the layer as the
          as first z-bin with an atom number density less than a specified fraction of the maximum density e.g.
         `density_fraction_cutoff` 0.1 corresponds to a density of 10% of the maximum (including substrate).
+        *Types*
+        `excluded_resnames`:        Container[str]|None
+        `density_fraction_cutoff`:  float|None
+        `bin_width`:                float
         """
+        excluded_resnames = [] if excluded_resnames is None else excluded_resnames
+        # List isn't hashable, so join the strings to get a hash key.
+        # Not perfect since order could be different, but should be fine.
+        # Could sort the list first, but performance would suffer.
+        cache_key = (''.join(excluded_resnames), density_fraction_cutoff, bin_width)
+        if cache_key in self._layer_height_cache and self._layer_height_cache[cache_key]["run_ID"] == self.run_ID:
+            return self._layer_height_cache[cache_key]["layer_height"]
         density_fraction_cutoff = self.density_fraction_cutoff \
             if density_fraction_cutoff is None \
             else density_fraction_cutoff
-        excluded_resnames = excluded_resnames if excluded_resnames is not None else []
         binned_max_height = 0.0
         atom_counts = {}
         for residue in self.model.residues:
@@ -391,25 +465,245 @@ class Deposition(object):
             z_bin, atom_count = sorted(bins_with_atoms.items())[-1]
             binned_max_height = z_bin * bin_width
             logging.debug("Max layer height {:.3f} nm ({} atoms/bin)".format(binned_max_height, atom_count))
+        self._layer_height_cache[cache_key] = {"run_ID": self.run_ID, "layer_height": binned_max_height}
         return binned_max_height
 
-    def zero_substrate_velocity(self):
-        for atom in self.model.atoms:
-            if atom.resname == self.run_config["substrate"]["res_name"]:
-                atom.v = [0.0, 0.0, 0.0]
-
-    def has_residue_left_layer_solvent_evaporation(self, residue, solvent_excluded_layer_height):
-        min_atom_height = np.min([a.x[2] for a in residue.atoms])
-        return min_atom_height > solvent_excluded_layer_height
-
-    def has_residue_left_layer(self, residue, layer_height):
+    def has_residue_left_layer(self, residue, layer_height, warn=False):
         mean_atom_height = np.mean([a.x[2] for a in residue.atoms])
         if mean_atom_height > layer_height + self.escape_tolerance:
-            logging.info(f"Molecule ({residue.id}) found in the gas phase, mean atom height ({mean_atom_height:.3f}) >"
-                          f" layer_height ({layer_height} nm) + escape_tolerance ({self.escape_tolerance} nm)")
+            if warn:
+                logging.warning(f"Molecule ({residue.id}) found in the gas phase, mean atom height "
+                                f"({mean_atom_height:.3f}) > layer_height ({layer_height} nm) + "
+                                f"escape_tolerance ({self.escape_tolerance} nm)")
             return True
         else:
             return False
+
+    def solute_density_profile(self):
+        """Calculate the atomic density profile of the solute. Cached based on run_ID"""
+        if self.run_ID != self._solute_density_profile["run_ID"]:
+            # Cache density profile to save recalculating if needed multiple times in a step
+            self._solute_density_profile["profile"] = atomic_density(
+                self.model,
+                self.run_config["solution_acceleration"]["density_prof_bin"],
+                [self.run_config["substrate"]["res_name"]] + self.solvent_name
+            )
+            self._solute_density_profile["run_ID"] = self.run_ID
+        return self._solute_density_profile["profile"]
+
+    def solvent_delete(self):
+        """Randomly delete solvent molecules in the lower portion of the density profile"""
+        del_config = "solvent_delete" in self.run_config["solution_acceleration"]
+        if not del_config:
+            return
+        del_config = self.run_config["solution_acceleration"]["solvent_delete"]
+        if del_config is None or ("enabled" in del_config and not del_config["enabled"]):
+            return
+
+        # Get density profile and find the bottom of the skin
+        layer_height = self.layer_height(excluded_resnames=self.solvent_name)
+        z = layer_height
+        thresh = del_config["density_thresh"]
+        density_profile = self.solute_density_profile()
+        bin_sz = self.run_config["solution_acceleration"]["density_prof_bin"]
+        for i, v in enumerate(np.convolve(density_profile >= thresh, np.ones((del_config["consecutive_bins"],)), "valid")):
+            if v == del_config["consecutive_bins"]:
+                z = i * bin_sz
+                break
+
+        # Log whether a skin was found, or just using the top of the layer.
+        max_found = np.max(density_profile)
+        if max_found < thresh:
+            logging.info(f"Density threshold not met - using layer height as slab top ({z} nm)")
+        else:
+            logging.info(f"Bottom of skin for solvent deletion detected at z = {z} nm")
+        logging.debug(f"Maximum slab density: {max_found} nm^-3") # Useful for fine-tuning density threshold
+
+
+        # Move the bottom of the slab up to lower_limit if it's below that
+        # point and adjust the number of deletions to maintain the same density
+        # of removed molecules
+        lower_limit = del_config["slab_lower_limit"] if "slab_lower_limit" in del_config else None
+        z_min = z - del_config["slab_height"]
+        n_delete = del_config["number"]
+        if lower_limit is not None and z_min < lower_limit:
+            del_slab_ht = del_config["slab_height"]
+            z_diff = lower_limit - z_min
+            z_min = lower_limit
+            n_delete = int(round(n_delete * (del_slab_ht - z_diff) / del_slab_ht))
+            logging.info(f"Bottom of solvent removal slab is below {lower_limit}. Adjusted number of deletions to: {n_delete}")
+            if n_delete == 0:
+                if "exit_on_impossible" in del_config and del_config["exit_on_impossible"]:
+                    self.should_abort = True
+                logging.info(f"Slab is too thin to allow deletions. {'Aborting mdrun.' if self.should_abort else 'Skipping.'}")
+                return 0
+
+        # Find all molecules in the slab
+        # This can maybe be sped up...
+        mols_in_slab = []
+        for i, mol in enumerate(self.model.residues):
+            if mol.resname not in self.solvent_name:
+                continue
+            if mol.atoms[0].x[2] >= z_min and mol.atoms[0].x[2] <= z:
+                mols_in_slab.append(i)
+        logging.debug(f"Found {len(mols_in_slab)} options to remove")
+        if len(mols_in_slab) == 0:
+            if "exit_on_impossible" in del_config and del_config["exit_on_impossible"]:
+                self.should_abort = True
+            logging.info(f"No solvent molecules in removal slab.{' Aborting mdrun.' if self.should_abort else ''}")
+            return 0
+
+        # Choose random molecules to remove, making sure they're far enough apart
+        # Guaranteed to remove at least 1 molecule.
+        logging.info(f"Randomly removing solvent molecules between {z_min} and {z} nm")
+        chosen_mols = []
+        generator = random.Random(z * len(self.model.residues) * self.run_ID*(self.run_ID+1) * self.run_config["seed"])
+        while len(chosen_mols) < n_delete:
+            m = generator.sample(mols_in_slab, 1)[0]
+            chosen_mols.append(self.model.residues[m])
+            # Trim list to remove options too close to the chosen molecule
+            mols_in_slab = [ m for m in mols_in_slab
+                            if mol_distance(
+                                self.model.residues[m],
+                                chosen_mols[-1],
+                                self.model.box
+                            ) > del_config['min_separation'] ]
+            if len(mols_in_slab) == 0:
+                logging.debug("No options left within slab")
+                break
+        self.remove_residues(chosen_mols)
+        logging.info(f"Removed {len(chosen_mols)} solvent molecules")
+        return len(chosen_mols)
+
+    def insert_soln_layer(self):
+        """Insert a slab of solution below the surface skin"""
+        # TODO: maybe generalise this to insert above the density profile for
+        #       films that grow from the substrate?
+        insert_config = "insert" in self.run_config["solution_acceleration"]
+        if not insert_config:
+            return
+        insert_config = self.run_config["solution_acceleration"]["insert"]
+        if insert_config is None or ("enabled" in insert_config and not insert_config["enabled"]):
+            return
+
+        # Get density profile and find the bottom of the skin.
+        # Use cached solvent-excluded layer height
+        layer_height = self.layer_height(excluded_resnames=self.solvent_name)
+        density_profile = self.solute_density_profile()
+        bin_sz = self.run_config["solution_acceleration"]['density_prof_bin']
+        min_skin_height = insert_config["min_skin_height"]
+        # min_idx = max(insert_config["consecutive_bins"]-1, int(math.floor(insert_config["insert_min_z"] / bin_sz)))
+        skin_z = layer_height
+        thresh = insert_config["skin_density_thresh"]
+        for i, v in enumerate(np.convolve(density_profile >= thresh, np.ones((insert_config["consecutive_bins"],)), "valid")):
+            if v == insert_config["consecutive_bins"]:
+                skin_z = i * bin_sz
+                break
+        logging.info(f"Bottom of skin for solution insertion is at {skin_z} nm (threshold is {min_skin_height} nm)")
+        if skin_z > min_skin_height: return
+
+        # Make sure skin thickness is within tolerance
+        if "max_skin_thickness" in insert_config:
+            if layer_height - skin_z >= insert_config["max_skin_thickness"]:
+                logging.info(f"Skin thickness of {layer_height - skin_z} nm is larger than {insert_config['max_skin_thickness']} nm. Skipping insertion.")
+                return
+        logging.info(f"Bottom of skin has dropped below threshold. Inserting new slab of solution.")
+
+        # Try to use own geometry for insertion if specified
+        use_self = "use_self" in insert_config and insert_config["use_self"]
+        input_gro = None
+        if use_self:
+            last_run = self.filename("final-coordinates", "gro", prev_run=True)
+            if Path(last_run).is_file():
+                input_gro = last_run
+            elif "initial_structure_file" in self.run_config:
+                input_gro = self.run_config["initial_structure_file"]
+            else:
+                logging.warning("use_self flag is set, but failed to find structure file for own geometry. Attempting to fall back to 'input_gro_file'")
+        if input_gro is None:
+            use_self = False
+            if "input_gro_file" in insert_config:
+                input_gro = insert_config["input_gro_file"]
+            elif "initial_structure_file" in self.run_config:
+                logging.warning("No geometry specified to take slab from. Defaulting to initial structure file. Note that this can cause a drift in the mixture ratio if the initial structure is not an equilibrated one.")
+                input_gro = self.run_config["initial_structure_file"]
+            else:
+                if insert_config["exit_on_failure"]:
+                    self.should_abort = True
+                logging.warning(f"No available geometry to take slab from. {'Aborting mdrun.' if self.should_abort else 'Skipping insertion.'}")
+                return
+
+        input_gro = str(input_gro) # Need to convert to str for comparison to work
+        if self.aux_solution is None:
+            # If this is the first insertion, set up a new insertion handler
+            self.aux_solution = InsertionHandler(
+                str(input_gro), # File path must be str, otherwise interpreted as pmx model
+                split_min=insert_config["source_min_z"],
+                split_max=insert_config["source_max_z"],
+                density_thresh=insert_config["max_solute_density"],
+                bin_sz=bin_sz,
+                split_ht=insert_config["insert_thickness"],
+                split_ht_tol=insert_config["thickness_tol"]
+            )
+        else:
+            # Otherwise just load the new model if necessary
+            self.aux_solution.update_model(input_gro)
+        # Generate/cache density profile
+        if use_self:
+            self.aux_solution.calc_density_profile(set_profile=self.solute_density_profile())
+        else:
+            self.aux_solution.calc_density_profile(
+                exclude_residues=[self.run_config["substrate"]["res_name"]] + self.solvent_name
+            )
+
+        # Choose a random layer to insert based on user-defined strategy
+        strategy = insert_config["strategy"].lower() if "strategy" in insert_config else "weighted"
+        generator = random.Random(len(self.model.atoms) * self.run_ID * self.run_config["seed"])
+        chosen_layer = self.aux_solution.choose_random_layer(generator, strategy)
+        logging.info(f"Taking inserted layer from between {chosen_layer[0]} and {chosen_layer[1]} nm of {'self' if use_self else 'source'}.")
+
+        # Find valid splitting points in main system
+        # NOTE: analyse_splits() could have different results even if using
+        #       self, since min and max heights could be different
+        main_sys = InsertionHandler(
+            self.model,
+            split_min=insert_config["insert_min_z"],
+            split_max=insert_config["insert_max_z"],
+            density_thresh=insert_config["max_solute_density"],
+            bin_sz=bin_sz
+        )
+        main_sys.calc_density_profile(set_profile=self.solute_density_profile())
+        valid_splits = main_sys.analyse_splits()
+        if len(valid_splits) == 0:
+            logging.error("No valid insertion points found in system! Try using a smaller bin size.")
+            if insert_config["exit_on_failure"]:
+                self.should_abort = True
+            return
+
+        # Insert new slab of solution
+        insert_z = generator.sample(valid_splits, 1)[0]
+        logging.info(f"Inserting at {insert_z} nm with extra {insert_config['extra_space']} nm above and below")
+        if "extra_space" in insert_config:
+            extra_space = insert_config["extra_space"]
+        else:
+            logging.warning("extra_space not specified for solution layer insertion. Defaulting to 0.15 nm.")
+            extra_space = 0.15
+        delta_mixture = main_sys.insert(
+            insert_z,
+            self.aux_solution,
+            chosen_layer[0],
+            chosen_layer[1],
+            self.run_config["substrate"]["res_name"],
+            extra_space
+        )
+
+        # Update mixture
+        for key in delta_mixture:
+            if not key in self.mixture:
+                logging.error(f"Insertion added molecule with resname \"{key}\", which is not defined in mixture. Aborting mdrun.")
+                self.should_abort = True
+            self.mixture[key]["count"] += delta_mixture[key]
+        logging.debug('New mixture is: {mixture}'.format(mixture=self.mixture))
 
     def gen_initial_velocities_last_residue(self):
         # Note that center of mass motion removal will significantly affect
@@ -444,9 +738,6 @@ class Deposition(object):
     def sample_mixture(self):
         if len(self.sampling_mixture) == 1:
             return list(self.sampling_mixture.values())[0]
-        # exact composition no longer supported
-        if "exact_composition" in self.run_config:
-            raise Exception("parameter 'exact_composition' no longer supported")
 
         num_residues = len(self.model.residues)
         generator = random.Random(num_residues * self.run_ID * self.run_config["seed"])
@@ -457,7 +748,6 @@ class Deposition(object):
             cumulative += v["ratio"]
             if random_num < cumulative/ratio_sum:
                 return v
-        raise Exception("If you are reading this something terrible has happened")
 
     def get_next_molecule(self, layer_height=None):
         next_molecule_resname = self.sample_mixture()
@@ -496,13 +786,12 @@ class Deposition(object):
     def remove_gas_phase_residues(self):
         # Iterate over the residues and remove the ones that have left the layer
         gas_phase_residues = []
-        if self.run_config["simulation_type"] == SOLVENT_EVAPORATION:
-            excluded_resname = self.run_config["solvent_name"]
-            solvent_excluded_layer_height = self.layer_height(excluded_resnames=[excluded_resname])
-            logging.debug(f"Layer height excluding {excluded_resname} is {solvent_excluded_layer_height:.3f} nm")
+        if self.type == SOLVENT_EVAPORATION:
+            solvent_excluded_layer_height = self.layer_height(excluded_resnames=self.solvent_name)
+            logging.debug(f"Layer height excluding {self.solvent_name} is {solvent_excluded_layer_height:.3f} nm")
             for residue in self.model.residues:
-                if residue.resname == self.run_config["solvent_name"]:
-                    if self.has_residue_left_layer_solvent_evaporation(residue, solvent_excluded_layer_height):
+                if residue.resname in self.solvent_name:
+                    if self.has_residue_left_layer(residue, solvent_excluded_layer_height):
                         gas_phase_residues.append(residue)
         else:
             # For non-solvent evaporation simulations we may also need to remove molecules from gas phase,
@@ -510,7 +799,7 @@ class Deposition(object):
             # molecule has entered the gas phase.
 
             # First check if molecule(s) could require removal.
-            if self.highest_z() < self.escape_tolerance:
+            if self.highest_z(exclude_residues=[self.run_config["substrate"]["res_name"]]) < self.escape_tolerance:
                 return
 
             # We need to calculation layer height with a non-zero density_fraction_cutoff so that molecules that are
@@ -520,12 +809,11 @@ class Deposition(object):
             # substrate_resname = None \
             #     if self.run_config["substrate"] is None \
             #     else self.run_config["substrate"]["res_name"]
-            layer_height = self.layer_height(#excluded_resnames=[substrate_resname],
-                                             density_fraction_cutoff=density_fraction_cutoff)
+            layer_height = self.layer_height(density_fraction_cutoff=density_fraction_cutoff)
             logging.debug(f"Layer height with density threshold {100*density_fraction_cutoff}% of maximum "
                          f"is {layer_height} nm")
             for residue in self.model.residues:
-                if self.has_residue_left_layer(residue, layer_height):
+                if self.has_residue_left_layer(residue, layer_height, warn=True):
                     gas_phase_residues.append(residue)
 
         # A solvent evaporation speedup can be applied whereby a given number of molecules are
@@ -538,11 +826,11 @@ class Deposition(object):
         if len(residues_to_remove) > 0:
             self.remove_residues(residues_to_remove)
 
-    def top_molecule_n_molecules(self, resname):
-        # get all z_coords and residue IDs of atoms with resname
+    def top_molecule_n_molecules(self, resnames: list):
+        """Get all z_coords and residue IDs of atoms with resname in `resnames`"""
         selected_residues = {}
         for residue in self.model.residues:
-            if resname == residue.resname:
+            if residue.resname in resnames:
                 for atom in residue.atoms:
                     selected_residues.setdefault(residue.id, []).append(atom.x[2])
         # all we need is the maximum z coord and res_id
@@ -571,26 +859,33 @@ class Deposition(object):
             self.mixture[residue.resname]["count"] -= 1
         remove_residues_faster(self.model, residues)
 
-    def remove_residue(self, residue):
-        self.remove_residue_with_id(residue.id)
-
-    def highest_z(self):
-        return max(a.x[2] for a in self.model.atoms)
+    def highest_z(self, exclude_residues = None):
+        """
+        Maximum z coordinates of all atoms whose residue name is not in
+        `exclude_residues`.
+        *Types*
+        `exclude_residues`: Container[str]|None
+        """
+        exclude_residues = [] if exclude_residues is None else exclude_residues
+        zvals = [a.x[2] for a in self.model.atoms if a.resname not in exclude_residues]
+        return max(zvals) if len(zvals) > 0 else 0.0
 
     def resize_box(self):
-        """Adjust z box dimension to maintain specified overhead void size, minimum increment 1nm"""
-        max_z = self.highest_z()
+        """Adjust z box dimension to maintain specified overhead void size, minimum increment 1 nm"""
+        max_z = self.highest_z(exclude_residues=[self.run_config["substrate"]["res_name"]])
         logging.debug(f"Maximum atom height: {max_z:.3f} nm")
         new_Lz = math.ceil(max_z) + self.run_config["overhead_void_space"]
         if round(new_Lz) == round(self.model.box[2][2]):
             return
         old_Lz = self.model.box[2][2]
-        # half_old_Lz = 0.5*old_Lz
+        half_old_Lz = 0.5*old_Lz
         self.model.box[2][2] = new_Lz
 
-        # for atom in self.model.atoms:
-        #     if atom.resname == self.run_config["substrate"]["res_name"] and atom.x[2] > half_old_Lz:
-        #         atom.x[2] -= old_Lz
+        # Substrate can drift during solvent evaporation, particularly after a
+        # layer insertion, so make sure it's not crossing the boundary.
+        for atom in self.model.atoms:
+            if atom.resname == self.run_config["substrate"]["res_name"] and atom.x[2] > half_old_Lz:
+                atom.x[2] -= old_Lz
         logging.debug("Box size changed from z={0} nm to z={1} nm".format(old_Lz, self.model.box[2][2]))
 
     def write_init_configuration(self):
@@ -646,7 +941,8 @@ class Deposition(object):
 
     def write_index_file(self):
         """
-        write index file containing groups for thermostatting and com subtraction"
+        write index file containing groups for thermostatting and com subtraction.
+        This method is currently not used but may be useful...
         """
         slab_width = self.run_config["slab_width"]
         num_slabs = self.get_num_slabs()
@@ -677,7 +973,7 @@ class Deposition(object):
                         slab_atoms[slab_id-1] = slab_atoms[slab_id-1] + atoms
                         slab_atoms[slab_id] = []
                         consolidated = False
-                
+
         ndx_path = self.filename("index", "ndx")
         with open(ndx_path,"w") as f:
             for slab_id in range(num_slabs):
@@ -712,3 +1008,21 @@ class Deposition(object):
         logging.info("Current system composition: " + ", ".join([" {0}:{1}".format(r["res_name"], r["count"])
                                                              for r in self.mixture.values()])
                      )
+
+    def set_temperature_thermal_annealing(self):
+        """For thermal annealing, the temperature of a given cycle is set according to the value at index
+        self.run_ID - 1 within the temperature_list provided in the run config."""
+
+        temperature_index = self.run_ID - 1
+        if temperature_index > len(self.run_config["temperature_list"]):
+            msg = f"Temperature value not provided in temperature_list for run {self.run_ID} ({self.run_config['temperature_list']})"
+            logging.error(msg)
+            raise Exception(msg)
+
+        self.run_config["temperature"] = self.run_config["temperature_list"][temperature_index]
+        logging.info(f"Temperature set to: {self.run_config['temperature']}")
+
+    def equilibration(self):
+        """Not much to do... just run MD"""
+        logging.info(f"Running {self.run_config['run_time']} ps "
+                     f"of MD @ {self.run_config['temperature']} K.")

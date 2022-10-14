@@ -1,7 +1,7 @@
 name: multicore_test
-work_directory: /Users/uqmstroe/multicore_test_working
+work_directory: multicore_test_working
 simulation_type: vacuum_deposition
-n_cycles: 10
+n_cycles: 3
 forcefield_file: gromos54a7_atb.ff/forcefield.itp
 insert_distance: 2.0 #nm
 escape_tolerance: 2.0 #nm
@@ -10,8 +10,9 @@ density_fraction_cutoff: 0.05
 overhead_void_space: 5.0 # nm
 deposition_velocity: 0.2 # nm/ps
 use_gpu : False
-description: "10 cycle multicore vacuum deposition test"
-run_time: 20.0 #ps
+description: "Test multicore vacuum deposition"
+run_time: 10.0 #ps
+nstout: 100
 insertions_per_run: 2
 insertion_xy_radius: 2.0 #nm
 insertion_z_radius: 1.0 #nm

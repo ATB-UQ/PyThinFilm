@@ -1,14 +1,15 @@
 name: solvent_test
-work_directory: /Users/uqmstroe/solvent_test_working
-initial_structure_file: systems/solution.gro
+work_directory: solvent_test_working
+initial_structure_file: systems/test_solvent_evaporation.gro
 simulation_type: solvent_evaporation
 solvent_name: CCL3
 n_cycles: 1
 forcefield_file: gromos54a7_atb.ff/forcefield.itp
 description: 'Test solvent evaporation of CBP/IPS/CCL3'
 run_time: 0.01 #ps
+nstout: 5
 seed: 142271835
-temperature: 310 #K      
+temperature: 310 #K
 mixture:
   CBP:
     res_name: CBP
@@ -21,8 +22,7 @@ mixture:
     itp_file: systems/IPAR.itp
   CCL3:
     res_name: CCL3
-    itp_file: systems/rigid_chcl3.itp
+    itp_file: systems/CHCL3.itp
 substrate: 
     res_name: GRM
-    pdb_file: systems/GRM.pdb # required for restraint reference positions
     itp_file: systems/GRM.itp
