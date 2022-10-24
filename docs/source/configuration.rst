@@ -9,6 +9,7 @@ Default Settings
 Default configuration settings are specified in default_settings.yml
 
 Any of the default configuration settings can be overridden by specifying values for them in the relevant YAML file
+(http://www.yaml.org)
 
 Configuration Options
 ---------------------
