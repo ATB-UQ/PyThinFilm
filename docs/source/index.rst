@@ -12,8 +12,16 @@ This document explains the procedure for installing, configuring, and running Py
 
 .. toctree::
    :maxdepth: -1
-   :caption: Documentation
+   :caption: Reference
    
    gettingstarted
-   commandline
    configuration
+
+.. toctree::
+   :maxdepth: -1
+   :caption: Examples
+   
+   vacuum
+   solution
+   annealing
+   advice
