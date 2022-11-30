@@ -27,35 +27,43 @@ class TestPyThinFilm(unittest.TestCase):
 
     def test_quick_single_core(self):
         run_config = setup_test("quick_test.yml")
-        main(run_config, 1)
+        main(run_config)
 
     def test_multicore(self):
         run_config = setup_test("multicore_test.yml")
-        main(run_config, N_CORES)
+        run_config["n_cores"] = N_CORES
+        main(run_config)
 
     def test_fullerene(self):
         run_config = setup_test("fullerene_test.yml")
-        main(run_config, N_CORES)
+        run_config["n_cores"] = N_CORES
+        main(run_config)
 
     def test_solvent(self):
         run_config = setup_test("solvent_test.yml")
-        main(run_config, N_CORES)
+        run_config["n_cores"] = N_CORES
+        main(run_config)
 
     def test_annealing(self):
         run_config = setup_test("annealing_test.yml")
-        main(run_config, N_CORES)
+        run_config["n_cores"] = N_CORES
+        main(run_config)
 
     def test_equilibration(self):
         run_config = setup_test("equilibration_test.yml")
-        main(run_config, N_CORES)
+        run_config["n_cores"] = N_CORES
+        main(run_config)
 
     def test_solvent_accel(self):
         run_config = setup_test("solvent_accel_test.yml")
-        main(run_config, N_CORES)
+        run_config["n_cores"] = N_CORES
+        main(run_config)
 
     def test_solvent_self_insert(self):
         run_config = setup_test("solvent_self_insert_test.yml")
-        main(run_config, N_CORES)
+        run_config["n_cores"] = N_CORES
+        main(run_config)
+
 
 if __name__ == "__main__":
     unittest.main()

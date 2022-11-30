@@ -25,10 +25,9 @@ from PyThinFilm.solution_insert import InsertionHandler
 
 class Deposition(object):
 
-    def __init__(self, user_run_config, n_cores, debug):
+    def __init__(self, user_run_config, debug):
         self.run_ID = 0
         self.debug = debug
-        self.n_cores = n_cores
 
         # load default run config
         with open(DEFAULT_SETTING) as fh:
@@ -128,7 +127,7 @@ class Deposition(object):
         # molecules.
         self.reference_structure = None
         self.reference_substrate_molecules = None
-
+        self.n_cores = self.run_config['n_cores'] if 'n_cores' in self.run_config else 1
         self.gmx_executable = self.run_config['gmx_executable'] \
             if self.n_cores == 1 \
             else self.run_config['gmx_executable_mpi']
@@ -577,8 +576,6 @@ class Deposition(object):
 
     def insert_soln_layer(self):
         """Insert a slab of solution below the surface skin"""
-        # TODO: maybe generalise this to insert above the density profile for
-        #       films that grow from the substrate?
         insert_config = "insert" in self.run_config["solution_acceleration"]
         if not insert_config:
             return
