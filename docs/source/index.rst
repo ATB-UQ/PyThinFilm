@@ -11,7 +11,7 @@ PyThinFilm is a `Python <https://www.python.org/>`_ tool designed to assist user
 This document explains the procedure for installing, configuring, and running PyThinFilm.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Reference
    
    gettingstarted

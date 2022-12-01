@@ -21,4 +21,4 @@ Or by cloning this repository and installing PyThinFilm from the within the sour
 
 ```pip install .```
 
-More installation options are outlined in the documentation: https://atb-uq.github.io/PyThinFilm
+More installation options are outlined in the documentation.
