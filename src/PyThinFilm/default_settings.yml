@@ -31,7 +31,7 @@ solvent_name: None
 substrate: None
 mixture: None
 mpi_template : "mpirun -np {n_cores}"
-grompp_template: "{GMX_EXEC} grompp -maxwarn 2 -f {MDP_FILE} -c {initial} -r {restraints} -p {top} -o {tpr}"
+grompp_template: "{GMX_EXEC} grompp -maxwarn 2 -f {mdp} -c {initial} -r {restraints} -p {top} -o {tpr}"
 mdrun_template: "{GMX_EXEC} mdrun -s {tpr} -x {xtc} -e {edr} -g {log} -cpo {cpo} -c {final}"
 solution_acceleration:
   # Bin size to use when analysing density profile for skin detection and layer insertion

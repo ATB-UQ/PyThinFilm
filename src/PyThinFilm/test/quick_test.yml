@@ -9,7 +9,6 @@ time_step: 0.002 #ps
 density_fraction_cutoff: 0.0
 overhead_void_space: 5.0 # nm
 deposition_velocity: 0.4 # nm/ps
-use_gpu : False
 description: "A quick test vacuum deposition"
 run_time: 10.0 #ps
 nstout: 100

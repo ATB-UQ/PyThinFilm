@@ -171,7 +171,7 @@ class Deposition(object):
         self.init_gromacs_simulation()
 
         arg_values = {"GMX_EXEC": self.gmx_executable,
-                      "MDP_FILE": self.filename("control", "mdp"),
+                      "mdp": self.filename("control", "mdp"),
                       "tpr": self.filename("tpr", "tpr"),
                       "xtc": self.filename("trajectory", "xtc"),
                       "top": self.filename("topology", "top"),
@@ -183,8 +183,6 @@ class Deposition(object):
                       "restraints": self.filename("restraints", "gro"),
                       "run_ID": self.run_ID,
                       }
-
-        #if "use_gpu" in self.run_config and self.run_config["use_gpu"]:
 
         if self.n_cores > 1:
             mdrun_template = "{} {}".format(self.run_config["mpi_template"], self.mdrun_template)

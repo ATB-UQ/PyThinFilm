@@ -47,13 +47,27 @@ MPI Command Template
 GROMPP Command Template
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-:code:`grompp_template` (default: "{GMX_EXEC} grompp -maxwarn 2 -f {MDP_FILE} -c {initial} -r {restraints} -p {top} -o {tpr}"): string specifying the form of the grompp call on the command line, where :code:`GMX_EXEC` is the GROMACS executable, :code:`MDP_FILE` is the input .mdp file for the run, :code:`initial` is the input coordinate file, :code:`restraints` is the input restraints file, :code:`top` is the input topology file, and:code:`tpr` is the output .tpr file.
+:code:`grompp_template` (default: "{GMX_EXEC} grompp -maxwarn 2 -f {mdp} -c {initial} -r {restraints} -p {top} -o {tpr}"): string specifying the form of the grompp call on the command line, where :code:`GMX_EXEC` is the GROMACS executable, :code:`mdp` is the input .mdp file for the run, :code:`initial` is the input coordinate file, :code:`restraints` is the input restraints file, :code:`top` is the input topology file, and:code:`tpr` is the output .tpr file.
 
 MDRUN Command Template
 ~~~~~~~~~~~~~~~~~~~~~~
 
 :code:`mdrun_template` (default: "{GMX_EXEC} mdrun -s {tpr} -x {xtc} -e {edr} -g {log} -cpo {cpo} -c {final}"): string specifying the form of the mdrun call on the command line, where :code:`GMX_EXEC` is the GROMACS executable, :code:`tpr` is the input .tpr file for the run, :code:`xtc` is the output .xtc trajectory file, :code:`edr` is the output .edr energy file, :code:`log` is the output .log file, :code:`cpo` is the output .cpo file, and :code:`final` is the output file containing the final coordinates of the run.  
 
+Solvent Name
+~~~~~~~~~~~~
+
+:code:`solvent_name` (default: None): residue name of solvent molecules in simulation.
+
+Substrate
+~~~~~~~~~
+
+:code:`substrate` (default: None): details of the substrate molecules to be used in a simulation.  Two fields, :code:`res_name` and
+
+Mixture
+~~~~~~~
+
+:code:`mixture` (default: None):
 
 
 Vacuum Deposition Simulations
