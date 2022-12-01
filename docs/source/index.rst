@@ -15,7 +15,9 @@ This document explains the procedure for installing, configuring, and running Py
    :caption: Reference
    
    gettingstarted
+   commandline
    configuration
+
 
 .. toctree::
    :maxdepth: -1
