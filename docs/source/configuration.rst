@@ -228,64 +228,28 @@ The following options are specified under the subheading :code:`insert` and cont
 
 :code:`source_max_z` (default: 60): the point below which molecules are valid targets to be copied into the main system as an extra layer of solution in nm.
 
-:code:`min_skin_height` (default: 20):
+:code:`max_skin_thickness` (default: 20): insertion will only be performed if the thickness of the layer in nm is below this value.
 
-    # Optional. Insertion will only be performed if layer_height -
-    # bottom_of_skin is less than this value.
-    # If unset, insertions will be performed every time the bottom of the skin
-    # is detected below `min_skin_height`, and the film will continue to grow.
-    max_skin_thickness: 20 # nm - System specific.
+:code:`insert_thickness:` (default: 10): thickness of inserted layer in nm. appropriate values will depend on the size of the molecules in the system, with larger molecules requiring thicker layers.  Lower values will help improve simulation speed.
 
-    insert_thickness: 10  # nm - Thickness of inserted layer. System specific.
-                          #       This will depend on the size of the molecules
-                          #       in the system. Larger molecules will require
-                          #       a thicker layer to ensure that enough of them
-                          #       do not cross the boundary (molecules that
-                          #       cross the boundary are not inserted).
-                          #       Smaller values will give faster run time,
-                          #       since fewer atoms are being simulated.
-    thickness_tol: 0.2    # Fractional tolerance for insert_thickness
-                          # (e.g. 0.2 = accept layers within +/- 20% of insert_thickness)
+:code:`thickness_tol` (default: 0.2): fractional tolerance for insert thickness.
 
-    # Concentration above which `consecutive_bins` bins in a row will be used
-    # to detect the bottom of the skin
-    skin_density_thresh: 10 # solute atoms per nm^3 - System specific.
-                            #     This will depend on the concentration
-                            #     of the solute in the bulk region, and the
-                            #     density of the dried film.
-
-    consecutive_bins: 8     # Fewer consecutive bins allows detection of a
-                            # thinner skin, but makes that detection less
-                            # reliable. Since reliability is important for
+:code:`consecutive_bins` (default: 8): number of consecutive bins which must be detected to determine the presence of a skin.  Fewer consecutive bins allows detection of a thinner skin, but makes that detection less reliable. Since reliability is important for
                             # layer insertion to avoid inserting too early,
                             # more bins are generally better here so long as
                             # they don't exceed the skin thickness.
 
-    # Maximum density of solute atoms in a slab that could be selected for
-    # splitting the system. Two consecutive slabs below this density are
-    # searched for, and the plane between them is where the split occurs.
-    # Molecules that cross the plane are deleted, so this number can be used to
-    # avoid deleting too many solute molecules.
-    max_solute_density: 15 # Atoms per nm^3 - System specific.
-                            #     This will depend on the concentration
-                            #     of the solute in the bulk region.
+:code:`skin_density_thresh` (default: 10): solute concentration above which :code:`consecutive_bins` bins in a row will be used to detect the bottom of the skin in units of atoms per cubic nm. This is dependent on the concentration of the solute in the bulk region and the density of the dried film.
 
-    # Strategy to use when choosing a layer to insert.
-    # Options are:
-    #  * 'best':     Choose the layer with a height closest to insert_thickness.
-    #  * 'weighted': Randomly choose a layer with a higher weighting for those
-    #                 that are closer in height to insert_thickness.
-    #  * 'random':   Randomly choose a layer with equal weighting.
-    strategy: weighted # (optional - default 'weighted')
+:code:`max_solute_density` (default: 15): maximum density of solute atoms in a slab that could be selected for splitting the system in atoms per cubic nm. Two consecutive slabs below this density are searched for, and the plane between them is where the split occurs. Molecules that cross the plane are deleted, so this number can be used to avoid deleting too many solute molecules.
 
-    # Void space to leave between existing system and inserted layer.
-    # Added both above and below inserted layer.
-    # Should be large enough to account for ~max. van der Waals radius.
-    # Will default to 0.15 with a warning if unset
-    extra_space: 0.15 # nm
 
-    # Set true to abort mdrun and exit if insertion fails
-    exit_on_failure: false
+:code:`strategy` (default: weighted): strategy to use when choosing a solvent layer to insert.  Options are: 'best':     Choose the layer with a height closest to insert_thickness. 'weighted': Randomly choose a layer with a higher weighting for those that are closer in height to insert_thickness.  'random':   Randomly choose a layer with equal weighting.
+
+:code:`extra space` (default: 0.15): void space to leave between existing and inserted layer in nm. This value should be large enough to account for ~max. van der Waals radius.
+
+:code:`exit_on_failure` (default: False): set this value to true to abort mdrun and exit if insertion fails.
+
 
   solvent_delete:
     # As above, useful for convenient toggling
@@ -338,16 +302,9 @@ The following options are specified under the subheading :code:`insert` and cont
                         #       chosen as 0 to enable deletion from anywhere in
                         #       the system.
 
-    # Number of solvent molecules to delete
-    number: 10 # System specific.
-               #  This will depend on the size of the solvent molecules, the
-               #  `slab_height`, and the x,y dimensions of the system.
 
-    # Minimum distance between chosen molecules
-    min_separation: 5 # nm - System specific.
-                      #       This should be chosen to prevent nearby solvent
-                      #       molecules from being deleted at the same time as
-                      #       each other.
+:code:`number` (default: 10): number of solvent molecules to delete.  Appropriate values are related to the size of the solvent molecule, :code:`slab_height`, and the x-y dimensions of the system.  
 
+:code:`min_separation` (default: 5): minimum distance between solvent molecules selected for deletion.  This is intended to prevent nearby solvent molecules from being deleted at the same time as each other.
 
 :code:`exit_on_impossible` (default: True): if true, aborts mdrum and exits if no candidates for deletion are available.
