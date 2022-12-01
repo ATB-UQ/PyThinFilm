@@ -1,0 +1,55 @@
+name: solvent_self_insert_test
+work_directory: solvent_self_insert_test_working
+initial_structure_file: systems/test_solvent_evaporation.gro
+simulation_type: solvent_evaporation
+solvent_name: CCL3
+n_cycles: 2
+forcefield_file: gromos54a7_atb.ff/forcefield.itp
+description: 'Test solvent evaporation of CBP/IPS/CCL3 with layer insertion from own geometry.'
+run_time: 0.01 #ps
+nstout: 5
+seed: 1718831
+temperature: 310 #K
+mixture:
+  CBP:
+    res_name: CBP
+    itp_file: systems/CBP.itp
+  IPS:
+    res_name: IPAS
+    itp_file: systems/IPAS.itp
+  IPR:
+    res_name: IPAR
+    itp_file: systems/IPAR.itp
+  CCL3:
+    res_name: CCL3
+    itp_file: systems/CHCL3.itp
+substrate: 
+    res_name: GRM
+    itp_file: systems/GRM.itp
+
+solution_acceleration:
+  density_prof_bin: 0.25 # nm
+
+  insert:
+    use_self: true
+
+    source_min_z: 45 # nm
+    source_max_z: 60 # nm
+
+    insert_min_z: 45 # nm
+    insert_max_z: 55 # nm
+
+    min_skin_height: 80 # nm
+
+    insert_thickness: 5  # nm - Thickness of inserted layer
+    thickness_tol: 0.2    # Fractional tolerance for insert_thickness
+
+    skin_density_thresh: 10 # solute atoms per nm^3
+    consecutive_bins: 8
+
+    max_solute_density: 12 # Atoms per nm^3
+    strategy: best
+
+    extra_space: 0.15 # nm
+
+    exit_on_failure: true

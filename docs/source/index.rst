@@ -17,13 +17,4 @@ This document explains the procedure for installing, configuring, and running Py
    gettingstarted
    commandline
    configuration
-
-
-.. toctree::
-   :maxdepth: -1
-   :caption: Examples
-   
-   vacuum
-   solution
-   annealing
-   advice
+   examples

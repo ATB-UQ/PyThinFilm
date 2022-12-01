@@ -8,16 +8,48 @@ Installation of PyThinFilm requires `Python <https://www.python.org/>`_ 3.6 or l
 
 `GROMACS <https://www.gromacs.org/>`_ 2020 or later must also be installed in order to run simulations using PyThinFilm.  If `OMP <https://www.openmp.org/>`_, `MPI <https://www.open-mpi.org/>`_, or `CUDA <https://developer.nvidia.com/cuda-toolkit>`_ versions of GROMACS are desired to be used with PyThinFilm, these must also be installed.
 
-Installation
+Installing PyThinFilm Using pip
 ------------
 
-PyThinFilm can be installed using the following command:
+PyThinFilm can be installed using pip by executing the following command:
 
 .. code-block:: console
 
     pip install git+https://github.com/ATB-UQ/PyThinFilm.git
 
-Verify that PyThinFilm has successfully installed by executing the following command: 
+Installing PyThinFilm from Source
+---------------------------------
+
+Alternatively, PyThinFilm can be installed from source using the following commands:
+
+.. code-block:: console
+
+    git clone https://github.com/ATB-UQ/PyThinFilm.git
+    python setup.py install
+
+Installing PyThinFilm for Development
+-------------------------------------
+
+Users wishing to modify or extend PyThinFilm can install the package in editable mode by first cloning the repository and entering into the PyThinFilm directory: 
+
+.. code-block:: console
+
+    git clone https://github.com/ATB-UQ/PyThinFilm.git
+    cd PyThinFilm
+
+And then installing the package in editable mode using either pip:
+
+.. code-block:: console
+
+    pip install -e .
+
+Or directly using Python:
+
+.. code-block:: console
+
+    python setup.py develop
+
+After selecting an installation method, verify that PyThinFilm has successfully installed by executing the following command: 
 
 .. code-block:: console
 
