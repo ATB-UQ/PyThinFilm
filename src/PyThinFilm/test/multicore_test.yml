@@ -9,7 +9,6 @@ time_step: 0.002 #ps
 density_fraction_cutoff: 0.05
 overhead_void_space: 5.0 # nm
 deposition_velocity: 0.2 # nm/ps
-use_gpu : False
 description: "Test multicore vacuum deposition"
 run_time: 10.0 #ps
 nstout: 100
