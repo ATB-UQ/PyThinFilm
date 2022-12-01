@@ -1,35 +1,67 @@
-.. _Configuring PyThinFilm:
-Usage and Configuration
-=======================
+List of Configuration Options
+=============================
 
-Test
-====
+The following is a list of all configuration options which can be specified in the `YAML <https://www.yaml.org/>`_ formatted configuration file supplied as a command-line argument to run simulations, as described in :ref:`Command-Line Interface`.  Default configuration settings are specified in default_settings.yml.  Any of the default configuration settings can be overridden by specifying values for them in the configuration file supplied on the command line.
 
-Command-Line Usage
-------------------
+General Configuration Options
+-------
 
-The :code:`pytf` command serves as the main entry point for PyThinFilm. 
+The following configuration settings apply to all simulation types supported by PyThinFilm.
 
-Default Configuration
----------------------
+Simulation Type
+~~~~~~~~~~~~~~~
 
-Default configuration settings are specified in default_settings.yml
-
-Any of the default configuration settings can be overridden by specifying values for them in the relevant YAML file
-(http://www.yaml.org)
-
-List of Configuration Options and Defaults
-------------------------------------------
-
-Working Directory
-~~~~~~~~~~~~~~~~~
-
-Test
-*****
-
-:code:`work_directory`: path (either absolute or relative to the PyThinFilm install directory path) where output files will be written.  default: :code:`pytf_working`
+:code:`simulation_type` (required): Type of simulation to perform using PyThinFilm.  Allowed values are: :code:`vacuum_deposition`, :code:`solution_deposition`, :code:`thermal_annealing`
 
 Name
 ~~~~
 
-:code:`name`: a name for a particular simulation which will prefix the names of output files.  default: :code:`PyThinFilm`
+:code:`name` (default: :code:`PyThinFilm`): a name for a particular simulation which will prefix the names of output files.  
+
+Working Directory
+~~~~~~~~~~~~~~~~~
+
+:code:`work_directory` (default: :code:`pytf_working`): path (either absolute or relative to the current working directory) where output files will be written.  default: 
+
+Description
+~~~~~~~~~~~ 
+
+:code:`description` (default: :code:`PyThinFilm Simulation`):
+
+GROMACS Executable Name
+~~~~~~~~~~~~~~~~~~~~~~~
+
+:code:`gmx_executable` (default: :code:`gmx`): name of (or path to) the `GROMACS <https://www.gromacs.org/>`_ executable which will be used by PyThinFilm.
+
+GROMACS MPI Executable Name
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:code:`gmx_executable` (default: :code:`gmx_mpi`): name of (or path to) the `GROMACS <https://www.gromacs.org/>`_ `MPI <https://www.open-mpi.org/>`_ executable which will be used by PyThinFilm.
+
+
+MPI Command Template
+~~~~~~~~~~~~~~~~~~~~
+
+:code:`mpi_template` (default: "mpirun -np {n_cores}"): string specifying the form of the mpirun call.
+
+GROMPP Command Template
+~~~~~~~~~~~~~~~~~~~~~~~
+
+:code:`grompp_template` (default: "{GMX_EXEC} grompp -maxwarn 2 -f {MDP_FILE} -c {initial} -r {restraints} -p {top} -o {tpr}"): string specifying the form of the grompp call on the command line, where :code:`GMX_EXEC` is the GROMACS executable, :code:`MDP_FILE` is the input .mdp file for the run, :code:`initial` is the input coordinate file, :code:`restraints` is the input restraints file, :code:`top` is the input topology file, and:code:`tpr` is the output .tpr file.
+
+MDRUN Command Template
+~~~~~~~~~~~~~~~~~~~~~~
+
+:code:`mdrun_template` (default: "{GMX_EXEC} mdrun -s {tpr} -x {xtc} -e {edr} -g {log} -cpo {cpo} -c {final}"): string specifying the form of the mdrun call on the command line, where :code:`GMX_EXEC` is the GROMACS executable, :code:`tpr` is the input .tpr file for the run, :code:`xtc` is the output .xtc trajectory file, :code:`edr` is the output .edr energy file, :code:`log` is the output .log file, :code:`cpo` is the output .cpo file, and :code:`final` is the output file containing the final coordinates of the run.  
+
+
+
+Vacuum Deposition Simulations
+-----------------
+
+In addition to the general configuration options, the following additional configuration options apply to vacuum deposition simulations.
+
+Solution Deposition Simulations
+------------------------------
+
+In addition to the general configuration options, the following additional configuration options apply to solution deposition simulations.
