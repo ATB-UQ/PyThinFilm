@@ -1,3 +1,4 @@
+.. _Examples & Helpful Tips:
 Examples & Helpful Tips
 =======================
 

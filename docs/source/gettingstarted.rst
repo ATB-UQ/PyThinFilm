@@ -9,6 +9,25 @@ Installation of PyThinFilm requires `Python <https://www.python.org/>`_ 3.6 or l
 
 `GROMACS <https://www.gromacs.org/>`_ 2020 or later must also be installed in order to run simulations using PyThinFilm.  If `OMP <https://www.openmp.org/>`_, `MPI <https://www.open-mpi.org/>`_, or `CUDA <https://developer.nvidia.com/cuda-toolkit>`_ versions of GROMACS are desired to be used with PyThinFilm, these must also be installed.
 
+
+Path Requirements
+-----------------
+
+By default, PyThinFilm expects that the :code:`gmx`, :code:`gmx_mpi`, and :code:`mpirun` executables will be located in path. To test if this is the case, try the following commands:
+
+.. code-block:: console
+
+    gmx --version
+    gmx_mpi --version
+    mpirun --version
+
+If all three of these commands execute successfully, your path is set up properly for running :code:`pytf` using default settings.
+
+.. warning:: 
+
+    The examples listed in :ref:`Examples & Helpful Tips` will not run correctly without these executables in path.  If you need to change the names of these executables, reference :ref:`Configuration Options` for instructions on how to do this.
+
+
 Installation
 ------------
 
