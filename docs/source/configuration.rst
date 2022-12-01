@@ -4,7 +4,6 @@ List of Configuration Options
 
 The following is a list of all configuration options which can be specified in the `YAML <https://www.yaml.org/>`_ formatted configuration file supplied as a command-line argument to run simulations, as described in :ref:`Command-Line Interface`.  Default configuration settings are specified in default_settings.yml.  Any of the default configuration settings can be overridden by specifying values for them in the configuration file supplied on the command line.
 
-
 Simulation Type
 ---------------
 
@@ -44,7 +43,7 @@ MPI Command Template
 GROMPP Command Template
 -----------------------
 
-:code:`grompp_template` (default: "{GMX_EXEC} grompp -maxwarn 2 -f {mdp} -c {initial} -r {restraints} -p {top} -o {tpr}"): string specifying the form of the grompp call on the command line, where :code:`GMX_EXEC` is the GROMACS executable, :code:`mdp` is the input .mdp parameter file for the run, :code:`initial` is the input coordinate file, :code:`restraints` is the input restraints file, :code:`top` is the input topology file, and:code:`tpr` is the output .tpr file.
+:code:`grompp_template` (default: "{GMX_EXEC} grompp -maxwarn 2 -f {mdp} -c {initial} -r {restraints} -p {top} -o {tpr}"): string specifying the form of the grompp call on the command line, where :code:`GMX_EXEC` is the GROMACS executable, :code:`mdp` is the input .mdp parameter file for the run, :code:`initial` is the input coordinate file, :code:`restraints` is the input restraints file, :code:`top` is the input topology file, and :code:`tpr` is the output .tpr file.
 
 MDRUN Command Template
 ----------------------
@@ -59,12 +58,17 @@ Force Field File
 Parameter Template
 ------------
 
-:code:`mdp_template` (default: deposition.mdp.epy): Parameter file template to be used in the simulation, in .epy format.
+:code:`mdp_template` (default: deposition.mdp.epy): parameter file template to be used in the simulation, in .epy format.
 
 Topology Template
 -----------------
 
-:code:`topo_template` (default: topo.top.epy): Topology file template to be used in the simulation, in .epy format. 
+:code:`topo_template` (default: topo.top.epy): topology file template to be used in the simulation, in .epy format. 
+
+Initial Structure File
+-----------------------
+
+:code:`initial_structure_file`: starting structure file for solution evaporation and thermal annealing simulations.
 
 Solvent Name
 ------------
@@ -100,6 +104,11 @@ Temperature Coupling Constant
 ------------------------------
 
 :code:`tau_t` (default: 0.1): temperature coupling constant to be used in the simulation.
+
+Temperature List
+-----------------
+
+:code:`temperature_list`: list of temperature values for thermal annealing simulations in K.  Simulations will be run for :code:`run_time` at each temperature value.
 
 Time Step
 ---------
@@ -205,61 +214,21 @@ The following options are specified under the subheading :code:`insert` and cont
 
 :code:`enabled` (default: False): controls whether additional solution layers are inserted. All other options in this category are ignored if this value is set to False.
 
-:code:`use_self` (default: True):
+:code:`use_self` (default: True): controls whether own geometry (between input_min_z and input_max_z) is used to find new layers.
 
-  insert:
-    # Flag to enable/disable insertion.
-    # Useful to quickly toggle without commenting everything out.
-    enabled: False   # (optional - default true)
+:code:`input_gro_file` (default: ~): system to source inserted layer from.
 
-    # Set true to use own geometry (between input_min_z and input_max_z) to find new layers
-    use_self: true # (optional - default false if unspecified)
+:code:`insert_min_z` (default: 45): minimum z value of the point at which to split the main system in nm.  The point should generally be just above the substrate in a region where the structure is close to that of the bulk solution.
 
-    # System to source inserted layer from. Can be left out if using use_self option.
-    # Will fallback to `initial_structure_file` if unset and use_self not set,
-    # but this generates a warning since the mixture ratio can drift if
-    # initial_structure_file is one that hasn't been equilibrated yet (combined
-    # factors of periodic replication and alternating layers of high and low
-    # solute concentration)
-    input_gro_file: ~
+:code:`insert_max_z` (default: 45): maximum z value of the point at which to split the main system in nm.  Should generally be below the bottom of the skin density tail.
 
-    # min and max z values of the point at which to split the main system
-    insert_min_z: 45 # nm - System specific.
-                     #       Should generally be just above the substrate in a region
-                     #       where the structure is close to that of the bulk solution.
+:code:`min_skin_height` (default: 70): insertion will be performed if the bottom of the skin is below this height in nm.
 
-    insert_max_z: 55 # nm - System specific.
-                     #       Should generally be below the bottom of the skin density
-                     #       tail when the detected skin bottom (based on
-                     #       `skin_density_thresh`) is at `min_skin_height`.
+:code:`source_min_z` (default: 45): the point above which molecules are valid targets to be copied into the main system as an extra layer of solution in nm.
 
-    # Insertion will be performed if the bottom of the skin is below this height.
-    # Generally want this to be a bit higher than insert_max_z to make sure the
-    # density gradient isn't interfered with.
-    min_skin_height: 70 # nm - System specific.
-                        #       Should be as low as feasible to minimise system size
-                        #       while allowing space between the skin density
-                        #       tail and the substrate for insertion
+:code:`source_max_z` (default: 60): the point below which molecules are valid targets to be copied into the main system as an extra layer of solution in nm.
 
-    # min and max z values between which the inserted layer should be sourced from
-    source_min_z: 45 # nm - System specific.
-                     #        The point above which molecules are valid targets
-                     #        to be copied into the main system as an extra
-                     #        layer of solution. If `use_self` is set, this
-                     #        will likely be the same as `insert_min_z`. If
-                     #        using an auxiliary system from `input_gro_file`
-                     #        or `initial_structure_file`, then this should be
-                     #        a point above which the structure is that of the
-                     #        bulk solution.
-
-    source_max_z: 60 # nm - System specific.
-                     #       The point below which molecules are valid targets
-                     #       to be copied into the main system as an extra
-                     #       layer of solution. See above.
-                     #       Note that using a smaller `source_max_z -
-                     #       source_min_z` will make selection of the inserted
-                     #       layer slightly faster, but provide fewer options
-                     #       to choose from.
+:code:`min_skin_height` (default: 20):
 
     # Optional. Insertion will only be performed if layer_height -
     # bottom_of_skin is less than this value.
@@ -380,6 +349,5 @@ The following options are specified under the subheading :code:`insert` and cont
                       #       molecules from being deleted at the same time as
                       #       each other.
 
-    # Set true to abort mdrun and exit if no candidates for deletion.
-    # Useful to know when to begin the next stage of a simulation.
-    exit_on_impossible: true
+
+:code:`exit_on_impossible` (default: True): if true, aborts mdrum and exits if no candidates for deletion are available.

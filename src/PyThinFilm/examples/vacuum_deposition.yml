@@ -17,7 +17,6 @@ insertion_xy_radius: 2.0 #nm
 insertion_z_radius: 1.0 #nm
 seed: 489327835
 temperature: 300 #K
-bath_width: 100
 mixture:
   CBP:
     res_name: CBP
