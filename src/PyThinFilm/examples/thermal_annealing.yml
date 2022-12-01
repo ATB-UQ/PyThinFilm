@@ -1,9 +1,9 @@
-name: annealing_test
-work_directory: annealing_test_working
+name: annealing_example
+work_directory: annealing_example_working
 initial_structure_file: systems/test_annealing.gro
 simulation_type: thermal_annealing
 forcefield_file: gromos54a7_atb.ff/forcefield.itp
-description: 'Test annealing of GRM/CBP/IPS(R) system'
+description: 'Example of very short annealing of CBP/Ir(ppy)3 [R and S] system'
 run_time: 1.0 #ps
 nstout: 100
 seed: 142271835

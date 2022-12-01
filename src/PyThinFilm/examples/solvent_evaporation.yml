@@ -1,12 +1,12 @@
-name: solvent_self_insert_test
-work_directory: solvent_self_insert_test_working
+name: solvent_self_insert_example
+work_directory: solvent_self_insert_example_working
 initial_structure_file: systems/test_solvent_evaporation.gro
 simulation_type: solvent_evaporation
 solvent_name: CCL3
 n_cycles: 2
 forcefield_file: gromos54a7_atb.ff/forcefield.itp
-description: 'Test solvent evaporation of CBP/IPS/CCL3 with layer insertion from own geometry.'
-run_time: 0.01 #ps
+description: 'Simple example of solvent evaporation of CBP/Ir(ppy)3/CCL3 with layer insertion from own geometry.'
+run_time: 0.01 #ns
 nstout: 5
 seed: 1718831
 temperature: 310 #K
