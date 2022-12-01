@@ -24,6 +24,9 @@ List of Configuration Options and Defaults
 Working Directory
 ~~~~~~~~~~~~~~~~~
 
+Test
+*****
+
 :code:`work_directory`: path (either absolute or relative to the PyThinFilm install directory path) where output files will be written.  default: :code:`pytf_working`
 
 Name
