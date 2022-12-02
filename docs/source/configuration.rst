@@ -250,58 +250,20 @@ The following options are specified under the subheading :code:`insert` and cont
 
 :code:`exit_on_failure` (default: False): set this value to true to abort mdrun and exit if insertion fails.
 
+Solvent Deletion
+~~~~~~
 
-  solvent_delete:
-    # As above, useful for convenient toggling
-    enabled: False
+The following options are specified under the subheading :code:`solvent_delete` and control the deletion of non-evaporated solvent in solvent evaporation simulations.
 
-    # Solute concentration above which `consecutive_bins` bins in a row will be
-    # used to determine the top of the slab to delete solvent molecules from.
-    # Could be different to layer insertion skin_densith_thresh to allow fine-tuning.
-    # (e.g. may want a slightly larger value to remove solvent from the lower
-    # portion of the region with a solute density gradient, or a much larger
-    # value later in the simulation to help remove the last solvent molecules)
-    density_thresh: 20  # solute atoms per nm^3 - System specific.
-                        #   This will depend on the concentration of the solute
-                        #   in the bulk region, the density of the dried
-                        #   film, and the typical gradient of the solute density
-                        #   below the skin. A value should be chosen to give a
-                        #   point slightly below the top of the solute density
-                        #   gradient, so that solvent molecules are removed from
-                        #   below that point and do not cause potential
-                        #   percolation pathways through the skin to collapse
-                        #   (if they exist).
-                        #
-                        #   Towards the end of the simulation, for the purpose
-                        #   of final drying, a large value can be used so that
-                        #   the layer height is used as the skin z value. This
-                        #   can be combined with a large value of `slab_height`
-                        #   and `slab_lower_limit: 0` to randomly delete
-                        #   solvent molecules from anywhere in the system.
+:code:`enabled` (default: False): toggles non-evaporated solvent deletion on or off.  If set to False, all other solvent deletion configuration settings are ignored.  
 
-    consecutive_bins: 4 # Fewer consecutive bins allows density_thresh to be
-                        # detected with a thinner skin, but makes detection
-                        # less reliable.
+:code:`density_thresh` (default: 20): solute concentration in atoms per cubic nm above which :code:`consecutive_bins` bins in a row will be used to  (e.g. may want a slightly larger value to remove solvent from the lower portion of the region with a solute density gradient, or a much larger value later in the simulation to help remove the last solvent molecules)
 
-    #  Height of slab to randomly remove solvent molecules from
-    slab_height: 20 # nm - System specific.
-                    #       This will depend on `density_thresh`, and should be
-                    #       chosen so that solvent molecules are removed from
-                    #       the section of the upper section of the solute
-                    #       density gradient below the skin.
+:code:`consecutive_bins` (default: 4): fewer consecutive bins allows :code:`density_thresh`` to be detected with a thinner skin, but makes detection less reliable.
 
-    # Minimum z value below which solvent molecules should not be deleted.
-    # If the bottom of the slab for deletion is below this point, it will be
-    # truncated, and the number of deleted molecules will be adjusted to
-    # maintain an equivalent density of deleted molecules.
-    slab_lower_limit: 5 # nm - System specific.
-                        #       This should initially be chosen as the point
-                        #       below which the structure of the solution is
-                        #       influenced by the substrate. Towards the end of
-                        #       a simulation for finaly drying, it may be
-                        #       chosen as 0 to enable deletion from anywhere in
-                        #       the system.
+:code:`slab_height` (default: 20) height of slab in nm. This will depend on :code:`density_thresh`, and should be chosen so that solvent molecules are removed from the section of the upper section of the solute density gradient below the skin.
 
+:code:`slab_lower_limit` (default: 5): minimum z value in nm below which solvent molecules should not be deleted. If the bottom of the slab for deletion is below this point, it will be truncated, and the number of deleted molecules will be adjusted to maintain an equivalent density of deleted molecules.  
 
 :code:`number` (default: 10): number of solvent molecules to delete.  Appropriate values are related to the size of the solvent molecule, :code:`slab_height`, and the x-y dimensions of the system.  
 
