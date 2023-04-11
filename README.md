@@ -1,5 +1,5 @@
 PyThinFilm is a Python package for fully automated Molecular Dynamics simulations
-of thin film growth utilizing the GROMACS simulation package: www.gromacs.org.  PyThinFilm is capable of setting up and performing vacuum deposition, solution evaporation, as well as thermal annealing simulations.
+of thin film growth utilizing the GROMACS simulation package: www.gromacs.org. PyThinFilm is capable of setting up and performing vacuum deposition, solution evaporation, as well as thermal annealing simulations. A publication describing the method and its applications is available here: https://pubs.acs.org/doi/full/10.1021/acs.jcim.2c01334
 
 ## Prerequisites
 
