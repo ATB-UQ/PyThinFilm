@@ -7,13 +7,12 @@ topo_template: topo.top.epy
 description: "PyThinFilm Simulation"
 insert_distance: 5.0 #nm
 gmx_executable: gmx
-n_cores: 1
-gmx_executable_mpi: gmx_mpi
 escape_tolerance: 5.0 #nm
 time_step: 0.002 #ps
 dielectric_constant: 1
 cutoff: 1.4 #nm
 nstout: 5000
+nstcomm: 100
 density_fraction_cutoff: 0.0
 overhead_void_space: 10.0 #nm
 deposition_velocity: 0.0 #nm/ps
@@ -31,7 +30,7 @@ remove_n_highest_molecules: 0
 solvent_name: None
 substrate: None
 mixture: None
-mpi_template : "mpirun -np {n_cores}"
+mpi_template : "" #"mpirun -np $NCORES"
 grompp_template: "{GMX_EXEC} grompp -maxwarn 2 -f {mdp} -c {initial} -r {restraints} -p {top} -o {tpr}"
 mdrun_template: "{GMX_EXEC} mdrun -s {tpr} -x {xtc} -e {edr} -g {log} -cpo {cpo} -c {final}"
 solution_acceleration:

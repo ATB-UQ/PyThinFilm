@@ -127,10 +127,7 @@ class Deposition(object):
         # molecules.
         self.reference_structure = None
         self.reference_substrate_molecules = None
-        self.n_cores = self.run_config['n_cores'] if 'n_cores' in self.run_config else 1
-        self.gmx_executable = self.run_config['gmx_executable'] \
-            if self.n_cores == 1 \
-            else self.run_config['gmx_executable_mpi']
+        self.gmx_executable = self.run_config['gmx_executable']
 
         self.mdrun_template = self.run_config['mdrun_template']
         self.grompp_template = self.run_config['grompp_template']
@@ -184,11 +181,7 @@ class Deposition(object):
                       "run_ID": self.run_ID,
                       }
 
-        if self.n_cores > 1:
-            mdrun_template = "{} {}".format(self.run_config["mpi_template"], self.mdrun_template)
-            arg_values["n_cores"] = self.n_cores
-        else:
-            mdrun_template = self.mdrun_template
+        mdrun_template = " ".join([v for v in [self.run_config["mpi_template"], self.mdrun_template] if v])
 
         # run grompp
         self.run_subprocess(self.grompp_template, arg_values)
@@ -233,26 +226,23 @@ class Deposition(object):
             # Remove center of mass motion every 2x number of steps required to reach existing layer. Prior to reaching
             # the layer causes the molecule being deposited to be halted, particularly early in deposition simulations.
             mean_flight_time = self.run_config["insert_distance"] / self.run_config["deposition_velocity"]
-            nstcomm = 2*int(
+            self.run_config["nstcomm"] = 2*int(
                 mean_flight_time / self.run_config["time_step"]
             )
-            if nstcomm < n_steps:
-                logging.debug(f"Center of mass motion will be removed every {mean_flight_time*2} ps (nstcomm={nstcomm})")
-            elif nstcomm == n_steps:
+            if self.run_config["nstcomm"] < n_steps:
+                logging.debug(f"Center of mass motion will be removed every {mean_flight_time*2} ps (nstcomm={self.run_config['nstcomm']})")
+            elif self.run_config["nstcomm"] == n_steps:
                 # if nstcomm == n_steps (nsteps) then the deposited molecule's deposition velocity is removed on the first step.
-                nstcomm -= 1
+                self.run_config["nstcomm"] -= 1
                 logging.debug(
-                    f"Center of mass motion will be removed every {nstcomm * self.run_config['time_step'] } ps (nstcomm={nstcomm})")
+                    f"Center of mass motion will be removed every {nstcomm * self.run_config['time_step'] } ps (nstcomm={self.run_config['nstcomm']})")
             else:
                 logging.warning(f"Center of mass motion will not be removed since run_time "
                                 f"({self.run_config['run_time']} ps) is less than 2x average deposition time i.e. "
                                 f"insert_distance/deposition_velocity = {mean_flight_time} ps.")
-        else:
-            nstcomm = 100
         res_list = list(set(residue_list))
         mdp = mdp_template.render(res_list=" ".join(res_list),
                                   n_steps=n_steps,
-                                  nstcomm=nstcomm,
                                   termostat_temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
                                   termostat_tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
                                   **self.run_config
@@ -268,21 +258,24 @@ class Deposition(object):
 
     def run_subprocess(self, cli_template, inserts):
 
-        arg_list_template = cli_template.split()
-        arg_list = [arg.format(**inserts) for arg in arg_list_template]
-
+        #arg_list_template = cli_template.split()
+        #arg_list = [arg.format(**inserts) for arg in arg_list_template]
+        cli_str = cli_template.format(**inserts)
         log_filepath = self.filename("stdout", "txt")
         err_filepath = self.filename("stderr", "txt")
         with open(log_filepath, "a") as log_file, open(err_filepath, "a") as err_file:
             logging.debug("    Running from: {0}".format(self.rootdir))
-            logging.debug("    Running command: {0}".format(" ".join(arg_list)))
+            #logging.debug("    Running command: {0}".format(" ".join(arg_list)))
+            logging.debug("    Running command: {0}".format(cli_str))
             logging.debug("    Subprocess stdout: {}".format(log_filepath))
             logging.debug("    Subprocess stderr: {}".format(err_filepath))
-            proc = subprocess.Popen(arg_list, cwd=self.rootdir, stdout=log_file, stderr=err_file, env=os.environ)
+            #proc = subprocess.Popen(arg_list, cwd=self.rootdir, stdout=log_file, stderr=err_file, env=os.environ)
+            proc = subprocess.Popen(cli_str, cwd=self.rootdir, stdout=log_file, stderr=err_file, shell=True)
             return_code = proc.wait()
 
         if 0 < return_code:
-            msg = "Subprocess terminated with non-zero exit code: \n{0}".format(" ".join(arg_list))
+            #msg = "Subprocess terminated with non-zero exit code: \n{0}".format(" ".join(arg_list))
+            msg = "Subprocess terminated with non-zero exit code: \n{0}".format(cli_str)
             with open(err_filepath, "r") as fh:
                 details = fh.read()
             logging.error(msg)
