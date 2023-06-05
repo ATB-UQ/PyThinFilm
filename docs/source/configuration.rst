@@ -29,21 +29,10 @@ GROMACS Executable Name
 
 :code:`gmx_executable` (default: :code:`gmx`): name of (or path to) the `GROMACS <https://www.gromacs.org/>`_ executable which will be used by PyThinFilm.
 
-GROMACS MPI Executable Name
----------------------------
-
-:code:`gmx_executable` (default: :code:`gmx_mpi`): name of (or path to) the `GROMACS <https://www.gromacs.org/>`_ `MPI <https://www.open-mpi.org/>`_ executable which will be used by PyThinFilm.
-
-
 MPI Command Template
 --------------------
 
-:code:`mpi_template` (default: "mpirun -np {n_cores}"): string specifying the form of the mpirun call.
-
-N Cores
---------------------
-
-:code:`n_cores` (default: "1"): the number of cores (more specifically, MPI thread) used in the :code:`mpi_template` argument.
+:code:`mpi_template` (default: ""): string specifying the form of the mpirun call e.g., "mpirun -np $NCORES".
 
 GROMPP Command Template
 -----------------------

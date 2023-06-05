@@ -1,0 +1,27 @@
+name: GPU_annealing_example
+work_directory: GPU_annealing_example_working
+initial_structure_file: systems/test_annealing.gro
+simulation_type: thermal_annealing
+forcefield_file: gromos54a7_atb.ff/forcefield.itp
+description: 'Short annealing of CBP/Ir(ppy)3 [R and S] system using GPUs'
+run_time: 1000.0 #ps
+nstout: 1000
+seed: 142271835
+mpi_template : "srun -l -u -c 8"
+mdrun_template: "{GMX_EXEC} mdrun -s {tpr} -x {xtc} -e {edr} -g {log} -cpo {cpo} -c {final} -nb gpu -bonded gpu -pin on -update gpu -ntomp 8 -ntmpi 1"
+temperature_list:
+  - 320
+  - 300
+mixture:
+  CBP:
+    res_name: CBP
+    itp_file: systems/CBP.itp
+  IPS:
+    res_name: IPAS
+    itp_file: systems/IPAS.itp
+  IPR:
+    res_name: IPAR
+    itp_file: systems/IPAR.itp
+substrate: 
+    res_name: GRM
+    itp_file: systems/GRM.itp

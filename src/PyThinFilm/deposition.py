@@ -235,7 +235,7 @@ class Deposition(object):
                 # if nstcomm == n_steps (nsteps) then the deposited molecule's deposition velocity is removed on the first step.
                 self.run_config["nstcomm"] -= 1
                 logging.debug(
-                    f"Center of mass motion will be removed every {nstcomm * self.run_config['time_step'] } ps (nstcomm={self.run_config['nstcomm']})")
+                    f"Center of mass motion will be removed every {self.run_config['nstcomm'] * self.run_config['time_step'] } ps (nstcomm={self.run_config['nstcomm']})")
             else:
                 logging.warning(f"Center of mass motion will not be removed since run_time "
                                 f"({self.run_config['run_time']} ps) is less than 2x average deposition time i.e. "

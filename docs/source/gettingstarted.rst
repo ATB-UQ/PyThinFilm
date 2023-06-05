@@ -13,15 +13,13 @@ Installation of PyThinFilm requires `Python <https://www.python.org/>`_ 3.6 or l
 Path Requirements
 -----------------
 
-By default, PyThinFilm expects that the :code:`gmx`, :code:`gmx_mpi`, and :code:`mpirun` executables will be located in path. To test if this is the case, try the following commands:
+By default, PyThinFilm expects the :code:`gmx` executables will be located in path. To test if this is the case, try the following command:
 
 .. code-block:: console
 
     gmx --version
-    gmx_mpi --version
-    mpirun --version
 
-If all three of these commands execute successfully, your path is set up properly for running :code:`pytf` using default settings.
+If this command executes successfully, your path is set up properly for running :code:`pytf` using default settings on a single CPU thread.
 
 .. warning:: 
 
