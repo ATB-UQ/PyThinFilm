@@ -4,9 +4,9 @@ import glob
 
 KEEP_EVERY = 100
 KEEP_LAST = 2
-WORKDIR = "./NMC047_deposition"
+WORKDIR = "./deposition"
 
-DRY_RUN = False
+DRY_RUN = True
 
 file_types_to_remove = [
 "final-coordinates",

@@ -7,6 +7,7 @@ topo_template: topo.top.epy
 description: "PyThinFilm Simulation"
 insert_distance: 5.0 #nm
 gmx_executable: gmx
+n_cores: 1
 gmx_executable_mpi: gmx_mpi
 escape_tolerance: 5.0 #nm
 time_step: 0.002 #ps

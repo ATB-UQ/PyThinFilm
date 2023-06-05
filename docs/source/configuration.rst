@@ -40,6 +40,11 @@ MPI Command Template
 
 :code:`mpi_template` (default: "mpirun -np {n_cores}"): string specifying the form of the mpirun call.
 
+N Cores
+--------------------
+
+:code:`n_cores` (default: "1"): the number of cores (more specifically, MPI thread) used in the :code:`mpi_template` argument.
+
 GROMPP Command Template
 -----------------------
 
