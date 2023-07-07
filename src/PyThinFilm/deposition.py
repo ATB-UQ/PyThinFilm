@@ -243,8 +243,8 @@ class Deposition(object):
         res_list = list(set(residue_list))
         mdp = mdp_template.render(res_list=" ".join(res_list),
                                   n_steps=n_steps,
-                                  termostat_temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
-                                  termostat_tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
+                                  thermostat_temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
+                                  thermostat_tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
                                   **self.run_config
                                   )
         with open(self.filename("control", "mdp"), "w") as fh:

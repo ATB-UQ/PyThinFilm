@@ -36,8 +36,8 @@ rvdw                     = {{cutoff}}            ; van der Waals cutoff [nm]
 ; temperature coupling
 tcoupl                   = v-rescale             ; temperature coupling with Berendsen-thermostat
 tc-grps                  = {{res_list}}          ; groups to couple seperately to temperature bath
-tau_t                    = {{termostat_tau_t_list}}        ; [ps] time constant for coupling
-ref_t                    = {{termostat_temperature_list}}  ; [K] reference temperature for coupling
+tau_t                    = {{thermostat_tau_t_list}}        ; [ps] time constant for coupling
+ref_t                    = {{thermostat_temperature_list}}  ; [K] reference temperature for coupling
 
 ; velocity generation
 gen_vel                  = no                    ; generate velocities according to Maxwell distribution of temperature
