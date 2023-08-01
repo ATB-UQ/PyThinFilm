@@ -724,7 +724,7 @@ class Deposition(object):
         ))
 
     def sample_mixture(self):
-        if len(self.sampling_mixture) == 1:
+        if len(list(self.sampling_mixture)) == 1:
             return list(self.sampling_mixture.values())[0]
 
         num_residues = len(self.model.residues)
