@@ -21,7 +21,7 @@ insertions_per_run: 1
 max_insertion_attempts: 100
 insertion_xy_radius: 2.0 #nm
 insertion_z_radius: 1.0 #nm
-seed: 0
+seed: 1
 temperature: 300 #K
 tau_t: 0.1
 slab_width: 100

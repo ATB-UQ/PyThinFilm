@@ -260,7 +260,10 @@ class Deposition(object):
 
         #arg_list_template = cli_template.split()
         #arg_list = [arg.format(**inserts) for arg in arg_list_template]
-        cli_str = cli_template.format(**inserts)
+
+        # protect spaces in paths
+        protected_inserts = {k: "'{}'".format(v) for k, v in inserts.items()}
+        cli_str = cli_template.format(**protected_inserts)
         log_filepath = self.filename("stdout", "txt")
         err_filepath = self.filename("stderr", "txt")
         with open(log_filepath, "a") as log_file, open(err_filepath, "a") as err_file:
