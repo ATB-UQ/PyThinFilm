@@ -2,7 +2,6 @@ import logging
 import click
 
 from PyThinFilm.deposition import Deposition
-from PyThinFilm.common import VACUUM_DEPOSITION, SOLVENT_EVAPORATION, THERMAL_ANNEALING, EQUILIBRATION
 
 
 def main(config, debug=False):
@@ -15,42 +14,9 @@ def main(config, debug=False):
         return
 
     while deposition.run_ID <= deposition.last_run_ID:
-        # Some housekeeping for the new cycle.
-        deposition.init_cycle()
-
-        # Remove molecules from the gas phase; in some cases molecules can remain in the gas phase
-        # during vacuum deposition.
-        deposition.remove_gas_phase_residues()
-
-        if deposition.type == VACUUM_DEPOSITION:
-            # Get the next molecule and insert it into the deposition model with random position,
-            # orientation and velocity.
-            deposition.insert_residues()
-        elif deposition.type == THERMAL_ANNEALING:
-            # Set temperature based on temperature_list
-            deposition.set_temperature_thermal_annealing()
-        elif deposition.type == EQUILIBRATION:
-            deposition.equilibration()
-        elif deposition.type == SOLVENT_EVAPORATION:
-            # Delete solvent molecules from lower section of the skin if enabled
-            deposition.solvent_delete()
-            # Insert extra slab of solution below the skin if enabled and
-            # conditions are met.
-            if not deposition.should_abort:
-                deposition.insert_soln_layer()
-            # Either of the above may set the should_abort flag, in which case
-            # mdrun should be aborted.
-            if deposition.should_abort:
-                logging.info(f"Aborting mdrun on ID: {deposition.run_ID}")
-                break
-
-        # Perform MD simulation
-        deposition.run_gromacs_simulation()
-
-        # Cycle complete, increment run ID.
-        deposition.run_ID += 1
-        logging.debug(f"Run cycle completed, ID incremented: {deposition.run_ID}")
-
+        success = deposition.cycle()
+        if not success:
+            break
     # The specified number of MD simulation cycles has been reached
     if deposition.run_ID > deposition.last_run_ID:
         logging.info("Finished {0} cycles".format(deposition.last_run_ID))
