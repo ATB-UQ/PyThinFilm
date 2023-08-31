@@ -1,0 +1,34 @@
+name: irppy2_acac_TCTA
+work_directory: irppy2_acac_TCTA
+simulation_type: vacuum_deposition
+n_cycles: 100
+forcefield_file: gromos54a7_atb.ff/forcefield.itp
+description: "Vacuum deposition of TCTA/Ir(ppy)2_acac [R and S] on a graphene substrate"
+insert_distance: 2.0 #nm
+deposition_velocity: 0.1 # nm/ps
+run_time: 100 # ps
+insertions_per_run: 2
+temperature: 300 #K
+n_cores: 8
+mpi_template : "srun -l -u -c 8"
+mdrun_template: "{GMX_EXEC} mdrun -s {tpr} -x {xtc} -e {edr} -g {log} -cpo {cpo} -c {final} -nb gpu -bonded gpu -pin on -update gpu -ntomp 8 -ntmpi 1"
+mixture:
+  TCTA:
+    res_name: TCTA
+    pdb_file: systems/TCTA.pdb
+    itp_file: systems/TCTA.itp
+    ratio: 5
+  IPAR:
+    res_name: IPAR
+    pdb_file: systems/IPAR.pdb
+    itp_file: systems/IPAR.itp
+    ratio: 1
+  IPAS:
+    res_name: IPAS
+    pdb_file: systems/IPAS.pdb
+    itp_file: systems/IPAS.itp
+    ratio: 1
+substrate:
+  res_name: GRM
+  pdb_file: systems/GRM.pdb
+  itp_file: systems/GRM.itp
