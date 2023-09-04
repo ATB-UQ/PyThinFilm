@@ -89,6 +89,14 @@ class Deposition(object):
         self.model.a2nm()
 
         self.sampling_mixture = self.run_config["mixture"]
+        if type(self.sampling_mixture) is list:
+            as_dict = {}
+            for mol in self.sampling_mixture:
+                resname = mol["res_name"]
+                if resname in as_dict:
+                    logging.warning(f"Repeated entry for resname {resname}")
+                as_dict[resname] = mol
+            self.sampling_mixture = as_dict
         self.mixture = {}
 
         self.new_residues = []
