@@ -82,7 +82,12 @@ Mixture
 Number of Cycles
 -----------
 
-:code:`n_cycles` (default: 1): Number of simulation cycles to run. Ignored for thermal annealing simulations.   
+:code:`n_cycles` (default: 1): Number of simulation cycles to run. Ignored for thermal annealing simulations.
+
+Batch Size
+-----------
+:code:`batch_size` (default: None): Number of simulation cycles to run before exiting the python code. This is useful when running
+on a HPC cluster in order to prevent hitting the walltime and also automatically resubmit the jobs script.
 
 Random Seed
 -----------

@@ -143,7 +143,21 @@ class Deposition(object):
         else:
             self.last_run_ID = self.run_config["n_cycles"]
 
+        self.batch_size = self.run_config["batch_size"]
+        self.batch_count = 0
+        self.batch_complete = False
+
         self.init_mixture_residue_counts()
+
+    def update_batch_count(self):
+        if self.batch_size is None:
+            return
+        self.batch_count += 1
+        if self.batch_count == self.batch_size:
+            self.batch_complete = True
+            logging.info(f"Batch completed: {self.batch_size} cycles ")
+        else:
+            logging.debug(f"{self.batch_count}/{self.batch_size} cycles in this batch completed.")
 
     def init_cycle(self):
         self.setup_logging()

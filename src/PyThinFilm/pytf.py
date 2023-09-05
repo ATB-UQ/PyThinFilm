@@ -14,7 +14,7 @@ def main(config, debug=False):
                      f"there are no more depositions to run")
         return
 
-    while deposition.run_ID <= deposition.last_run_ID:
+    while deposition.run_ID <= deposition.last_run_ID and not deposition.batch_complete:
         # Some housekeeping for the new cycle.
         deposition.init_cycle()
 
@@ -50,6 +50,7 @@ def main(config, debug=False):
         # Cycle complete, increment run ID.
         deposition.run_ID += 1
         logging.debug(f"Run cycle completed, ID incremented: {deposition.run_ID}")
+        deposition.update_batch_count()
 
     # The specified number of MD simulation cycles has been reached
     if deposition.run_ID > deposition.last_run_ID:
