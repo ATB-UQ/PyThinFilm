@@ -10,9 +10,10 @@ def main(config, debug=False):
     deposition = Deposition(config, debug)
     # First check to see if any simulation cycles are required.
     if deposition.run_ID > deposition.last_run_ID:
-        logging.info(f"{deposition.run_ID - 1}/{deposition.last_run_ID} depositions completed, "
-                     f"there are no more depositions to run")
-        return
+        msg = f"{deposition.run_ID - 1}/{deposition.last_run_ID} cycles completed, " \
+              f"there are no more cycles to run."
+        logging.error(msg)
+        raise Exception(msg)
 
     while deposition.run_ID <= deposition.last_run_ID and not deposition.batch_complete:
         # Some housekeeping for the new cycle.
