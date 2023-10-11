@@ -18,7 +18,7 @@ from PyThinFilm.helpers import atomic_density, res_highest_z, remove_residues_fa
     get_mass_dict, group_residues, foldnorm_mean, recursive_convert_paths_to_str, mol_distance
 
 from PyThinFilm.common import K_B, ROOT_DIRS, DEFAULT_SETTING, TEMPLATE_DIR, SIMULATION_TYPES, SOLVENT_EVAPORATION, \
-    THERMAL_ANNEALING
+    THERMAL_ANNEALING, EQUILIBRATION, VACUUM_DEPOSITION
 
 from PyThinFilm.solution_insert import InsertionHandler
 
@@ -89,6 +89,14 @@ class Deposition(object):
         self.model.a2nm()
 
         self.sampling_mixture = self.run_config["mixture"]
+        if type(self.sampling_mixture) is list:
+            as_dict = {}
+            for mol in self.sampling_mixture:
+                resname = mol["res_name"]
+                if resname in as_dict:
+                    logging.warning(f"Repeated entry for resname {resname}")
+                as_dict[resname] = mol
+            self.sampling_mixture = as_dict
         self.mixture = {}
 
         self.new_residues = []
@@ -164,6 +172,46 @@ class Deposition(object):
         logging.info(f"Running {self.type} simulation #{self.run_ID}")
         logging.debug(f"Settings: \n{self.run_config_summary()}")
         self.resize_box()
+
+    def cycle(self):
+        # Some housekeeping for the new cycle.
+        self.init_cycle()
+
+        # Remove molecules from the gas phase; in some cases molecules can remain in the gas phase
+        # during vacuum deposition.
+        self.remove_gas_phase_residues()
+
+        if self.type == VACUUM_DEPOSITION:
+            # Get the next molecule and insert it into the deposition model with random position,
+            # orientation and velocity.
+            self.insert_residues()
+        elif self.type == THERMAL_ANNEALING:
+            # Set temperature based on temperature_list
+            self.set_temperature_thermal_annealing()
+        elif self.type == EQUILIBRATION:
+            self.equilibration()
+        elif self.type == SOLVENT_EVAPORATION:
+            # Delete solvent molecules from lower section of the skin if enabled
+            self.solvent_delete()
+            # Insert extra slab of solution below the skin if enabled and
+            # conditions are met.
+            if not self.should_abort:
+                self.insert_soln_layer()
+            # Either of the above may set the should_abort flag, in which case
+            # mdrun should be aborted.
+            if self.should_abort:
+                logging.info(f"Aborting mdrun on ID: {self.run_ID}")
+                return False
+
+        # Perform MD simulation
+        self.run_gromacs_simulation()
+
+        # Cycle complete, increment run ID.
+        self.run_ID += 1
+        logging.debug(f"Run cycle completed, ID incremented: {self.run_ID}")
+        self.update_batch_count()
+
+        return self.run_ID <= self.last_run_ID and not self.batch_complete
 
     def init_gromacs_templates(self):
         if not Path(self.run_config['mdp_template']).exists():
@@ -257,8 +305,8 @@ class Deposition(object):
         res_list = list(set(residue_list))
         mdp = mdp_template.render(res_list=" ".join(res_list),
                                   n_steps=n_steps,
-                                  termostat_temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
-                                  termostat_tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
+                                  thermostat_temperature_list=" ".join([str(self.run_config["temperature"])]*len(res_list)),
+                                  thermostat_tau_t_list=" ".join([str(self.run_config["tau_t"])]*len(res_list)),
                                   **self.run_config
                                   )
         with open(self.filename("control", "mdp"), "w") as fh:
