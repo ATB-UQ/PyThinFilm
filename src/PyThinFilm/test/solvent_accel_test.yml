@@ -98,7 +98,7 @@ solution_acceleration:
     # Set true to abort mdrun and exit if insertion fails
     exit_on_failure: false
   
-    solvent_delete:
+  solvent_delete:
     # As above, useful for convenient toggling
     enabled: true # (optional - default true)
 
