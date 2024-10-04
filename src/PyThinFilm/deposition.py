@@ -763,12 +763,17 @@ class Deposition(object):
         # deposition velocity when few molecules are present
         target_velocity = self.run_config["deposition_velocity"]
         for atom in self.model.residues[-1].atoms:
-            sigma = math.sqrt(K_B * self.run_config["temperature"] / atom.m)
-            atom.v[0] = random.gauss(0.0, sigma)
-            atom.v[1] = random.gauss(0.0, sigma)
-            fmu = foldnorm_mean(0, sigma)
-            atom.v[2] = -abs(random.gauss(0, sigma)) + fmu - target_velocity
-            # logging.debug("Folded Normal Mean: {} nm/ps".format(fmu*10))
+            if atom.m > 0:
+                sigma = math.sqrt(K_B * self.run_config["temperature"] / atom.m)
+                atom.v[0] = random.gauss(0.0, sigma)
+                atom.v[1] = random.gauss(0.0, sigma)
+                fmu = foldnorm_mean(0, sigma)
+                atom.v[2] = -abs(random.gauss(0, sigma)) + fmu - target_velocity
+                # logging.debug("Folded Normal Mean: {} nm/ps".format(fmu*10))
+            else:
+                atom.v[0] = 0.
+                atom.v[1] = 0.
+                atom.v[2] = 0.
 
         # If the net z-velocity is +ve, which can regularly occur for low deposition velocities,
         # invert the sign of atom velocities until the mean is -ve.
