@@ -1,0 +1,358 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>List of Configuration Options &mdash; PyThinFilm 0.0.1b0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=cc386672"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Examples &amp; Helpful Tips" href="examples.html" />
+    <link rel="prev" title="Command-Line Interface" href="commandline.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html">
+            
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="gettingstarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commandline.html">Command-Line Interface</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">List of Configuration Options</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#simulation-type">Simulation Type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#name">Name</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#working-directory">Working Directory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#description">Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gromacs-executable-name">GROMACS Executable Name</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mpi-command-template">MPI Command Template</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#grompp-command-template">GROMPP Command Template</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mdrun-command-template">MDRUN Command Template</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#force-field-file">Force Field File</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#parameter-template">Parameter Template</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#topology-template">Topology Template</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#initial-structure-file">Initial Structure File</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#solvent-name">Solvent Name</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#substrate">Substrate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mixture">Mixture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#number-of-cycles">Number of Cycles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#batch-size">Batch Size</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#random-seed">Random Seed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#temperature">Temperature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#temperature-coupling-constant">Temperature Coupling Constant</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#temperature-list">Temperature List</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#time-step">Time Step</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#run-time">Run Time</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#write-frequency">Write Frequency</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#nonbonded-cutoff-distance">Nonbonded Cutoff Distance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dielectric-constant">Dielectric Constant</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#insert-distance">Insert Distance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#escape-tolerance">Escape Tolerance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#density-fraction-cutoff">Density Fraction Cutoff</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#overhead-void-space">Overhead Void Space</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#deposition-velocity">Deposition Velocity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#insertions-per-run">Insertions per Run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#maximum-insertion-attempts">Maximum Insertion Attempts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#insertion-radius-xy">Insertion Radius (XY)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#insertion-radius-z">Insertion Radius (Z)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#slab-width">Slab Width</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#minimum-atoms-per-slab">Minimum Atoms Per Slab</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#number-of-highest-molecules-to-remove">Number of Highest Molecules to Remove</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#solution-acceleration-options">Solution Acceleration Options</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#bin-size">Bin Size</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#insert">Insert</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#solvent-deletion">Solvent Deletion</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples &amp; Helpful Tips</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PyThinFilm</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">List of Configuration Options</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/ATB-UQ/PyThinFilm/blob/master/docs/source/configuration.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="list-of-configuration-options">
+<span id="configuration-options"></span><h1>List of Configuration Options<a class="headerlink" href="#list-of-configuration-options" title="Link to this heading"></a></h1>
+<p>The following is a list of all configuration options which can be specified in the <a class="reference external" href="https://www.yaml.org/">YAML</a> formatted configuration file supplied as a command-line argument to run simulations, as described in <a class="reference internal" href="commandline.html#command-line-interface"><span class="std std-ref">Command-Line Interface</span></a>.  Default configuration settings are specified in default_settings.yml.  Any of the default configuration settings can be overridden by specifying values for them in the configuration file supplied on the command line.</p>
+<section id="simulation-type">
+<h2>Simulation Type<a class="headerlink" href="#simulation-type" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">simulation_type</span></code> (required): Type of simulation to perform using PyThinFilm.  Allowed values are: vacuum_deposition, solvent_evaporation, thermal_annealing</p>
+</section>
+<section id="name">
+<h2>Name<a class="headerlink" href="#name" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">name</span></code> (default: <code class="code docutils literal notranslate"><span class="pre">PyThinFilm</span></code>): a name for a particular simulation which will prefix the names of output files.</p>
+</section>
+<section id="working-directory">
+<h2>Working Directory<a class="headerlink" href="#working-directory" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">work_directory</span></code> (default: <code class="code docutils literal notranslate"><span class="pre">pytf_working</span></code>): path (either absolute or relative to the current working directory) where output files will be written.</p>
+</section>
+<section id="description">
+<h2>Description<a class="headerlink" href="#description" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">description</span></code> (default: <code class="code docutils literal notranslate"><span class="pre">PyThinFilm</span> <span class="pre">Simulation</span></code>): description of the simulation run</p>
+</section>
+<section id="gromacs-executable-name">
+<h2>GROMACS Executable Name<a class="headerlink" href="#gromacs-executable-name" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">gmx_executable</span></code> (default: <code class="code docutils literal notranslate"><span class="pre">gmx</span></code>): name of (or path to) the <a class="reference external" href="https://www.gromacs.org/">GROMACS</a> executable which will be used by PyThinFilm.</p>
+</section>
+<section id="mpi-command-template">
+<h2>MPI Command Template<a class="headerlink" href="#mpi-command-template" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">mpi_template</span></code> (default: “”): string specifying the form of the mpirun call e.g., “mpirun -np $NCORES”.</p>
+</section>
+<section id="grompp-command-template">
+<h2>GROMPP Command Template<a class="headerlink" href="#grompp-command-template" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">grompp_template</span></code> (default: “{GMX_EXEC} grompp -maxwarn 2 -f {mdp} -c {initial} -r {restraints} -p {top} -o {tpr}”): string specifying the form of the grompp call on the command line, where <code class="code docutils literal notranslate"><span class="pre">GMX_EXEC</span></code> is the GROMACS executable, <code class="code docutils literal notranslate"><span class="pre">mdp</span></code> is the input .mdp parameter file for the run, <code class="code docutils literal notranslate"><span class="pre">initial</span></code> is the input coordinate file, <code class="code docutils literal notranslate"><span class="pre">restraints</span></code> is the input restraints file, <code class="code docutils literal notranslate"><span class="pre">top</span></code> is the input topology file, and <code class="code docutils literal notranslate"><span class="pre">tpr</span></code> is the output .tpr file.</p>
+</section>
+<section id="mdrun-command-template">
+<h2>MDRUN Command Template<a class="headerlink" href="#mdrun-command-template" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">mdrun_template</span></code> (default: “{GMX_EXEC} mdrun -s {tpr} -x {xtc} -e {edr} -g {log} -cpo {cpo} -c {final}”): string specifying the form of the mdrun call on the command line, where <code class="code docutils literal notranslate"><span class="pre">GMX_EXEC</span></code> is the GROMACS executable, <code class="code docutils literal notranslate"><span class="pre">tpr</span></code> is the input .tpr file for the run, <code class="code docutils literal notranslate"><span class="pre">xtc</span></code> is the output .xtc trajectory file, <code class="code docutils literal notranslate"><span class="pre">edr</span></code> is the output .edr energy file, <code class="code docutils literal notranslate"><span class="pre">log</span></code> is the output .log file, <code class="code docutils literal notranslate"><span class="pre">cpo</span></code> is the output .cpo file, and <code class="code docutils literal notranslate"><span class="pre">final</span></code> is the output file containing the final coordinates of the run.</p>
+</section>
+<section id="force-field-file">
+<h2>Force Field File<a class="headerlink" href="#force-field-file" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">forcefield_file</span></code> (default: gromos54a7_atb.ff/forcefield.itp): force field file to be used in the simulation.</p>
+</section>
+<section id="parameter-template">
+<h2>Parameter Template<a class="headerlink" href="#parameter-template" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">mdp_template</span></code> (default: deposition.mdp.epy): parameter file template to be used in the simulation, in .epy format.</p>
+</section>
+<section id="topology-template">
+<h2>Topology Template<a class="headerlink" href="#topology-template" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">topo_template</span></code> (default: topo.top.epy): topology file template to be used in the simulation, in .epy format.</p>
+</section>
+<section id="initial-structure-file">
+<h2>Initial Structure File<a class="headerlink" href="#initial-structure-file" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">initial_structure_file</span></code>: starting structure file for solution evaporation and thermal annealing simulations.</p>
+</section>
+<section id="solvent-name">
+<h2>Solvent Name<a class="headerlink" href="#solvent-name" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">solvent_name</span></code> (default: None): residue name of solvent molecules in simulation.</p>
+</section>
+<section id="substrate">
+<h2>Substrate<a class="headerlink" href="#substrate" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">substrate</span></code> (default: None): dictionary containing the details of the substrate molecules to be used in a simulation.  Two items, <code class="code docutils literal notranslate"><span class="pre">res_name</span></code> and <code class="code docutils literal notranslate"><span class="pre">itp_file</span></code> must be specified describing the name of the substrate residues and the location of the associated ITP file, respectively.  If the <code class="code docutils literal notranslate"><span class="pre">initial_structure_file</span></code> configuration option is not set (in the case of vacuum deposition simulations), a third entry, <code class="code docutils literal notranslate"><span class="pre">pdb_file</span></code> must also be defined describing the location of the relevant pdb file.</p>
+</section>
+<section id="mixture">
+<h2>Mixture<a class="headerlink" href="#mixture" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">mixture</span></code> (default: None): list of dictionaries specifying the composition of the solute mixture in solvent evaporation and vacuum deposition simulations.  For solvent evaporation and thermal annealing simulations, the dictionaries must include two entries, <code class="code docutils literal notranslate"><span class="pre">res_name</span></code> and <code class="code docutils literal notranslate"><span class="pre">itp_file</span></code> describing the residue name of the solute component and the location of the relevant itp file, respectively.  For vacuum deposition simulations, two additional entries, <code class="code docutils literal notranslate"><span class="pre">pdb_file</span></code> and <code class="code docutils literal notranslate"><span class="pre">ratio</span></code> must be supplied describing the location of the relevant pdb file and the relative abundance of the solute in the mixture to be deposited, respectively.</p>
+</section>
+<section id="number-of-cycles">
+<h2>Number of Cycles<a class="headerlink" href="#number-of-cycles" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">n_cycles</span></code> (default: 1): Number of simulation cycles to run. Ignored for thermal annealing simulations.</p>
+</section>
+<section id="batch-size">
+<h2>Batch Size<a class="headerlink" href="#batch-size" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">batch_size</span></code> (default: None): Number of simulation cycles to run before exiting the python code. This is useful when running
+on a HPC cluster in order to prevent hitting the walltime and also automatically resubmit the jobs script.</p>
+</section>
+<section id="random-seed">
+<h2>Random Seed<a class="headerlink" href="#random-seed" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">seed</span></code> (default: 0): random number seed used in the simulation.</p>
+</section>
+<section id="temperature">
+<h2>Temperature<a class="headerlink" href="#temperature" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">temperature</span></code> (default:300): target thermostat temperature in Kelvin for the simulation.</p>
+</section>
+<section id="temperature-coupling-constant">
+<h2>Temperature Coupling Constant<a class="headerlink" href="#temperature-coupling-constant" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">tau_t</span></code> (default: 0.1): temperature coupling constant to be used in the simulation.</p>
+</section>
+<section id="temperature-list">
+<h2>Temperature List<a class="headerlink" href="#temperature-list" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">temperature_list</span></code>: list of temperature values for thermal annealing simulations in K.  Simulations will be run for <code class="code docutils literal notranslate"><span class="pre">run_time</span></code> at each temperature value.</p>
+</section>
+<section id="time-step">
+<h2>Time Step<a class="headerlink" href="#time-step" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">time_step</span></code> (default: 0.002): time step of the simulation in ps.</p>
+</section>
+<section id="run-time">
+<h2>Run Time<a class="headerlink" href="#run-time" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">run_time</span></code> (default: 100): length of the simulation in ps.</p>
+</section>
+<section id="write-frequency">
+<h2>Write Frequency<a class="headerlink" href="#write-frequency" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">ntstout</span></code> (default: 5000): frequency (in number of steps) with which to write output files.</p>
+</section>
+<section id="nonbonded-cutoff-distance">
+<h2>Nonbonded Cutoff Distance<a class="headerlink" href="#nonbonded-cutoff-distance" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">cutoff</span></code> (default: 1.4): cutoff distance for nonbonded interactions, in nm.</p>
+</section>
+<section id="dielectric-constant">
+<h2>Dielectric Constant<a class="headerlink" href="#dielectric-constant" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">dielectric_constant</span></code> (default: 1): dielectric constant used for the reaction field in the simulation.</p>
+</section>
+<section id="insert-distance">
+<h2>Insert Distance<a class="headerlink" href="#insert-distance" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">insert_distance</span></code> (default: 5): insert distance in nm  (vacuum deposition simulations).</p>
+</section>
+<section id="escape-tolerance">
+<h2>Escape Tolerance<a class="headerlink" href="#escape-tolerance" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">escape_tolerance</span></code> (default 5.0): escape tolerance in nm (vacuum deposition and solvent evaporation simulations).</p>
+</section>
+<section id="density-fraction-cutoff">
+<h2>Density Fraction Cutoff<a class="headerlink" href="#density-fraction-cutoff" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">density_fraction_cutoff</span></code> (default: 0.0): density fraction cutoff (vacuum deposition and solvent evaporation simulations).</p>
+</section>
+<section id="overhead-void-space">
+<h2>Overhead Void Space<a class="headerlink" href="#overhead-void-space" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">overhead_void_space</span></code> (default: 10.0): overhead void space in nm (vacuum deposition and solvent evaporation simulations).</p>
+</section>
+<section id="deposition-velocity">
+<h2>Deposition Velocity<a class="headerlink" href="#deposition-velocity" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">deposition_velocity</span></code> (default: 0.0): deposition velocity in nm/ps (vacuum deposition simulations).</p>
+</section>
+<section id="insertions-per-run">
+<h2>Insertions per Run<a class="headerlink" href="#insertions-per-run" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">insertions_per_run</span></code> (default: 1): number of insertions per run (vacuum deposition simulations).</p>
+</section>
+<section id="maximum-insertion-attempts">
+<h2>Maximum Insertion Attempts<a class="headerlink" href="#maximum-insertion-attempts" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">max_insertion_attempts</span></code> (default: 100): maximum number of insertion attempts (vacuum deposition simulations).</p>
+</section>
+<section id="insertion-radius-xy">
+<h2>Insertion Radius (XY)<a class="headerlink" href="#insertion-radius-xy" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">insertion_xy_radius</span></code> (default: 2.0): insertion radius in the x-y plane in nm (vacuum deposition simulations).</p>
+</section>
+<section id="insertion-radius-z">
+<h2>Insertion Radius (Z)<a class="headerlink" href="#insertion-radius-z" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">insertion_z_radius</span></code> (default: 1.0): insertion radius measured along the z axis in nm (vacuum deposition simulations).</p>
+</section>
+<section id="slab-width">
+<h2>Slab Width<a class="headerlink" href="#slab-width" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">slab_width</span></code> (default: 100): slab width (vacuum deposition and solvent evaporation simulations).</p>
+</section>
+<section id="minimum-atoms-per-slab">
+<h2>Minimum Atoms Per Slab<a class="headerlink" href="#minimum-atoms-per-slab" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">min_atoms_per_slab</span></code> (default: 1000): minimum number of atoms per slab (vacuum deposition and solvent evaporation simulations).</p>
+</section>
+<section id="number-of-highest-molecules-to-remove">
+<h2>Number of Highest Molecules to Remove<a class="headerlink" href="#number-of-highest-molecules-to-remove" title="Link to this heading"></a></h2>
+<p><code class="code docutils literal notranslate"><span class="pre">remove_n_highest_molecules</span></code> (default: 0): number of highest molecules to remove (solvent evaporation simulations).</p>
+</section>
+<section id="solution-acceleration-options">
+<h2>Solution Acceleration Options<a class="headerlink" href="#solution-acceleration-options" title="Link to this heading"></a></h2>
+<p>The following options are specified under the heading <code class="code docutils literal notranslate"><span class="pre">solution_acceleration</span></code> and are specific to solution evaporation simulations.</p>
+<section id="bin-size">
+<h3>Bin Size<a class="headerlink" href="#bin-size" title="Link to this heading"></a></h3>
+<p><code class="code docutils literal notranslate"><span class="pre">density_prof_bin</span></code> (default: 0.25): bin size to use when analysing density profile for skin detection and layer insertion in nm.</p>
+</section>
+<section id="insert">
+<h3>Insert<a class="headerlink" href="#insert" title="Link to this heading"></a></h3>
+<p>The following options are specified under the subheading <code class="code docutils literal notranslate"><span class="pre">insert</span></code> and control the insertion of additional solvent layers in solvent evaporation simulations.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">enabled</span></code> (default: False): controls whether additional solution layers are inserted. All other options in this category are ignored if this value is set to False.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">use_self</span></code> (default: True): controls whether own geometry (between input_min_z and input_max_z) is used to find new layers.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">input_gro_file</span></code> (default: ~): system to source inserted layer from.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">insert_min_z</span></code> (default: 45): minimum z value of the point at which to split the main system in nm.  The point should generally be just above the substrate in a region where the structure is close to that of the bulk solution.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">insert_max_z</span></code> (default: 45): maximum z value of the point at which to split the main system in nm.  Should generally be below the bottom of the skin density tail.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">min_skin_height</span></code> (default: 70): insertion will be performed if the bottom of the skin is below this height in nm.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">source_min_z</span></code> (default: 45): the point above which molecules are valid targets to be copied into the main system as an extra layer of solution in nm.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">source_max_z</span></code> (default: 60): the point below which molecules are valid targets to be copied into the main system as an extra layer of solution in nm.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">max_skin_thickness</span></code> (default: 20): insertion will only be performed if the thickness of the layer in nm is below this value.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">insert_thickness:</span></code> (default: 10): thickness of inserted layer in nm. appropriate values will depend on the size of the molecules in the system, with larger molecules requiring thicker layers.  Lower values will help improve simulation speed.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">thickness_tol</span></code> (default: 0.2): fractional tolerance for insert thickness.</p>
+<dl class="simple">
+<dt><code class="code docutils literal notranslate"><span class="pre">consecutive_bins</span></code> (default: 8): number of consecutive bins which must be detected to determine the presence of a skin.  Fewer consecutive bins allows detection of a thinner skin, but makes that detection less reliable. Since reliability is important for</dt><dd><p># layer insertion to avoid inserting too early,
+# more bins are generally better here so long as
+# they don’t exceed the skin thickness.</p>
+</dd>
+</dl>
+<p><code class="code docutils literal notranslate"><span class="pre">skin_density_thresh</span></code> (default: 10): solute concentration above which <code class="code docutils literal notranslate"><span class="pre">consecutive_bins</span></code> bins in a row will be used to detect the bottom of the skin in units of atoms per cubic nm. This is dependent on the concentration of the solute in the bulk region and the density of the dried film.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">max_solute_density</span></code> (default: 15): maximum density of solute atoms in a slab that could be selected for splitting the system in atoms per cubic nm. Two consecutive slabs below this density are searched for, and the plane between them is where the split occurs. Molecules that cross the plane are deleted, so this number can be used to avoid deleting too many solute molecules.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">strategy</span></code> (default: weighted): strategy to use when choosing a solvent layer to insert.  Options are: ‘best’:     Choose the layer with a height closest to insert_thickness. ‘weighted’: Randomly choose a layer with a higher weighting for those that are closer in height to insert_thickness.  ‘random’:   Randomly choose a layer with equal weighting.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">extra</span> <span class="pre">space</span></code> (default: 0.15): void space to leave between existing and inserted layer in nm. This value should be large enough to account for ~max. van der Waals radius.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">exit_on_failure</span></code> (default: False): set this value to true to abort mdrun and exit if insertion fails.</p>
+</section>
+<section id="solvent-deletion">
+<h3>Solvent Deletion<a class="headerlink" href="#solvent-deletion" title="Link to this heading"></a></h3>
+<p>The following options are specified under the subheading <code class="code docutils literal notranslate"><span class="pre">solvent_delete</span></code> and control the deletion of non-evaporated solvent in solvent evaporation simulations.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">enabled</span></code> (default: False): toggles non-evaporated solvent deletion on or off.  If set to False, all other solvent deletion configuration settings are ignored.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">density_thresh</span></code> (default: 20): solute concentration in atoms per cubic nm above which <code class="code docutils literal notranslate"><span class="pre">consecutive_bins</span></code> bins in a row will be used to  (e.g. may want a slightly larger value to remove solvent from the lower portion of the region with a solute density gradient, or a much larger value later in the simulation to help remove the last solvent molecules)</p>
+<p><code class="code docutils literal notranslate"><span class="pre">consecutive_bins</span></code> (default: 4): fewer consecutive bins allows <code class="code docutils literal notranslate"><span class="pre">density_thresh`</span></code> to be detected with a thinner skin, but makes detection less reliable.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">slab_height</span></code> (default: 20) height of slab in nm. This will depend on <code class="code docutils literal notranslate"><span class="pre">density_thresh</span></code>, and should be chosen so that solvent molecules are removed from the section of the upper section of the solute density gradient below the skin.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">slab_lower_limit</span></code> (default: 5): minimum z value in nm below which solvent molecules should not be deleted. If the bottom of the slab for deletion is below this point, it will be truncated, and the number of deleted molecules will be adjusted to maintain an equivalent density of deleted molecules.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">number</span></code> (default: 10): number of solvent molecules to delete.  Appropriate values are related to the size of the solvent molecule, <code class="code docutils literal notranslate"><span class="pre">slab_height</span></code>, and the x-y dimensions of the system.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">min_separation</span></code> (default: 5): minimum distance between solvent molecules selected for deletion.  This is intended to prevent nearby solvent molecules from being deleted at the same time as each other.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">exit_on_impossible</span></code> (default: True): if true, aborts mdrum and exits if no candidates for deletion are available.</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="commandline.html" class="btn btn-neutral float-left" title="Command-Line Interface" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="examples.html" class="btn btn-neutral float-right" title="Examples &amp; Helpful Tips" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, PyThinFilm.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
