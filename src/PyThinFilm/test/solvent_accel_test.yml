@@ -99,6 +99,7 @@ solution_acceleration:
     exit_on_failure: false
   
   solvent_delete:
+
     # As above, useful for convenient toggling
     enabled: true # (optional - default true)
 
